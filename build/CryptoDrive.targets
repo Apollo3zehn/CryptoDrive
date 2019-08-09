@@ -1,0 +1,43 @@
+<Project>
+
+  <Target Name="CreateIbowMetaData" BeforeTargets="BeforeBuild">
+
+    <!-- validation -->
+    <Error Condition="$(Major) == ''" Text="The Major property must be set." />
+    <Error Condition="$(Minor) == ''" Text="The Minor property must be set." />
+    <Error Condition="$(Revision) == ''" Text="The Revision property must be set." />
+    <Error Condition="$(PackageProjectUrl) == ''" Text="The PackageProjectUrl property must be set." />
+    <Error Condition="$(PackageLicenseExpression) == ''" Text="The PackageLicenseExpression property must be set." />
+
+    <!-- build properties -->
+    <PropertyGroup>
+
+      <!-- ensure default values -->
+      <Authors Condition="$(Authors) == '' OR $(Authors) == $(PackageId)">https://github.com/CryptoDrive</Authors>
+      <Company Condition="$(Company) == '' OR $(Authors) == $(PackageId)">https://github.com/CryptoDrive</Company>
+      <Copyright Condition="$(Copyright) == ''">CryptoDrive</Copyright>
+      <Build Condition="$(IsFinalBuild) == 'true'">final</Build>
+
+      <!-- create new properties -->
+      <AssemblyVersion>$(Major).0.0.0</AssemblyVersion>
+      <FileVersion>$(Major).$(Minor).$(Revision).0</FileVersion>
+      <Product>CryptoDrive</Product>
+      <RepositoryUrl>$(PackageProjectUrl)</RepositoryUrl>
+      <Version>$(Major).$(Minor).$(Revision)</Version>
+    
+    </PropertyGroup>
+
+    <!-- build Version -->
+    <PropertyGroup Condition="$(VersionSuffix) != ''">
+      <Version>$(Version)-$(VersionSuffix)</Version>
+      <Version Condition="$(Build) != ''">$(Version).$(Build)</Version>
+    </PropertyGroup>
+
+    <!-- build PackageVersion -->
+    <PropertyGroup>
+      <PackageVersion>$(Version)</PackageVersion>
+    </PropertyGroup>
+
+  </Target>
+  
+</Project>

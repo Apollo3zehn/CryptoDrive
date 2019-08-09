@@ -1,0 +1,42 @@
+﻿@page "/counter"
+@using System.Security.Claims
+@using CryptoDrive.Helpers
+@inject IGraphSdkHelper GraphSdkHelper
+@inject OneDriveContext DbContext
+
+<h1>Counter</h1>
+
+<p>Current count: @currentCount</p>
+
+<button class="btn btn-primary" @onclick="IncrementCount">Click me</button>
+
+<AuthorizeView>
+    <Authorized>
+        <h1>Hello, @context.User.Identity.Name!</h1>
+        <button class="btn btn-primary" @onclick="Synchronize">Synchronize!</button>
+    </Authorized>
+    <NotAuthorized>
+        <h1>Authentication Failure!</h1>
+        <p>You're not signed in.</p>
+    </NotAuthorized>
+</AuthorizeView>
+
+@code {
+    int currentCount = 0;
+
+    [CascadingParameter]
+    private Task<AuthenticationState> authenticationStateTask { get; set; }
+
+    void IncrementCount()
+    {
+        currentCount++;
+    }
+
+    async void Synchronize()
+    {
+        var authState = await authenticationStateTask;
+        var graphClient = this.GraphSdkHelper.GetAuthenticatedClient((ClaimsIdentity)authState.User.Identity);
+
+        await OneDriveSynchronizer.BuildInitialState(graphClient, this.DbContext);
+    }
+}

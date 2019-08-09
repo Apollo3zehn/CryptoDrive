@@ -1,0 +1,10 @@
+<Project>
+
+  <Import Project="./build/CryptoDrive.props" />
+
+  <PropertyGroup>
+    <PackageLicenseExpression Condition="$(PackageLicenseExpression) == ''">LGPL-3.0-only</PackageLicenseExpression>
+    <PackageProjectUrl Condition="$(ProjectUrl) == ''">https://github.com/Apollo3zehn/CryptoDrive</PackageProjectUrl>
+  </PropertyGroup>
+
+</Project>

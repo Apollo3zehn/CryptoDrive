@@ -1,0 +1,37 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.29123.89
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CryptoDrive", "src\CryptoDrive\CryptoDrive.csproj", "{05EECE29-EEE9-4F06-A90C-B2BC3B8496C6}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{E6B06AFB-F7EB-4F26-96D3-BAE8D3B119D9}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{0FB64224-F65B-4F64-A4D7-ECF5630634D8}"
+	ProjectSection(SolutionItems) = preProject
+		.gitignore = .gitignore
+		Directory.Build.props = Directory.Build.props
+		Directory.Build.targets = Directory.Build.targets
+	EndProjectSection
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{05EECE29-EEE9-4F06-A90C-B2BC3B8496C6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{05EECE29-EEE9-4F06-A90C-B2BC3B8496C6}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{05EECE29-EEE9-4F06-A90C-B2BC3B8496C6}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{05EECE29-EEE9-4F06-A90C-B2BC3B8496C6}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{05EECE29-EEE9-4F06-A90C-B2BC3B8496C6} = {E6B06AFB-F7EB-4F26-96D3-BAE8D3B119D9}
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {6B31BA0D-D1D7-41A6-844A-D7830DFFCFB8}
+	EndGlobalSection
+EndGlobal
