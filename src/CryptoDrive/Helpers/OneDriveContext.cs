@@ -1,6 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using System;
-using System.ComponentModel.DataAnnotations;
 
 namespace CryptoDrive.Helpers
 {
@@ -11,14 +10,15 @@ namespace CryptoDrive.Helpers
             //
         }
 
-        public DbSet<RemoteState> RemoteState { get; set; }
-        public DbSet<LocalState> LocalState { get; set; }
+        public DbSet<RemoteState> RemoteStates { get; set; }
+        public DbSet<Conflict> Conflicts { get; set; }
     }
 
     public enum GraphItemType
     {
         Folder = 0,
-        File = 1
+        File = 1,
+        RemoteItem = 2
     }
 
     public class RemoteState
@@ -31,18 +31,17 @@ namespace CryptoDrive.Helpers
 
         public string ETag { get; set; }
 
+        public long Size { get; set; }
+
         public GraphItemType Type { get; set; }
 
         public DateTimeOffset LastModified { get; set; }
 
         public bool IsLocal { get; set; }
-
-        public string DownloadUrl { get; set; }
     }
 
-    public class LocalState
+    public class Conflict
     {
-        [Key]
-        public string Path { get; set; }
+        public string FilePath { get; set; }
     }
 }

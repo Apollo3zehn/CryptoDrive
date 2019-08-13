@@ -13,13 +13,16 @@ namespace CryptoDrive.Extensions
     public static class AzureAdAuthenticationBuilderExtensions
     {
         public static AuthenticationBuilder AddAzureAd(this AuthenticationBuilder builder)
-            => builder.AddAzureAd(_ => { });
+        {
+            return builder.AddAzureAd(_ => { });
+        }
 
         public static AuthenticationBuilder AddAzureAd(this AuthenticationBuilder builder, Action<AzureAdOptions> configureOptions)
         {
             builder.Services.Configure(configureOptions);
             builder.Services.AddSingleton<IConfigureOptions<OpenIdConnectOptions>, ConfigureAzureOptions>();
             builder.AddOpenIdConnect();
+
             return builder;
         }
 
@@ -45,8 +48,12 @@ namespace CryptoDrive.Extensions
                 options.RequireHttpsMetadata = false;
                 options.ResponseType = OpenIdConnectResponseType.CodeIdToken;
 
-                var allScopes = $"{_azureOptions.Scopes} {_azureOptions.GraphScopes}".Split(new[] { ' ' });
-                foreach (var scope in allScopes) { options.Scope.Add(scope); }
+                var scopeSet = $"{_azureOptions.Scopes} {_azureOptions.GraphScopes}".Split(new[] { ' ' });
+
+                foreach (var scope in scopeSet)
+                {
+                    options.Scope.Add(scope);
+                }
 
                 options.TokenValidationParameters = new TokenValidationParameters
                 {
@@ -79,25 +86,10 @@ namespace CryptoDrive.Extensions
                     OnAuthorizationCodeReceived = async (context) =>
                     {
                         var code = context.ProtocolMessage.Code;
-                        var identifier = context.Principal.FindFirst(Constants.ObjectIdentifierType).Value;
-
                         var result = await _authProvider.GetUserAccessTokenByAuthorizationCode(code);
 
-                        // Check whether the login is from the MSA tenant. 
-                        // The sample uses this attribute to disable UI buttons for unsupported operations when the user is logged in with an MSA account.
-                        var currentTenantId = context.Principal.FindFirst(Constants.TenantIdType).Value;
-                        if (currentTenantId == "9188040d-6c67-4c5b-b112-36a304b66dad")
-                        {
-                            // MSA (Microsoft Account) is used to log in
-                        }
-
                         context.HandleCodeRedemption(result.AccessToken, result.IdToken);
-                    },
-                    // If your application needs to do authenticate single users, add your user validation below.
-                    //OnTokenValidated = context =>
-                    //{
-                    //    return myUserValidationLogic(context.Ticket.Principal);
-                    //}
+                    }
                 };
             }
 

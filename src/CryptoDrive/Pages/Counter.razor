@@ -35,8 +35,9 @@
     async void Synchronize()
     {
         var authState = await authenticationStateTask;
-        var graphClient = this.GraphSdkHelper.GetAuthenticatedClient((ClaimsIdentity)authState.User.Identity);
 
+        // https://github.com/microsoftgraph/aspnetcore-connect-sample/issues/14
+        var graphClient = this.GraphSdkHelper.GetAuthenticatedClient((ClaimsIdentity)authState.User.Identity);
         await OneDriveSynchronizer.BuildInitialState(graphClient, this.DbContext);
     }
 }
