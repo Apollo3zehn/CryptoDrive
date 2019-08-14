@@ -22,6 +22,7 @@ namespace CryptoDrive.Helpers
 
         private object _dbContextLock;
 
+        // high level
         public async Task SynchronizeTheUniverse(GraphServiceClient graphClient, OneDriveContext dbContext)
         {
             _graphClient = graphClient;
@@ -45,7 +46,7 @@ namespace CryptoDrive.Helpers
             //_dbContext.Database.ExecuteSqlRaw($"DELETE FROM {nameof(RemoteState)};");
             //_dbContext.Database.ExecuteSqlRaw($"DELETE FROM {nameof(LocalState)};");
 
-            await this.ProcessDelta(async deltaPage =>
+            await this.ProcessRemoteDelta(async deltaPage =>
             {
                 // select remote states and add them to the DB context
                 var tasks = deltaPage.Select(async driveItem =>
@@ -65,7 +66,6 @@ namespace CryptoDrive.Helpers
                     {
                         Id = driveItem.Id,
                         Path = Path.Combine(driveItem.ParentReference.Path.Substring("/drive/root:".Length), driveItem.Name),
-                        CTag = driveItem.CTag,
                         ETag = driveItem.ETag,
                         Size = driveItem.Size.Value,
                         Type = type,
@@ -94,6 +94,69 @@ namespace CryptoDrive.Helpers
                 _dbContext.RemoteStates.AddRange(remoteStates);
                 await _dbContext.SaveChangesAsync();
             });
+
+            await this.ProcessLocalDelta(async deltaPage =>
+            {
+                var tasks = deltaPage.Select(async localFilePath =>
+                {
+                    var remoteFilePath = localFilePath.Substring(_rootFolderPath.Length).Replace('\\', '/');
+                    var remoteState = _dbContext.RemoteStates.FirstOrDefault(current => current.Path == remoteFilePath);
+
+                    // conflict does not exist in database
+                    // actions: add to database
+                    if (localFilePath.Contains("(Conflicted Copy"))
+                    {
+                        lock (_dbContextLock)
+                        {
+                            if (!_dbContext.Conflicts.Any(conflict => conflict.FilePath == localFilePath))
+                                _dbContext.Conflicts.Add(new Conflict() { FilePath = localFilePath });
+                        }
+                    }
+                    // TODO: Originaldatei nicht hochladen, wenn Conflicted Copy Datei vorliegt!
+                    // synchronize (upload)
+                    else
+                    {
+                        var driveItem = await this.SyncLocalFile(localFilePath, remoteFilePath, remoteState);
+
+                        if (driveItem != null)
+                        {
+                            var newRemoteState = new RemoteState()
+                            {
+                                Id = driveItem.Id,
+                                Path = Path.Combine(driveItem.ParentReference.Path.Substring("/drive/root:".Length), driveItem.Name),
+                                ETag = driveItem.ETag,
+                                Size = driveItem.Size.Value,
+                                Type = GraphItemType.File,
+                                LastModified = driveItem.FileSystemInfo.LastModifiedDateTime.Value,
+                            };
+
+                            lock (_dbContextLock)
+                            {
+                                _dbContext.RemoteStates.Add(newRemoteState);
+                            }
+                        }
+                    }
+                });
+
+                await Task.WhenAll(tasks);
+
+                _dbContext.SaveChanges();
+            });
+
+            await this.ProcessConflicts();
+        }
+
+        // medium level
+        private async Task<DriveItem> SyncLocalFile(string localFilePath, string remoteFilePath, RemoteState remoteState)
+        {
+            // file is not available remotely
+            // actions: upload
+            if (remoteState == null)
+            {
+                return await this.UploadFile(localFilePath, remoteFilePath);
+            }
+
+            return null;
         }
 
         private async Task SyncRemoteFile(RemoteState remoteState, string localFilePath, Uri downloadUri)
@@ -152,17 +215,30 @@ namespace CryptoDrive.Helpers
                 Directory.CreateDirectory(localPath);
         }
 
-        private string GetHash(string filePath)
+        private async Task ProcessLocalDelta(Func<List<string>, Task> action)
         {
-            var _hashAlgorithm = new QuickXorHash();
+            var pageSize = 20;
+            var deltaPage = new List<string>();
+            var counter = 0;
 
-            using (FileStream stream = File.OpenRead(filePath))
+            foreach (var localFilePath in DirectoryHelper.SafelyEnumerateFiles(_rootFolderPath, "*", SearchOption.AllDirectories)
+                .Where(current => this.CheckPathAllowed(current)))
             {
-                return Convert.ToBase64String(_hashAlgorithm.ComputeHash(stream));
+                if (counter % pageSize == 0)
+                {
+                    await action?.Invoke(deltaPage);
+                    deltaPage.Clear();
+                }
+
+                deltaPage.Add(localFilePath);
+
+                counter = unchecked(counter + 1);
             }
+
+            await action?.Invoke(deltaPage);
         }
 
-        private async Task ProcessDelta(Func<IDriveItemDeltaCollectionPage, Task> action)
+        private async Task ProcessRemoteDelta(Func<IDriveItemDeltaCollectionPage, Task> action)
         {
             //var result = await _client.Subscriptions.Request().AddAsync(new Subscription()
             //{
@@ -202,94 +278,81 @@ namespace CryptoDrive.Helpers
             }
         }
 
-        public async Task BuildInitialState(GraphServiceClient graphClient, OneDriveContext dbContext)
+        private async Task ProcessConflicts()
         {
-            // loop through local file system
-            var options = new EnumerationOptions()
-            {
-                RecurseSubdirectories = true
-            }; 
+            // check if all conflicts still exist
+            var conflictsToDelete = new List<Conflict>();
 
-            foreach (var filePath in Directory.EnumerateFiles(_rootFolderPath, "*", options))
+            foreach (var conflict in _dbContext.Conflicts)
             {
-                var normalizedPath = filePath.Substring(_rootFolderPath.Length + 1).Replace('\\', '/');
-                var remoteState = dbContext.RemoteStates.FirstOrDefault(current => current.Path == normalizedPath);
+                // conflict file does not exist locally AND 
+                // actions: remove from database
+                if (!File.Exists(conflict.FilePath))
+                    conflictsToDelete.Add(conflict);
+                // conflict file does not exist locally
+                // actions: remove from database
+                else 
+            }
 
-                if (remoteState == null)
+            conflictsToDelete.ForEach(conflict => _dbContext.Conflicts.RemoveRange(conflictsToDelete));
+
+            await _dbContext.SaveChangesAsync();
+        }
+
+        // low level
+        private async Task<DriveItem> UploadFile(string localFilePath, string remoteFilePath)
+        {
+            var fileSystemInfo = new FileInfo(localFilePath);
+
+            var graphFileSystemInfo = new Microsoft.Graph.FileSystemInfo()
+            {
+                CreatedDateTime = fileSystemInfo.CreationTimeUtc,
+                LastAccessedDateTime = fileSystemInfo.LastAccessTimeUtc,
+                LastModifiedDateTime = fileSystemInfo.LastWriteTimeUtc
+            };
+
+            DriveItem newDriveItem = null;
+
+            using (var stream = File.OpenRead(localFilePath))
+            {
+                if (fileSystemInfo.Length <= 4 * 1024 * 1024) // file.Length <= 4 MB
                 {
-                    dbContext.LocalState.Add(new LocalState()
+                    var driveItem = new DriveItem()
                     {
-                        Path = normalizedPath
-                    });
+                        File = new Microsoft.Graph.File(),
+                        FileSystemInfo = graphFileSystemInfo,
+                        Name = Path.GetFileName(remoteFilePath)
+                    };
+
+                    newDriveItem = await _graphClient.UploadSmallFile4(driveItem, stream, remoteFilePath);
                 }
                 else
                 {
-                    remoteState.IsLocal = true;
-                }
-            }
-
-            await dbContext.SaveChangesAsync();
-
-            // download missing items
-            foreach (var item in dbContext.RemoteStates.Where(state => !state.IsLocal))
-            {
-                var localPath = Path.Combine(_rootFolderPath, item.Path);
-
-                switch (item.Type)
-                {
-                    case GraphItemType.Folder:
-                        Directory.CreateDirectory(localPath);
-                        break;
-                    case GraphItemType.File:
-                        _webClient.DownloadFile(item.DownloadUrl, localPath);
-                        break;
-                    case GraphItemType.RemoteItem:
-                        break;
-                    default:
-                        throw new NotImplementedException();
-                }
-            }
-
-            // upload missing items
-            foreach (var item in dbContext.LocalState)
-            {
-                var localPath = Path.Combine(_rootFolderPath, item.Path);
-                var fileSystemInfo = new FileInfo(localPath);
-
-                var graphFileSystemInfo = new Microsoft.Graph.FileSystemInfo()
-                {
-                    CreatedDateTime = fileSystemInfo.CreationTimeUtc,
-                    LastAccessedDateTime = fileSystemInfo.LastAccessTimeUtc,
-                    LastModifiedDateTime = fileSystemInfo.LastWriteTimeUtc
-                };
-
-                using (var stream = File.OpenRead(localPath))
-                {
-                    if (fileSystemInfo.Length <= 4 * 1024 * 1024) // file.Length <= 4 MB
+                    var properties = new DriveItemUploadableProperties()
                     {
-                        var driveItem = new DriveItem()
-                        {
-                            File = new Microsoft.Graph.File(),
-                            FileSystemInfo = graphFileSystemInfo,
-                            Name = Path.GetFileName(item.Path)
-                        };
+                        FileSystemInfo = graphFileSystemInfo
+                    };
 
-                        await graphClient.UploadSmallFile4(driveItem, stream, item.Path);
-                    }
-                    else
-                    {
-                        var properties = new DriveItemUploadableProperties()
-                        {
-                            FileSystemInfo = graphFileSystemInfo
-                        };
-
-                        await graphClient.OneDriveUploadLargeFile(stream, properties, item.Path);
-                    }
+                    newDriveItem = await _graphClient.OneDriveUploadLargeFile(stream, properties, remoteFilePath);
                 }
             }
 
-            // save database
-            await dbContext.SaveChangesAsync();
+            return newDriveItem;
+        }
+
+        private string GetHash(string filePath)
+        {
+            var _hashAlgorithm = new QuickXorHash();
+
+            using (FileStream stream = File.OpenRead(filePath))
+            {
+                return Convert.ToBase64String(_hashAlgorithm.ComputeHash(stream));
+            }
+        }
+
+        private bool CheckPathAllowed(string filePath)
+        {
+            return true;
         }
     }
 }

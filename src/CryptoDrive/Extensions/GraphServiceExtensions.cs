@@ -15,7 +15,7 @@ namespace CryptoDrive.Extensions
 {
     public static class GraphServiceClientExtensions
     {
-        public static async Task UploadSmallFile4(this GraphServiceClient graphClient, DriveItem driveItem, Stream stream, string filePath)
+        public static async Task<DriveItem> UploadSmallFile4(this GraphServiceClient graphClient, DriveItem driveItem, Stream stream, string filePath)
         {
             var blobRequest = graphClient.Me.Drive.Root.ItemWithPath(filePath).Content.Request();
             var metadataRequest = graphClient.Me.Drive.Root.ItemWithPath(filePath).Request();
@@ -46,6 +46,10 @@ namespace CryptoDrive.Extensions
             };
 
             var response = await graphClient.HttpProvider.SendAsync(message);
+            var jsonString = await response.Content.ReadAsStringAsync();
+            var newDriveItem = graphClient.HttpProvider.Serializer.DeserializeObject<DriveItem>(jsonString);
+
+            return newDriveItem;
         }
 
 
@@ -130,7 +134,7 @@ namespace CryptoDrive.Extensions
             await graphClient.Me.Drive.Items[newDriveItem.Id].Request().UpdateAsync(driveItem);
         }
 
-        public static async Task OneDriveUploadLargeFile(this GraphServiceClient graphClient, Stream stream, DriveItemUploadableProperties properties, string filePath)
+        public static async Task<DriveItem> OneDriveUploadLargeFile(this GraphServiceClient graphClient, Stream stream, DriveItemUploadableProperties properties, string filePath)
         {
             var uploadSession = await graphClient.Drive.Root.ItemWithPath(filePath).CreateUploadSession(properties).Request().PostAsync();
             var maxChunkSize = 1280 * 1024; // 1280 KB - Change this to your chunk size. 5MB is the default.
@@ -139,7 +143,7 @@ namespace CryptoDrive.Extensions
             var readBuffer = new byte[maxChunkSize];
             var trackedExceptions = new List<Exception>();
 
-            DriveItem itemResult = null;
+            DriveItem driveItem = null;
 
             // upload the chunks
             foreach (var request in chunkRequests)
@@ -151,16 +155,17 @@ namespace CryptoDrive.Extensions
 
                 if (result.UploadSucceeded)
                 {
-                    itemResult = result.ItemResponse;
+                    driveItem = result.ItemResponse;
                 }
             }
 
             // check that upload succeeded
-            if (itemResult == null)
+            if (driveItem == null)
             {
-                // Retry the upload
-                // ...
+                throw new Exception();
             }
+
+            return driveItem;
         }
     }
 }

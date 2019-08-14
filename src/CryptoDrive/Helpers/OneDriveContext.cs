@@ -27,8 +27,6 @@ namespace CryptoDrive.Helpers
 
         public string Path { get; set; }
 
-        public string CTag { get; set; }
-
         public string ETag { get; set; }
 
         public long Size { get; set; }
