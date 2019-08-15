@@ -15,10 +15,10 @@ namespace CryptoDrive.Extensions
 {
     public static class GraphServiceClientExtensions
     {
-        public static async Task<DriveItem> UploadSmallFile4(this GraphServiceClient graphClient, DriveItem driveItem, Stream stream, string filePath)
+        public static async Task<DriveItem> UploadSmallFile4Async(this GraphServiceClient graphClient, DriveItem driveItem, Stream stream)
         {
-            var blobRequest = graphClient.Me.Drive.Root.ItemWithPath(filePath).Content.Request();
-            var metadataRequest = graphClient.Me.Drive.Root.ItemWithPath(filePath).Request();
+            var blobRequest = graphClient.Me.Drive.Root.ItemWithPath(driveItem.Name).Content.Request();
+            var metadataRequest = graphClient.Me.Drive.Root.ItemWithPath(driveItem.Name).Request();
             var baseUrl = "https://graph.microsoft.com:443/v1.0";
 
             var batch = new StringContent($@"
@@ -53,7 +53,7 @@ namespace CryptoDrive.Extensions
         }
 
 
-        public static async Task UploadSmallFile3(this GraphServiceClient graphClient, DriveItem driveItem, Stream stream, string filePath)
+        public static async Task UploadSmallFile3Async(this GraphServiceClient graphClient, DriveItem driveItem, Stream stream, string filePath)
         {
             // Create http PUT request.
             var blobRequest = graphClient.Me.Drive.Root.ItemWithPath(filePath).Content.Request();
@@ -96,7 +96,7 @@ namespace CryptoDrive.Extensions
             string nextLink = await batchResponseContent.GetNextLinkAsync();
         }
 
-        public static async Task UploadSmallFile2(this GraphServiceClient graphClient, DriveItem driveItem, Stream stream)
+        public static async Task UploadSmallFile2Async(this GraphServiceClient graphClient, DriveItem driveItem, Stream stream)
         {
             var jsondata = graphClient.HttpProvider.Serializer.SerializeObject(driveItem);
 
@@ -128,13 +128,13 @@ namespace CryptoDrive.Extensions
             var response = await graphClient.HttpProvider.SendAsync(hrm);
         }
 
-        public static async Task UploadSmallFile(this GraphServiceClient graphClient, DriveItem driveItem, Stream stream, string filePath)
+        public static async Task UploadSmallFileAsync(this GraphServiceClient graphClient, DriveItem driveItem, Stream stream, string filePath)
         {
             var newDriveItem = await graphClient.Me.Drive.Root.ItemWithPath(filePath).Content.Request().PutAsync<DriveItem>(stream);
             await graphClient.Me.Drive.Items[newDriveItem.Id].Request().UpdateAsync(driveItem);
         }
 
-        public static async Task<DriveItem> OneDriveUploadLargeFile(this GraphServiceClient graphClient, Stream stream, DriveItemUploadableProperties properties, string filePath)
+        public static async Task<DriveItem> OneDriveUploadLargeFileAsync(this GraphServiceClient graphClient, Stream stream, DriveItemUploadableProperties properties, string filePath)
         {
             var uploadSession = await graphClient.Drive.Root.ItemWithPath(filePath).CreateUploadSession(properties).Request().PostAsync();
             var maxChunkSize = 1280 * 1024; // 1280 KB - Change this to your chunk size. 5MB is the default.
@@ -166,6 +166,11 @@ namespace CryptoDrive.Extensions
             }
 
             return driveItem;
+        }
+
+        public static async Task<string> GetDownloadUrlAsync(this GraphServiceClient graphClient, string id)
+        {
+            return (await graphClient.Me.Drive.Items[id].Request().Select(value => "@microsoft.graph.downloadUrl").GetAsync()).ToString();
         }
     }
 }

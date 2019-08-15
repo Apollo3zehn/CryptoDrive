@@ -34,12 +34,12 @@ namespace CryptoDrive.Helpers
         public GraphItemType Type { get; set; }
 
         public DateTimeOffset LastModified { get; set; }
-
-        public bool IsLocal { get; set; }
     }
 
     public class Conflict
     {
-        public string FilePath { get; set; }
+        public string OriginalFilePath { get; set; }
+
+        public string ConflictFilePath { get; set; }
     }
 }
