@@ -26,7 +26,7 @@ namespace CryptoDrive.Helpers
                 async requestMessage =>
                 {
                     // Get user's id for token cache.
-                    var identifier = userIdentity.FindFirst(Constants.ObjectIdentifierType)?.Value + "." + userIdentity.FindFirst(Constants.TenantIdType)?.Value;
+                    var identifier = userIdentity.FindFirst(CryptoDriveConstants.ObjectIdentifierType)?.Value + "." + userIdentity.FindFirst(CryptoDriveConstants.TenantIdType)?.Value;
 
                     // Passing tenant ID to the sample auth provider to use as a cache key
                     var accessToken = await _authProvider.GetUserAccessTokenAsync(identifier);

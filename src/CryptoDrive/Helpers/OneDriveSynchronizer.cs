@@ -1,4 +1,5 @@
 ﻿using CryptoDrive.Extensions;
+using Microsoft.Extensions.Logging;
 using Microsoft.Graph;
 using System;
 using System.Collections.Generic;
@@ -18,19 +19,22 @@ namespace CryptoDrive.Helpers
         private string _rootFolderPath;
 
         private WebClient _webClient;
-        private OneDriveContext _dbContext;
-        private GraphServiceClient _graphClient;
+        private CryptoDriveDbContext _dbContext;
         private Regex _regex_conflict;
         private Regex _regex_replace;
 
+        private ILogger _logger;
+        private IOneDriveClient _oneDriveClient;
+
         private object _dbContextLock;
 
-        public OneDriveSynchronizer(GraphServiceClient graphClient, OneDriveContext dbContext)
+        public OneDriveSynchronizer(string rootFolderPath, IOneDriveClient oneDriveClient, CryptoDriveDbContext dbContext, ILogger logger)
         {
-            _graphClient = graphClient;
+            _rootFolderPath = rootFolderPath;
+            _oneDriveClient = oneDriveClient;
             _dbContext = dbContext;
+            _logger = logger;
 
-            _rootFolderPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), "CryptoDrive");
             _webClient = new WebClient();
             _dbContextLock = new object();
             _regex_conflict = new Regex(@".*\s\(Conflicted Copy [0-9]{4}-[0-9]{2}-[0-9]{2}\s[0-9]{6}\)");
@@ -38,13 +42,10 @@ namespace CryptoDrive.Helpers
         }
 
         // high level
-        public async Task SynchronizeTheUniverse(GraphServiceClient graphClient, OneDriveContext dbContext)
+        public async Task SynchronizeTheUniverse()
         {
-            if (!File.Exists("CryptoDrive.db"))
-            {
-                _token = null;
-                await this.BuildIndex();
-            }
+            _token = null;
+            await this.BuildIndex();
         }
 
         private async Task BuildIndex()
@@ -64,7 +65,7 @@ namespace CryptoDrive.Helpers
                     // synchronize (download)
                     if (remoteState.Type == GraphItemType.File)
                     {
-                        var downloadUri = new Uri(driveItem.AdditionalData["@microsoft.graph.downloadUrl"].ToString());
+                        var downloadUri = new Uri(driveItem.AdditionalData[CryptoDriveConstants.DownloadUrl].ToString());
                         await this.SyncRemoteFile(remoteState, downloadUri);
                     }
                     else if (remoteState.Type == GraphItemType.Folder)
@@ -73,7 +74,7 @@ namespace CryptoDrive.Helpers
                     }
 
                     return remoteState;
-                });
+                }).ToList();
 
                 await Task.WhenAll(tasks);
                 var remoteStates = tasks.Select(task => task.Result).Where(state => state.Path != "root");
@@ -113,7 +114,10 @@ namespace CryptoDrive.Helpers
                 _dbContext.SaveChanges();
             });
 
-            await this.CheckConflicts();
+            using (var scope = _logger.BeginScope("Check conflicts."))
+            {
+                await this.CheckConflicts();
+            }
         }
 
         // medium level
@@ -124,18 +128,24 @@ namespace CryptoDrive.Helpers
             // file is available locally
             if (File.Exists(localFilePath))
             {
+                _logger.LogTrace($"File '{localFilePath}' exists locally.");
+
                 // the last modified dates are equal
                 // actions: do nothing
                 if (File.GetLastWriteTimeUtc(localFilePath) == remoteState.LastModified.UtcDateTime)
                 {
-                    // do nothing
+                    _logger.LogTrace($"File is unchanged. Action(s): do nothing.");
                 }
                 // the last modified dates are not equal
-                // actions: - create a conflicted copy file
-                //          - create a new entry in the 'conflicts' table
+                // actions: ensure conflict
                 else
                 {
-                    await this.EnsureConflict(remoteState, downloadUri);
+                    _logger.LogTrace($"File has been modified. Action(s): ensure conflict.");
+
+                    using (var scope = _logger.BeginScope("Ensure conflict."))
+                    {
+                        await this.EnsureConflict(remoteState, downloadUri);
+                    }
                 }
             }
             // file is not available locally
@@ -144,12 +154,13 @@ namespace CryptoDrive.Helpers
             {
                 try
                 {
+                    _logger.LogTrace($"File '{localFilePath}' does not exist locally. Action(s): download file.");
                     await _webClient.DownloadFileTaskAsync(downloadUri, localFilePath);
                 }
                 // retry if download link has expired
                 catch (Exception)
                 {
-                    var refreshedDownloadUri = new Uri(await _graphClient.GetDownloadUrlAsync(remoteState.Id));
+                    var refreshedDownloadUri = new Uri(await _oneDriveClient.GetDownloadUrlAsync(remoteState.Id));
                     await _webClient.DownloadFileTaskAsync(refreshedDownloadUri, localFilePath);
                 }
             }
@@ -159,10 +170,10 @@ namespace CryptoDrive.Helpers
         {
             var localFolderPath = Path.Combine(_rootFolderPath, remoteState.Path);
 
-            // folder is not available locally
-            // actions: create
-            if (!Directory.Exists(localFolderPath))
-                Directory.CreateDirectory(localFolderPath);
+            // <no condition>
+            // actions: try to create directory
+            _logger.LogDebug($"Action(s): Try to creating directory '{localFolderPath}'.");
+            Directory.CreateDirectory(localFolderPath);
         }
 
         private async Task<DriveItem> SyncLocalFile(string localFilePath, string remoteFilePath, RemoteState remoteState)
@@ -171,11 +182,13 @@ namespace CryptoDrive.Helpers
             // action: do nothing, it will be handled by "CheckConflicts" later
             if (_dbContext.Conflicts.Any(conflict => conflict.OriginalFilePath == localFilePath))
             {
-                // do nothing
+                _logger.LogTrace($"File '{localFilePath}' is marked as conflicted. Action(s): do nothing.");
             }
             // file is not part of any known conflicts
             else
             {
+                _logger.LogTrace($"File '{localFilePath}' is available remotely.");
+
                 // file is available remotely
                 if (remoteState != null)
                 {
@@ -183,20 +196,26 @@ namespace CryptoDrive.Helpers
                     // actions: do nothing
                     if (File.GetLastWriteTimeUtc(localFilePath) == remoteState.LastModified)
                     {
-                        // do nothing
+                        _logger.LogTrace($"File is unchanged. Action(s): do nothing.");
                     }
                     // last modified times are not equal
-                    // actions: create conflict
+                    // actions: ensure conflict
                     else
                     {
-                        await this.EnsureConflict(remoteState);
+                        _logger.LogTrace($"File has been modified. Action(s): ensure conflict.");
+
+                        using (var scope = _logger.BeginScope("Ensure conflict."))
+                        {
+                            await this.EnsureConflict(remoteState);
+                        }                        
                     }
                 }
                 // file is not available remotely
                 // actions: upload
-                else // 
+                else
                 {
-                    return await this.UploadFile(localFilePath, remoteFilePath);
+                    _logger.LogTrace($"File is not available remotely. Action(s): upload.");
+                    return await _oneDriveClient.UploadFileAsync(localFilePath, remoteFilePath);
                 }
             }
 
@@ -205,16 +224,22 @@ namespace CryptoDrive.Helpers
 
         private async Task ProcessLocalDelta(Func<List<string>, Task> action)
         {
+            var counter = 0;
+            var pageCounter = 0;
             var pageSize = 20;
             var deltaPage = new List<string>();
-            var counter = 0;
 
             foreach (var localFilePath in DirectoryHelper.SafelyEnumerateFiles(_rootFolderPath, "*", SearchOption.AllDirectories)
                 .Where(current => this.CheckPathAllowed(current)))
             {
                 if (counter % pageSize == 0)
                 {
-                    await action?.Invoke(deltaPage);
+                    using (var scope = _logger.BeginScope($"Process local delta page {pageCounter}."))
+                    {
+                        await action?.Invoke(deltaPage);
+                        pageCounter++;
+                    }
+
                     deltaPage.Clear();
                 }
 
@@ -223,10 +248,14 @@ namespace CryptoDrive.Helpers
                 counter = unchecked(counter + 1);
             }
 
-            await action?.Invoke(deltaPage);
+            // process remaining files
+            using (var scope = _logger.BeginScope($"Process local delta page {pageCounter}."))
+            {
+                await action?.Invoke(deltaPage);
+            }
         }
 
-        private async Task ProcessRemoteDelta(Func<IDriveItemDeltaCollectionPage, Task> action)
+        private async Task ProcessRemoteDelta(Func<List<DriveItem>, Task> action)
         {
             //var result = await _client.Subscriptions.Request().AddAsync(new Subscription()
             //{
@@ -237,32 +266,22 @@ namespace CryptoDrive.Helpers
             //}, token);
 
             // get delta
-            bool isLast = false;
-            IDriveItemDeltaCollectionPage deltaPage;
+            var isLast = false;
+            var pageCounter = 0;
 
             while (true)
             {
-                if (string.IsNullOrWhiteSpace(_token))
-                    deltaPage = await _graphClient.Me.Drive.Root.Delta().Request().GetAsync();
-                else
-                    deltaPage = await _graphClient.Me.Drive.Root.Delta().Request(new List<Option> { new QueryOption("token", _token) }).GetAsync();
-
-                // extract next token
-                if (deltaPage.AdditionalData.ContainsKey("@odata.nextLink"))
+                using (_logger.BeginScope($"Process remote delta page {pageCounter}."))
                 {
-                    _token = deltaPage.AdditionalData["@odata.nextLink"].ToString().Split("=")[1];
-                }
-                else
-                {
-                    _token = deltaPage.AdditionalData["@odata.deltaLink"].ToString().Split("=")[1];
-                    isLast = true;
-                }
+                    var deltaPage = await _oneDriveClient.GetDeltaAsync(_token);
 
-                await action?.Invoke(deltaPage);
+                    await action?.Invoke(deltaPage);
+                    pageCounter++;
 
-                // exit while loop
-                if (isLast)
-                    break;
+                    // exit while loop
+                    if (isLast)
+                        break;
+                }
             }
         }
 
@@ -273,7 +292,10 @@ namespace CryptoDrive.Helpers
             foreach (var conflict in _dbContext.Conflicts)
             {
                 if (await this.CheckConflict(conflict))
+                {
+                    _logger.BeginScope($"Conflict '{conflict.ConflictFilePath}' has been resolved.");
                     resolvedConflicts.Add(conflict);
+                }
             }
 
             _dbContext.Conflicts.RemoveRange(resolvedConflicts);
@@ -288,28 +310,36 @@ namespace CryptoDrive.Helpers
             // original file exists locally
             if (File.Exists(conflict.OriginalFilePath))
             {
+                _logger.BeginScope($"Original file '{conflict.OriginalFilePath}' exists locally.");
+
                 // conflict file exists locally
                 // actions: do nothing - user must delete or rename conflict file manually
                 if (File.Exists(conflict.ConflictFilePath))
                 {
-                    // do nothing
+                    _logger.BeginScope($"Conflict file '{conflict.OriginalFilePath}' exists locally. Action(s): do nothing.");
                 }
                 // conflict file does not exist locally, i.e. conflict is solved
                 else
                 {
+                    _logger.BeginScope($"Conflict file '{conflict.OriginalFilePath}' does not exist locally.");
+
                     // remote file is tracked in database
                     if (remoteItem != null)
                     {
+                        _logger.BeginScope($"Remote file is tracked in database.");
+
                         // hashes are equal
                         // actions: do nothing
                         if (this.GetHash(conflict.OriginalFilePath) == remoteItem.ETag)
                         {
-                            // do nothing
+                            _logger.BeginScope($"The file is unchanged. Action(s): do nothing.");
                         }
                         // actions: upload file and replace remote version
                         else
                         {
-                            var driveItem = await this.UploadFile(conflict.OriginalFilePath, remoteFilePath);
+                            _logger.BeginScope($"The file is modified. Action(s): upload file.");
+
+                            var driveItem = await _oneDriveClient.UploadFileAsync(conflict.OriginalFilePath, remoteFilePath);
                             _dbContext.RemoteStates.Add(this.GetRemoteStateFromDriveItem(driveItem));
                         }
                     }
@@ -317,7 +347,9 @@ namespace CryptoDrive.Helpers
                     // actions: upload file
                     else
                     {
-                        var driveItem = await this.UploadFile(conflict.OriginalFilePath, remoteFilePath);
+                        _logger.BeginScope($"Remote file is not tracked in database. Action(s): upload file.");
+
+                        var driveItem = await _oneDriveClient.UploadFileAsync(conflict.OriginalFilePath, remoteFilePath);
                         _dbContext.RemoteStates.Add(this.GetRemoteStateFromDriveItem(driveItem));
                     }
 
@@ -328,7 +360,7 @@ namespace CryptoDrive.Helpers
             // actions: do nothing - user must delete or rename conflict file manually
             else
             {
-                // do nothing
+                _logger.BeginScope($"Original file '{conflict.OriginalFilePath}' does not exist locally. Action(s): do nothing.");
             }
 
             return false;
@@ -344,8 +376,13 @@ namespace CryptoDrive.Helpers
             // actions: download file
             if (!File.Exists(conflictFilePath))
             {
+                _logger.LogTrace($"Conflict file does not exist locally. Actions(s): download file.");
+
                 if (downloadUri == null)
-                    downloadUri = new Uri(await _graphClient.GetDownloadUrlAsync(remoteState.Id));
+                {
+                    _logger.LogTrace($"Download URI is null. Action(s): Request new download URI.");
+                    downloadUri = new Uri(await _oneDriveClient.GetDownloadUrlAsync(remoteState.Id));
+                }
 
                 await _webClient.DownloadFileTaskAsync(downloadUri, conflictFilePath);
             }
@@ -363,6 +400,7 @@ namespace CryptoDrive.Helpers
                 // actions: add new entry
                 if (conflict == null)
                 {
+                    _logger.LogTrace($"Conflict entry does not exist. Actions(s): Add new entry.");
                     var originalFilePath = _regex_replace.Replace(conflictFilePath, string.Empty);
 
                     conflict = new Conflict()
@@ -372,6 +410,10 @@ namespace CryptoDrive.Helpers
                     };
 
                     _dbContext.Conflicts.Add(conflict);
+                }
+                else
+                {
+                    _logger.LogTrace($"Conflict entry already exists. Actions(s): do nothing.");
                 }
 
                 _dbContext.SaveChanges();
@@ -383,7 +425,7 @@ namespace CryptoDrive.Helpers
             var path = Path.GetDirectoryName(filePath);
             var name = Path.GetFileNameWithoutExtension(filePath);
             var extension = Path.GetExtension(filePath);
-            var conflictedFilePath = $"{Path.Combine(path, name)} (Conflicted Copy {lastModified.ToString("yyy-MM-dd HHmmss")})";
+            var conflictedFilePath = $"{Path.Combine(path, name)} (Conflicted Copy {lastModified.ToString("yyyy-MM-dd HHmmss")})";
 
             if (!string.IsNullOrWhiteSpace(extension))
                 conflictedFilePath += $".{extension}";
@@ -415,51 +457,11 @@ namespace CryptoDrive.Helpers
             };
         }
 
-        private async Task<DriveItem> UploadFile(string localFilePath, string remoteFilePath)
-        {
-            var fileSystemInfo = new FileInfo(localFilePath);
-
-            var graphFileSystemInfo = new Microsoft.Graph.FileSystemInfo()
-            {
-                CreatedDateTime = fileSystemInfo.CreationTimeUtc,
-                LastAccessedDateTime = fileSystemInfo.LastAccessTimeUtc,
-                LastModifiedDateTime = fileSystemInfo.LastWriteTimeUtc
-            };
-
-            DriveItem newDriveItem = null;
-
-            using (var stream = File.OpenRead(localFilePath))
-            {
-                if (fileSystemInfo.Length <= 4 * 1024 * 1024) // file.Length <= 4 MB
-                {
-                    var driveItem = new DriveItem()
-                    {
-                        File = new Microsoft.Graph.File(),
-                        FileSystemInfo = graphFileSystemInfo,
-                        Name = Path.GetFileName(remoteFilePath)
-                    };
-
-                    newDriveItem = await _graphClient.UploadSmallFile4Async(driveItem, stream);
-                }
-                else
-                {
-                    var properties = new DriveItemUploadableProperties()
-                    {
-                        FileSystemInfo = graphFileSystemInfo
-                    };
-
-                    newDriveItem = await _graphClient.OneDriveUploadLargeFileAsync(stream, properties, remoteFilePath);
-                }
-            }
-
-            return newDriveItem;
-        }
-
         private string GetHash(string filePath)
         {
             var _hashAlgorithm = new QuickXorHash();
 
-            using (FileStream stream = File.OpenRead(filePath))
+            using (var stream = File.OpenRead(filePath))
             {
                 return Convert.ToBase64String(_hashAlgorithm.ComputeHash(stream));
             }

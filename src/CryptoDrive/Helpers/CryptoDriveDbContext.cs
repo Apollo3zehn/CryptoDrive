@@ -1,11 +1,12 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using System;
+using System.ComponentModel.DataAnnotations;
 
 namespace CryptoDrive.Helpers
 {
-    public class OneDriveContext : DbContext
+    public class CryptoDriveDbContext : DbContext
     {
-        public OneDriveContext(DbContextOptions options) : base(options)
+        public CryptoDriveDbContext(DbContextOptions options) : base(options)
         {
             //
         }
@@ -23,6 +24,7 @@ namespace CryptoDrive.Helpers
 
     public class RemoteState
     {
+        [Key]
         public string Id { get; set; }
 
         public string Path { get; set; }
@@ -38,6 +40,7 @@ namespace CryptoDrive.Helpers
 
     public class Conflict
     {
+        [Key]
         public string OriginalFilePath { get; set; }
 
         public string ConflictFilePath { get; set; }

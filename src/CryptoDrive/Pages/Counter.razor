@@ -2,7 +2,8 @@
 @using System.Security.Claims
 @using CryptoDrive.Helpers
 @inject IGraphSdkHelper GraphSdkHelper
-@inject OneDriveContext DbContext
+@inject CryptoDriveDbContext DbContext
+@inject Microsoft.Extensions.Logging.ILogger<OneDriveSynchronizer> logger
 
 <h1>Counter</h1>
 
@@ -37,7 +38,9 @@
         var authState = await authenticationStateTask;
 
         // https://github.com/microsoftgraph/aspnetcore-connect-sample/issues/14
-        var graphClient = this.GraphSdkHelper.GetAuthenticatedClient((ClaimsIdentity)authState.User.Identity);
-        await OneDriveSynchronizer.BuildInitialState(graphClient, this.DbContext);
+        var oneDriveClient = new OneDriveClient(this.GraphSdkHelper.GetAuthenticatedClient((ClaimsIdentity)authState.User.Identity));
+        var rootFolderPath = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), "CryptoDrive");
+
+        await (new OneDriveSynchronizer(rootFolderPath, oneDriveClient, this.DbContext, logger)).SynchronizeTheUniverse();
     }
 }

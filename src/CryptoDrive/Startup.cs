@@ -64,7 +64,7 @@ namespace CryptoDrive
 
             // entitiy framework
             services.AddEntityFrameworkSqlite()
-                .AddDbContext<OneDriveContext>(options => options.UseSqlite("Data Source=CryptoDrive.db"));
+                .AddDbContext<CryptoDriveDbContext>(options => options.UseSqlite("Data Source=CryptoDrive.db"));
 
             // graph
             services.AddSingleton<IGraphAuthProvider, GraphAuthProvider>();
