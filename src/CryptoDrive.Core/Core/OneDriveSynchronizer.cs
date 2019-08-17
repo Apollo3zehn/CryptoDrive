@@ -14,7 +14,6 @@ namespace CryptoDrive.Core
 {
     public class OneDriveSynchronizer
     {
-        private string _token;
         private string _rootFolderPath;
 
         private WebClient _webClient;
@@ -43,7 +42,6 @@ namespace CryptoDrive.Core
         // high level
         public async Task SynchronizeTheUniverse()
         {
-            _token = null;
             await this.BuildIndex();
         }
 
@@ -265,14 +263,13 @@ namespace CryptoDrive.Core
             //}, token);
 
             // get delta
-            var isLast = false;
             var pageCounter = 0;
 
             while (true)
             {
                 using (_logger.BeginScope($"Process remote delta page {pageCounter}."))
                 {
-                    var deltaPage = await _oneDriveClient.GetDeltaAsync(_token);
+                    (var deltaPage, var isLast) = await _oneDriveClient.GetDeltaPageAsync();
 
                     await action?.Invoke(deltaPage);
                     pageCounter++;

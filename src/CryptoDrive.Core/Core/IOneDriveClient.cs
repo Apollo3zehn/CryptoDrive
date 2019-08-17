@@ -6,7 +6,7 @@ namespace CryptoDrive.Core
 {
     public interface IOneDriveClient
     {
-        Task<List<DriveItem>> GetDeltaAsync(string token = "");
+        Task<(List<DriveItem>, bool)> GetDeltaPageAsync();
         Task<string> GetDownloadUrlAsync(string id);
         Task<DriveItem> UploadFileAsync(string localFilePath, string remoteFilePath);
     }

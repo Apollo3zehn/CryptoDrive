@@ -49,8 +49,8 @@ namespace OneDas.Core.Tests
             var oneDriveClientMock = new Mock<IOneDriveClient>();
 
             oneDriveClientMock
-                .Setup(x => x.GetDeltaAsync(It.IsAny<string>()))
-                .ReturnsAsync(() => _remoteDrive.GetDelta());
+                .Setup(x => x.GetDeltaPageAsync())
+                .Returns(() => Task.FromResult((_remoteDrive.GetDelta(), true)));
 
             oneDriveClientMock
                 .Setup(x => x.GetDownloadUrlAsync(It.IsAny<string>()))

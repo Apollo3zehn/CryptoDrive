@@ -68,21 +68,29 @@ namespace CryptoDrive.Core
             return (await this.GraphClient.Me.Drive.Items[id].Request().Select(value => CryptoDriveConstants.DownloadUrl).GetAsync()).ToString();
         }
 
-        public async Task<List<DriveItem>> GetDeltaAsync(string token = "")
+        IDriveItemDeltaCollectionPage _lastDeltaPage;
+
+        public async Task<(List<DriveItem>, bool)> GetDeltaPageAsync()
         {
-            // TODO: make use of NextPageRequest
+            IDriveItemDeltaCollectionPage _currentDeltaPage;
 
-            //var deltaPages = await this.GraphClient.Me.Drive.Root.Delta().Request().GetAsync();
-            //var nextdelta = delta.NextPageRequest.GetAsync();
-
-            IDriveItemDeltaCollectionPage deltaPages;
-
-            if (string.IsNullOrWhiteSpace(token))
-                deltaPages = await this.GraphClient.Me.Drive.Root.Delta().Request().GetAsync();
+            if (_lastDeltaPage == null)
+                _currentDeltaPage = await this.GraphClient.Me.Drive.Root.Delta().Request().GetAsync();
             else
-                deltaPages = await this.GraphClient.Me.Drive.Root.Delta().Request(new List<Option> { new QueryOption("token", token) }).GetAsync();
+                _currentDeltaPage = await _lastDeltaPage.NextPageRequest.GetAsync();
 
-            return deltaPages.ToList();
+            _lastDeltaPage = _currentDeltaPage;
+
+            // if the last page has been received
+            if (_currentDeltaPage.NextPageRequest == null)
+            {
+                var deltaLink = _currentDeltaPage.AdditionalData[Constants.OdataInstanceAnnotations.DeltaLink].ToString();
+                _lastDeltaPage.InitializeNextPageRequest(this.GraphClient, deltaLink);
+
+                return (_currentDeltaPage.ToList(), true);
+            }
+
+            return (_currentDeltaPage.ToList(), false);
         }
 
         private async Task<DriveItem> UploadSmallFileAsync(DriveItem driveItem, Stream stream)
