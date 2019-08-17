@@ -10,7 +10,7 @@ using Microsoft.Identity.Client;
 using System;
 using System.Threading.Tasks;
 
-namespace CryptoDrive.Helpers
+namespace CryptoDrive.Graph
 {
     public class GraphAuthProvider : IGraphAuthProvider
     {

@@ -3,11 +3,12 @@
 *  See LICENSE in the source repository root for complete license information. 
 */
 
+using CryptoDrive.Core;
 using Microsoft.Graph;
 using System.Net.Http.Headers;
 using System.Security.Claims;
 
-namespace CryptoDrive.Helpers
+namespace CryptoDrive.Graph
 {
     public class GraphSdkHelper : IGraphSdkHelper
     {

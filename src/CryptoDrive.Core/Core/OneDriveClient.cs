@@ -10,7 +10,7 @@ using System.Text;
 using System.Threading.Tasks;
 using File = System.IO.File;
 
-namespace CryptoDrive.Helpers
+namespace CryptoDrive.Core
 {
     // https://docs.microsoft.com/en-us/onedrive/developer/rest-api/api/driveitem_post_content?view=odsp-graph-online
     // https://github.com/microsoftgraph/msgraph-sdk-dotnet/issues/218

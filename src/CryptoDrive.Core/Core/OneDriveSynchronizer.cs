@@ -1,5 +1,4 @@
-﻿using CryptoDrive.Extensions;
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
 using Microsoft.Graph;
 using System;
 using System.Collections.Generic;
@@ -11,7 +10,7 @@ using System.Threading.Tasks;
 using Directory = System.IO.Directory;
 using File = System.IO.File;
 
-namespace CryptoDrive.Helpers
+namespace CryptoDrive.Core
 {
     public class OneDriveSynchronizer
     {
@@ -449,7 +448,7 @@ namespace CryptoDrive.Helpers
             return new RemoteState()
             {
                 Id = driveItem.Id,
-                Path = Path.Combine(driveItem.ParentReference.Path.Substring("/drive/root:".Length), driveItem.Name),
+                Path = Path.Combine(driveItem.ParentReference.Path.Substring(CryptoDriveConstants.PathPrefix.Length), driveItem.Name),
                 ETag = driveItem.ETag,
                 Size = driveItem.Size.Value,
                 Type = type,

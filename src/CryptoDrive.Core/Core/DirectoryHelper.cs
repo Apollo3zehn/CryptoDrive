@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 
-namespace CryptoDrive.Helpers
+namespace CryptoDrive.Core
 {
     public class DirectoryHelper
     {

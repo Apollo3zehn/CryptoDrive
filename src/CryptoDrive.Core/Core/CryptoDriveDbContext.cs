@@ -2,7 +2,7 @@
 using System;
 using System.ComponentModel.DataAnnotations;
 
-namespace CryptoDrive.Helpers
+namespace CryptoDrive.Core
 {
     public class CryptoDriveDbContext : DbContext
     {

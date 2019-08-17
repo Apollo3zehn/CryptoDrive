@@ -1,4 +1,4 @@
-﻿using CryptoDrive.Helpers;
+﻿using CryptoDrive.Graph;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.Extensions.DependencyInjection;

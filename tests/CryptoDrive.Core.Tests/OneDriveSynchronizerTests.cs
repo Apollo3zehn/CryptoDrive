@@ -1,4 +1,5 @@
-using CryptoDrive.Helpers;
+using CryptoDrive.Core;
+using CryptoDrive.Extensions;
 using CryptoDrive.Tests;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -19,8 +20,8 @@ namespace OneDas.Core.Tests
     public class OneDriveSynchronizerTests
     {
         private string _rootFolderPath;
-        private TestDrive _remoteDrive;
-        private List<DriveItemLight> _driveItemLightPool;
+        private InMemoryDrive _remoteDrive;
+        private List<DriveItem> _driveItemPool;
         private IOneDriveClient _oneDriveClient;
         private ILogger<OneDriveSynchronizer> _logger;
         private ITestOutputHelper _testOutputHelper;
@@ -43,25 +44,6 @@ namespace OneDas.Core.Tests
             var serviceProvider = serviceCollection.BuildServiceProvider();
 
             _logger = serviceProvider.GetService<ILogger<OneDriveSynchronizer>>();
-
-            // _driveItemPool
-            _driveItemLightPool = new List<DriveItemLight>()
-            {
-                new DriveItemLight { Name = "a", Content = "v1", LastModifiedDateTime = new DateTime(2019, 01, 01, 15, 00, 00) },
-                new DriveItemLight { Name = "a", Content = "v2", LastModifiedDateTime = new DateTime(2019, 01, 01, 15, 01, 00) },
-                new DriveItemLight { Name = "b", Content = "v1", LastModifiedDateTime = new DateTime(2019, 01, 01, 15, 00, 00) },
-                new DriveItemLight { Name = "c", Content = "v1", LastModifiedDateTime = new DateTime(2019, 01, 01, 15, 00, 00) },
-            };
-
-            // _driveItemLocal
-            this.CreateLocalFile(_driveItemLightPool[0]);
-            this.CreateLocalFile(_driveItemLightPool[2]);
-
-            // _remoteDrive
-            _remoteDrive = new TestDrive();
-            _remoteDrive.Upload(_driveItemLightPool[1]);
-            _remoteDrive.Upload(_driveItemLightPool[2]);
-            _remoteDrive.Upload(_driveItemLightPool[3]);
 
             // _graphClient
             var oneDriveClientMock = new Mock<IOneDriveClient>();
@@ -95,6 +77,8 @@ namespace OneDas.Core.Tests
                 .UseInMemoryDatabase(databaseName: "CryptoDrive")
                 .Options;
 
+            this.PrepareDrives();
+
             using (var context = new CryptoDriveDbContext(options))
             {
                 var synchronizer = new OneDriveSynchronizer(_rootFolderPath, _oneDriveClient, context, _logger);
@@ -103,15 +87,40 @@ namespace OneDas.Core.Tests
                 await synchronizer.SynchronizeTheUniverse();
 
                 // Assert
-                
+                   
             }
         }
-        private void CreateLocalFile(DriveItemLight driveItemLight)
+
+        private void PrepareDrives()
         {
-            using (var stream = File.OpenWrite(driveItemLight.Name))
+            // _driveItemPool
+            _driveItemPool = new List<DriveItem>()
             {
-                driveItemLight.ContentStream.CopyTo(stream);
+                new DriveItem { Name = "a", Content = "v1".ToMemorySteam(), LastModifiedDateTime = new DateTime(2019, 01, 01, 15, 00, 00), ParentReference = new ItemReference() { Path = CryptoDriveConstants.PathPrefix } },
+                new DriveItem { Name = "a", Content = "v2".ToMemorySteam(), LastModifiedDateTime = new DateTime(2019, 01, 01, 15, 01, 00), ParentReference = new ItemReference() { Path = CryptoDriveConstants.PathPrefix } },
+                new DriveItem { Name = "b", Content = "v1".ToMemorySteam(), LastModifiedDateTime = new DateTime(2019, 01, 01, 15, 00, 00), ParentReference = new ItemReference() { Path = CryptoDriveConstants.PathPrefix } },
+                new DriveItem { Name = "c", Content = "v1".ToMemorySteam(), LastModifiedDateTime = new DateTime(2019, 01, 01, 15, 00, 00), ParentReference = new ItemReference() { Path = CryptoDriveConstants.PathPrefix } }
+            };
+
+            // _driveItemLocal
+            this.CreateLocalFile(_driveItemPool[0]);
+            this.CreateLocalFile(_driveItemPool[2]);
+
+            // _remoteDrive
+            _remoteDrive = new InMemoryDrive();
+            _remoteDrive.Upload(_driveItemPool[1]);
+            //_remoteDrive.Upload(_driveItemLightPool[2]);
+            //_remoteDrive.Upload(_driveItemLightPool[3]);
+        }
+
+        private void CreateLocalFile(DriveItem driveItem)
+        {
+            using (var stream = File.OpenWrite(driveItem.Name))
+            {
+                driveItem.Content.CopyTo(stream);
             }
+
+            File.SetLastWriteTimeUtc(driveItem.Name, driveItem.LastModifiedDateTime.Value.DateTime);
         }
     }
 }

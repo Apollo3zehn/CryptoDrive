@@ -1,4 +1,4 @@
-﻿using CryptoDrive.Helpers;
+﻿using CryptoDrive.Core;
 using Microsoft.Graph;
 using System;
 using System.Collections.Generic;
@@ -8,11 +8,11 @@ using System.Linq;
 
 namespace CryptoDrive.Tests
 {
-    public class TestDrive
+    public class InMemoryDrive
     {
         List<DriveItem> _driveItems;
 
-        public TestDrive()
+        public InMemoryDrive()
         {
             _driveItems = new List<DriveItem>();
         }
@@ -34,13 +34,16 @@ namespace CryptoDrive.Tests
             return _driveItems;
         }
 
-        public DriveItem Upload(DriveItemLight driveItemLight)
+        public DriveItem Upload(DriveItem driveItem)
         {
-            return this.Upload(driveItemLight.Name, driveItemLight.ContentStream, driveItemLight.LastModifiedDateTime);
+            return this.Upload(driveItem.Name, driveItem.Content, driveItem.LastModifiedDateTime.Value, driveItem.ParentReference);
         }
 
-        public DriveItem Upload(string name, Stream content, DateTimeOffset lastModifiedDateTime)
+        public DriveItem Upload(string name, Stream content, DateTimeOffset lastModifiedDateTime, ItemReference parentReference = null)
         {
+            if (parentReference == null)
+                parentReference = new ItemReference { Path = CryptoDriveConstants.PathPrefix };
+
             var driveItem = new DriveItem()
             {
                 Content = content,
@@ -49,10 +52,11 @@ namespace CryptoDrive.Tests
                 Name = name,
                 Size = content.Length,
                 File = new Microsoft.Graph.File(),
-                FileSystemInfo = new Microsoft.Graph.FileSystemInfo() { LastModifiedDateTime = lastModifiedDateTime }
+                FileSystemInfo = new Microsoft.Graph.FileSystemInfo() { LastModifiedDateTime = lastModifiedDateTime },
+                ParentReference = parentReference
             };
 
-            driveItem.AdditionalData = new Dictionary<string, object>() { { CryptoDriveConstants.DownloadUrl, driveItem.Id } };
+            driveItem.AdditionalData = new Dictionary<string, object>() { { CryptoDriveConstants.DownloadUrl, "https://foo.bar/" + driveItem.Id } };
 
             _driveItems.Add(driveItem);
 

@@ -19,7 +19,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\CryptoDrive\CryptoDrive.csproj" />
+    <ProjectReference Include="..\..\src\CryptoDrive.Core\CryptoDrive.Core.csproj" />
   </ItemGroup>
 
 </Project>

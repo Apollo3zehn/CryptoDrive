@@ -2,7 +2,7 @@
 using System.Threading.Tasks;
 using Microsoft.Graph;
 
-namespace CryptoDrive.Helpers
+namespace CryptoDrive.Core
 {
     public interface IOneDriveClient
     {
