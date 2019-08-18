@@ -8,6 +8,6 @@ namespace CryptoDrive.Core
     {
         Task<(List<DriveItem>, bool)> GetDeltaPageAsync();
         Task<string> GetDownloadUrlAsync(string id);
-        Task<DriveItem> UploadFileAsync(string localFilePath, string remoteFilePath);
+        Task<DriveItem> UploadFileAsync(string filePath, string rootFolderPath);
     }
 }

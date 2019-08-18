@@ -67,11 +67,13 @@ namespace CryptoDrive.Core.Tests
 
             oneDriveClientMock
                 .Setup(x => x.UploadFileAsync(It.IsAny<string>(), It.IsAny<string>()))
-                .Returns<string, string>((localFilePath, remoteFilePath) =>
+                .Returns<string, string>((filePath, rootFolderPath) =>
             {
+                var localFilePath = filePath.ToAbsolutePath(rootFolderPath);
+
                 using (var stream = File.OpenRead(localFilePath))
                 {
-                    return Task.FromResult(_remoteDrive.Upload(remoteFilePath, stream, File.GetLastWriteTimeUtc(localFilePath)));
+                    return Task.FromResult(_remoteDrive.Upload(filePath, stream, File.GetLastWriteTimeUtc(localFilePath)));
                 }
             });
 
@@ -127,7 +129,7 @@ namespace CryptoDrive.Core.Tests
                 ["f2"] = this.CreateDriveItem("f", 2),
 
                 ["g1"] = this.CreateDriveItem("g", 1),
-                ["g1c"] = this.CreateDriveItem("g", 1),
+                ["g1c"] = this.CreateDriveItem("g", 1, isConflicted: true),
 
                 ["h1"] = this.CreateDriveItem("h", 1),
                 ["h1c"] = this.CreateDriveItem("h", 1, isConflicted: true),
@@ -147,8 +149,6 @@ namespace CryptoDrive.Core.Tests
             this.CreateLocalFile(driveItemPool["a1"]);
 
             this.CreateLocalFile(driveItemPool["b1"]);
-
-            this.CreateLocalFile(driveItemPool["c1"]);
 
             this.CreateLocalFile(driveItemPool["d1"]);
 

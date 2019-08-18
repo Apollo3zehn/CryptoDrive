@@ -23,8 +23,9 @@ namespace CryptoDrive.Core
 
         public IGraphServiceClient GraphClient { get; }
 
-        public async Task<DriveItem> UploadFileAsync(string localFilePath, string remoteFilePath)
+        public async Task<DriveItem> UploadFileAsync(string filePath, string rootFolderPath)
         {
+            var localFilePath = filePath.ToAbsolutePath(rootFolderPath);
             var fileSystemInfo = new FileInfo(localFilePath);
 
             var graphFileSystemInfo = new Microsoft.Graph.FileSystemInfo()
@@ -44,7 +45,7 @@ namespace CryptoDrive.Core
                     {
                         File = new Microsoft.Graph.File(),
                         FileSystemInfo = graphFileSystemInfo,
-                        Name = Path.GetFileName(remoteFilePath)
+                        Name = Path.GetFileName(filePath)
                     };
 
                     newDriveItem = await this.UploadSmallFileAsync(driveItem, stream);
@@ -56,7 +57,7 @@ namespace CryptoDrive.Core
                         FileSystemInfo = graphFileSystemInfo
                     };
 
-                    newDriveItem = await this.UploadLargeFileAsync(stream, properties, remoteFilePath);
+                    newDriveItem = await this.UploadLargeFileAsync(stream, properties, filePath);
                 }
             }
 
