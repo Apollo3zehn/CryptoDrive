@@ -1,19 +1,23 @@
 ﻿using CryptoDrive.Core;
+using CryptoDrive.Extensions;
 using Microsoft.Graph;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
+using File = System.IO.File;
 
 namespace CryptoDrive.Tests
 {
-    public class InMemoryDrive
+    public class RemoteTestDrive
     {
         List<DriveItem> _driveItems;
+        string _drivePath;
 
-        public InMemoryDrive()
+        public RemoteTestDrive(string drivePath)
         {
+            _drivePath = drivePath;
             _driveItems = new List<DriveItem>();
         }
 
@@ -21,12 +25,7 @@ namespace CryptoDrive.Tests
 
         public string GetDownloadUrl(string id)
         {
-            return id;
-        }
-
-        public Stream Download(string id)
-        {
-            return _driveItems.First(driveItem => driveItem.Id == id).Content;
+            return _driveItems.First(driveItem => driveItem.Id == id).AdditionalData[CryptoDriveConstants.DownloadUrl].ToString();
         }
 
         public List<DriveItem> GetDelta()
@@ -56,7 +55,18 @@ namespace CryptoDrive.Tests
                 ParentReference = parentReference
             };
 
-            driveItem.AdditionalData = new Dictionary<string, object>() { { CryptoDriveConstants.DownloadUrl, "https://foo.bar/" + driveItem.Id } };
+            var filePath = driveItem.Name.ToAbsolutePath(_drivePath);
+
+            using (var stream = File.OpenWrite(filePath))
+            {
+                content.Seek(0, SeekOrigin.Begin);
+                content.CopyTo(stream);
+            }
+
+            driveItem.AdditionalData = new Dictionary<string, object>() 
+            { 
+                [CryptoDriveConstants.DownloadUrl] = filePath
+            };
 
             _driveItems.Add(driveItem);
 

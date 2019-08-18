@@ -14,6 +14,7 @@ using Microsoft.Extensions.Logging;
 
 namespace CryptoDrive
 {
+    // TODO: SQLite Token Cache: https://github.com/Azure-Samples/active-directory-aspnetcore-webapp-openidconnect-v2/tree/master/2-WebApp-graph-user/2-2-TokenCache
     public class Startup
     {
         public Startup(IConfiguration configuration)

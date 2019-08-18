@@ -35,14 +35,14 @@ namespace CryptoDrive.Core
 
         public GraphItemType Type { get; set; }
 
-        public DateTimeOffset LastModified { get; set; }
+        public DateTime LastModified { get; set; }
     }
 
     public class Conflict
     {
         [Key]
-        public string OriginalFilePath { get; set; }
-
         public string ConflictFilePath { get; set; }
+
+        public string OriginalFilePath { get; set; }
     }
 }
