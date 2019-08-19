@@ -5,7 +5,7 @@ namespace CryptoDrive.Extensions
 {
     public static class StreamExtensions
     {
-        public static string ConvertToBase64(this Stream stream)
+        public static string ToBase64(this Stream stream)
         {
             string base64;
 

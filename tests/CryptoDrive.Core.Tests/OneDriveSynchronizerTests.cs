@@ -19,12 +19,15 @@ namespace CryptoDrive.Core.Tests
 {
     public class OneDriveSynchronizerTests : IDisposable
     {
+        private IOneDriveClient _oneDriveClient;
+
+        private List<ILoggerProvider> _loggerProviders;
+        private ILogger<OneDriveSynchronizer> _logger;
+
         private string _localDrivePath;
         private string _remoteDrivePath;
         private RemoteTestDrive _remoteDrive;
-        private List<ILoggerProvider> _loggerProviders;
-        private IOneDriveClient _oneDriveClient;
-        private ILogger<OneDriveSynchronizer> _logger;
+        private Dictionary<string, DriveItem> _driveItemPool;
 
         public OneDriveSynchronizerTests(ITestOutputHelper xunitLogger)
         {
@@ -97,6 +100,7 @@ namespace CryptoDrive.Core.Tests
                 context.Database.EnsureCreated();
 
                 var synchronizer = new OneDriveSynchronizer(_localDrivePath, _oneDriveClient, context, _logger);
+                var hashAlgorithm = new QuickXorHash();
 
                 // Act
                 await synchronizer.SynchronizeTheUniverse();
@@ -105,12 +109,131 @@ namespace CryptoDrive.Core.Tests
 
                 // Assert
 
+                // file a
+                Assert.True(File.Exists("a".ToAbsolutePath(_localDrivePath)));
+                Assert.True(File.Exists("a"
+                    .ToConflictFilePath(_driveItemPool["a2"].FileSystemInfo.LastModifiedDateTime.Value)
+                    .ToAbsolutePath(_localDrivePath)));
+                Assert.True(File.Exists("a".ToAbsolutePath(_remoteDrivePath)));
+
+                using (var stream = File.OpenRead("a"
+                    .ToConflictFilePath(_driveItemPool["a2"].FileSystemInfo.LastModifiedDateTime.Value)
+                    .ToAbsolutePath(_localDrivePath)))
+                {
+                    Assert.True(Convert.ToBase64String(hashAlgorithm.ComputeHash(stream)) == _driveItemPool["a2"].CTag);
+                }
+
+                // file b
+                Assert.True(File.Exists("b".ToAbsolutePath(_localDrivePath)));
+                Assert.True(File.Exists("b".ToAbsolutePath(_remoteDrivePath)));
+
+                // file c
+                Assert.True(File.Exists("c".ToAbsolutePath(_localDrivePath)));
+                Assert.True(File.Exists("c".ToAbsolutePath(_remoteDrivePath)));
+
+                using (var stream = File.OpenRead("c"
+                    .ToAbsolutePath(_localDrivePath)))
+                {
+                    Assert.True(Convert.ToBase64String(hashAlgorithm.ComputeHash(stream)) == _driveItemPool["c1"].CTag);
+                }
+
+                // file d
+                Assert.True(File.Exists("d".ToAbsolutePath(_localDrivePath)));
+                Assert.True(File.Exists("d".ToAbsolutePath(_remoteDrivePath)));
+
+                using (var stream = File.OpenRead("d".ToAbsolutePath(_localDrivePath)))
+                {
+                    Assert.True(Convert.ToBase64String(hashAlgorithm.ComputeHash(stream)) == _driveItemPool["d1"].CTag);
+                }
+
+                // file e
+                Assert.True(File.Exists("e"
+                    .ToConflictFilePath(_driveItemPool["e1"].FileSystemInfo.LastModifiedDateTime.Value)
+                    .ToAbsolutePath(_localDrivePath)));
+                Assert.True(File.Exists("e".ToAbsolutePath(_localDrivePath)));
+                Assert.True(File.Exists("e".ToAbsolutePath(_remoteDrivePath)));
+
+                // file f
+                Assert.True(File.Exists("f"
+                    .ToConflictFilePath(_driveItemPool["f1"].FileSystemInfo.LastModifiedDateTime.Value)
+                    .ToAbsolutePath(_localDrivePath)));
+                Assert.True(File.Exists("f".ToAbsolutePath(_localDrivePath)));
+                Assert.True(File.Exists("f".ToAbsolutePath(_remoteDrivePath)));
+
+                using (var stream = File.OpenRead("f".ToAbsolutePath(_localDrivePath)))
+                {
+                    Assert.True(Convert.ToBase64String(hashAlgorithm.ComputeHash(stream)) == _driveItemPool["f2"].CTag);
+                }
+
+                // file g
+                Assert.True(File.Exists("g".ToAbsolutePath(_localDrivePath)));
+                Assert.True(File.Exists("g"
+                    .ToConflictFilePath(_driveItemPool["g1"].FileSystemInfo.LastModifiedDateTime.Value)
+                    .ToAbsolutePath(_localDrivePath)));
+                Assert.True(File.Exists("g".ToAbsolutePath(_remoteDrivePath)));
+
+                // file h
+                Assert.True(File.Exists("h".ToAbsolutePath(_localDrivePath)));
+                Assert.True(File.Exists("h"
+                    .ToConflictFilePath(_driveItemPool["h1"].FileSystemInfo.LastModifiedDateTime.Value)
+                    .ToAbsolutePath(_localDrivePath)));
+                Assert.True(File.Exists("h".ToAbsolutePath(_remoteDrivePath)));
+
+                using (var stream = File.OpenRead("h"
+                    .ToAbsolutePath(_localDrivePath)))
+                {
+                    Assert.True(Convert.ToBase64String(hashAlgorithm.ComputeHash(stream)) == _driveItemPool["h1"].CTag);
+                }
+
+                // file i
+                Assert.True(File.Exists("i"
+                    .ToConflictFilePath(_driveItemPool["i1"].FileSystemInfo.LastModifiedDateTime.Value)
+                    .ToAbsolutePath(_localDrivePath)));
+                Assert.True(File.Exists("i".ToAbsolutePath(_localDrivePath)));
+                Assert.True(File.Exists("i".ToAbsolutePath(_remoteDrivePath)));
+
+                using (var stream = File.OpenRead("i"
+                    .ToAbsolutePath(_localDrivePath)))
+                {
+                    Assert.True(Convert.ToBase64String(hashAlgorithm.ComputeHash(stream)) == _driveItemPool["i2"].CTag);
+                }
+
+                // file j
+                Assert.True(File.Exists("j"
+                    .ToConflictFilePath(_driveItemPool["j1"].FileSystemInfo.LastModifiedDateTime.Value)
+                    .ToAbsolutePath(_localDrivePath)));
+                Assert.True(File.Exists("j".ToAbsolutePath(_localDrivePath)));
+                Assert.True(File.Exists("j"
+                    .ToConflictFilePath(_driveItemPool["j3"].FileSystemInfo.LastModifiedDateTime.Value)
+                    .ToAbsolutePath(_localDrivePath)));
+                Assert.True(File.Exists("j".ToAbsolutePath(_remoteDrivePath)));
+
+                using (var stream = File.OpenRead("j"
+                    .ToConflictFilePath(_driveItemPool["j3"].FileSystemInfo.LastModifiedDateTime.Value)
+                    .ToAbsolutePath(_localDrivePath)))
+                {
+                    Assert.True(Convert.ToBase64String(hashAlgorithm.ComputeHash(stream)) == _driveItemPool["j3"].CTag);
+                }
+
+                // file k
+                Assert.True(File.Exists("k".ToAbsolutePath(_localDrivePath)));
+                Assert.True(File.Exists("k"
+                    .ToConflictFilePath(_driveItemPool["k1"].FileSystemInfo.LastModifiedDateTime.Value)
+                    .ToAbsolutePath(_localDrivePath)));
+                Assert.True(File.Exists("k".ToAbsolutePath(_remoteDrivePath)));
+
+                using (var stream = File.OpenRead("k".ToAbsolutePath(_localDrivePath)))
+                {
+                    Assert.True(Convert.ToBase64String(hashAlgorithm.ComputeHash(stream)) == _driveItemPool["k1"].CTag);
+                }
+
+                // remote
             }
         }
 
         private void PrepareDrives()
         {
-            var driveItemPool = new Dictionary<string, DriveItem>()
+            _driveItemPool = new Dictionary<string, DriveItem>()
             {
                 ["a1"] = this.CreateDriveItem("a", 1),
                 ["a2"] = this.CreateDriveItem("a", 2),
@@ -122,95 +245,98 @@ namespace CryptoDrive.Core.Tests
                 ["d1"] = this.CreateDriveItem("d", 1),
 
                 ["e1"] = this.CreateDriveItem("e", 1),
-                ["e1c"] = this.CreateDriveItem("e", 1, isConflicted: true),
                 ["e2"] = this.CreateDriveItem("e", 2),
 
-                ["f1c"] = this.CreateDriveItem("f", 1, isConflicted: true),
+                ["f1"] = this.CreateDriveItem("f", 1),
                 ["f2"] = this.CreateDriveItem("f", 2),
 
                 ["g1"] = this.CreateDriveItem("g", 1),
-                ["g1c"] = this.CreateDriveItem("g", 1, isConflicted: true),
 
                 ["h1"] = this.CreateDriveItem("h", 1),
-                ["h1c"] = this.CreateDriveItem("h", 1, isConflicted: true),
 
-                ["i1c"] = this.CreateDriveItem("i", 1, isConflicted: true),
+                ["i1"] = this.CreateDriveItem("i", 1),
                 ["i2"] = this.CreateDriveItem("i", 2),
 
-                ["j1c"] = this.CreateDriveItem("j", 1, isConflicted: true),
+                ["j1"] = this.CreateDriveItem("j", 1),
                 ["j2"] = this.CreateDriveItem("j", 2),
                 ["j3"] = this.CreateDriveItem("j", 3),
 
                 ["k1"] = this.CreateDriveItem("k", 1),
-                ["k1c"] = this.CreateDriveItem("k", 1, isConflicted: true),
             };
 
             // _driveItemLocal
-            this.CreateLocalFile(driveItemPool["a1"]);
+            this.CreateLocalFile(_driveItemPool["a1"]);
 
-            this.CreateLocalFile(driveItemPool["b1"]);
+            this.CreateLocalFile(_driveItemPool["b1"]);
 
-            this.CreateLocalFile(driveItemPool["d1"]);
+            this.CreateLocalFile(_driveItemPool["d1"]);
 
-            this.CreateLocalFile(driveItemPool["e1c"]);
-            this.CreateLocalFile(driveItemPool["e2"]);
+            this.CreateLocalFile(_driveItemPool["e1"], isConflicted: true);
+            this.CreateLocalFile(_driveItemPool["e2"]);
 
-            this.CreateLocalFile(driveItemPool["f1c"]);
-            this.CreateLocalFile(driveItemPool["f2"]);
+            this.CreateLocalFile(_driveItemPool["f1"], isConflicted: true);
+            this.CreateLocalFile(_driveItemPool["f2"]);
 
-            this.CreateLocalFile(driveItemPool["g1"]);
-            this.CreateLocalFile(driveItemPool["g1c"]);
+            this.CreateLocalFile(_driveItemPool["g1"]);
+            this.CreateLocalFile(_driveItemPool["g1"], isConflicted: true);
 
-            this.CreateLocalFile(driveItemPool["h1c"]);
+            this.CreateLocalFile(_driveItemPool["h1"], isConflicted: true);
 
-            this.CreateLocalFile(driveItemPool["i1c"]);
+            this.CreateLocalFile(_driveItemPool["i1"], isConflicted: true);
 
-            this.CreateLocalFile(driveItemPool["j1c"]);
-            this.CreateLocalFile(driveItemPool["j2"]);
+            this.CreateLocalFile(_driveItemPool["j1"], isConflicted: true);
+            this.CreateLocalFile(_driveItemPool["j2"]);
 
-            this.CreateLocalFile(driveItemPool["k1"]);
-            this.CreateLocalFile(driveItemPool["k1c"]);
+            this.CreateLocalFile(_driveItemPool["k1"]);
+            this.CreateLocalFile(_driveItemPool["k1"], isConflicted: true);
 
             // _remoteDrive
             _remoteDrive = new RemoteTestDrive(_remoteDrivePath);
 
-            _remoteDrive.Upload(driveItemPool["a2"]);
-            _remoteDrive.Upload(driveItemPool["b1"]);
-            _remoteDrive.Upload(driveItemPool["c1"]);
-            _remoteDrive.Upload(driveItemPool["e1"]);
-            _remoteDrive.Upload(driveItemPool["g1"]);
-            _remoteDrive.Upload(driveItemPool["h1"]);
-            _remoteDrive.Upload(driveItemPool["i2"]);
-            _remoteDrive.Upload(driveItemPool["j3"]);
+            _remoteDrive.Upload(_driveItemPool["a2"]);
+            _remoteDrive.Upload(_driveItemPool["b1"]);
+            _remoteDrive.Upload(_driveItemPool["c1"]);
+            _remoteDrive.Upload(_driveItemPool["e1"]);
+            _remoteDrive.Upload(_driveItemPool["g1"]);
+            _remoteDrive.Upload(_driveItemPool["h1"]);
+            _remoteDrive.Upload(_driveItemPool["i2"]);
+            _remoteDrive.Upload(_driveItemPool["j3"]);
         }
 
-        private DriveItem CreateDriveItem(string name, int version, bool isConflicted = false)
+        private DriveItem CreateDriveItem(string name, int version)
         {
+            var hashAlgorithm = new QuickXorHash();
             var lastModified = new DateTime(2019, 01, 01, version, 00, 00, DateTimeKind.Utc);
-
-            if (isConflicted)
-                name = name.ToConflictFilePath(lastModified);
+            var content = $"{name} v{version}".ToMemorySteam();
 
             return new DriveItem
             {
                 Name = name,
-                Content = $"v{version}".ToMemorySteam(),
-                LastModifiedDateTime = lastModified,
+                Content = content,
+                CTag = Convert.ToBase64String(hashAlgorithm.ComputeHash(content)),
+                FileSystemInfo = new Microsoft.Graph.FileSystemInfo { LastModifiedDateTime = lastModified },
                 ParentReference = new ItemReference() { Path = CryptoDriveConstants.PathPrefix }
             };
         }
 
-        private void CreateLocalFile(DriveItem driveItem)
+        private void CreateLocalFile(DriveItem driveItem, bool isConflicted = false)
         {
-            var filePath = driveItem.Name.ToAbsolutePath(_localDrivePath);
+            string name;
+
+            if (isConflicted)
+                name = driveItem.Name.ToConflictFilePath(driveItem.FileSystemInfo.LastModifiedDateTime.Value);
+            else
+                name = driveItem.Name;
+
+            var filePath = name.ToAbsolutePath(_localDrivePath);
 
             using (var stream = File.OpenWrite(filePath))
             {
-                stream.Seek(0, SeekOrigin.Begin);
+                driveItem.Content.Seek(0, SeekOrigin.Begin);
                 driveItem.Content.CopyTo(stream);
             }
 
-            File.SetLastWriteTimeUtc(filePath, driveItem.LastModifiedDateTime.Value.DateTime);
+            File.SetLastWriteTimeUtc(filePath, driveItem.FileSystemInfo.LastModifiedDateTime.Value.DateTime);
         }
 
         public void Dispose()

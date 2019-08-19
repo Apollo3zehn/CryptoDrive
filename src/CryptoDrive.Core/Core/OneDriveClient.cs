@@ -106,7 +106,7 @@ namespace CryptoDrive.Core
         'id': '1',
         'method': 'PUT',
         'url': '{blobRequest.RequestUrl.Substring(baseUrl.Length)}',
-        'body': '{stream.ConvertToBase64()}',
+        'body': '{stream.ToBase64()}',
         'headers': {{ 'Content-Type': 'application/octet-stream' }}
     }},
     {{

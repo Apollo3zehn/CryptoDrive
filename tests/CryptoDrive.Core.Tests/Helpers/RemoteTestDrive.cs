@@ -35,7 +35,7 @@ namespace CryptoDrive.Tests
 
         public DriveItem Upload(DriveItem driveItem)
         {
-            return this.Upload(driveItem.Name, driveItem.Content, driveItem.LastModifiedDateTime.Value, driveItem.ParentReference);
+            return this.Upload(driveItem.Name, driveItem.Content, driveItem.FileSystemInfo.LastModifiedDateTime.Value, driveItem.ParentReference);
         }
 
         public DriveItem Upload(string name, Stream content, DateTimeOffset lastModifiedDateTime, ItemReference parentReference = null)
