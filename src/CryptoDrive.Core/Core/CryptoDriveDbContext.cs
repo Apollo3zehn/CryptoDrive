@@ -26,16 +26,12 @@ namespace CryptoDrive.Core
     {
         [Key]
         public string Id { get; set; }
-
         public string Path { get; set; }
-
         public string ETag { get; set; }
-
         public long Size { get; set; }
-
         public GraphItemType Type { get; set; }
-
         public DateTime LastModified { get; set; }
+        public bool IsDeleted { get; set; }
     }
 
     public class Conflict

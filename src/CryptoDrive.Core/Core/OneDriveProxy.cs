@@ -1,4 +1,5 @@
 ﻿using CryptoDrive.Extensions;
+using Microsoft.Extensions.Logging;
 using Microsoft.Graph;
 using Newtonsoft.Json;
 using System;
@@ -14,62 +15,57 @@ namespace CryptoDrive.Core
 {
     // https://docs.microsoft.com/en-us/onedrive/developer/rest-api/api/driveitem_post_content?view=odsp-graph-online
     // https://github.com/microsoftgraph/msgraph-sdk-dotnet/issues/218
-    public class OneDriveClient : IOneDriveClient
+    public class OneDriveProxy : IDriveProxy
     {
-        public OneDriveClient(IGraphServiceClient graphServiceClient)
-        {
-            this.GraphClient = graphServiceClient;
-        }
-
-        public IGraphServiceClient GraphClient { get; }
-
-        public async Task<DriveItem> UploadFileAsync(string filePath, string rootFolderPath)
-        {
-            var localFilePath = filePath.ToAbsolutePath(rootFolderPath);
-            var fileSystemInfo = new FileInfo(localFilePath);
-
-            var graphFileSystemInfo = new Microsoft.Graph.FileSystemInfo()
-            {
-                CreatedDateTime = fileSystemInfo.CreationTimeUtc,
-                LastAccessedDateTime = fileSystemInfo.LastAccessTimeUtc,
-                LastModifiedDateTime = fileSystemInfo.LastWriteTimeUtc
-            };
-
-            DriveItem newDriveItem = null;
-
-            using (var stream = File.OpenRead(localFilePath))
-            {
-                if (fileSystemInfo.Length <= 4 * 1024 * 1024) // file.Length <= 4 MB
-                {
-                    var driveItem = new DriveItem()
-                    {
-                        File = new Microsoft.Graph.File(),
-                        FileSystemInfo = graphFileSystemInfo,
-                        Name = Path.GetFileName(filePath)
-                    };
-
-                    newDriveItem = await this.UploadSmallFileAsync(driveItem, stream);
-                }
-                else
-                {
-                    var properties = new DriveItemUploadableProperties()
-                    {
-                        FileSystemInfo = graphFileSystemInfo
-                    };
-
-                    newDriveItem = await this.UploadLargeFileAsync(stream, properties, filePath);
-                }
-            }
-
-            return newDriveItem;
-        }
-
-        public async Task<string> GetDownloadUrlAsync(string id)
-        {
-            return (await this.GraphClient.Me.Drive.Items[id].Request().Select(value => CryptoDriveConstants.DownloadUrl).GetAsync()).ToString();
-        }
+        #region "Fields"
 
         IDriveItemDeltaCollectionPage _lastDeltaPage;
+
+        #endregion
+
+        #region Constructors
+
+        public OneDriveProxy(IGraphServiceClient graphServiceClient, ILogger logger)
+        {
+            this.GraphClient = graphServiceClient;
+            this.Name = "OneDrive";
+            this.Logger = logger;
+        }
+
+        #endregion
+
+        #region Properties
+
+        public IGraphServiceClient GraphClient { get; }
+        public string Name { get; }
+        private ILogger Logger { get; }
+
+        #endregion
+
+        #region Change Tracking
+
+        public async Task ProcessDelta(Func<List<DriveItem>, Task> action)
+        {
+            var pageCounter = 0;
+
+            while (true)
+            {
+                using (this.Logger.BeginScope(new Dictionary<string, object>
+                {
+                    [$"DeltaPage ({this.Name})"] = pageCounter
+                }))
+                {
+                    (var deltaPage, var isLast) = await this.GetDeltaPageAsync();
+
+                    await action?.Invoke(deltaPage);
+                    pageCounter++;
+
+                    // exit while loop
+                    if (isLast)
+                        break;
+                }
+            }
+        }
 
         public async Task<(List<DriveItem>, bool)> GetDeltaPageAsync()
         {
@@ -82,7 +78,7 @@ namespace CryptoDrive.Core
 
             _lastDeltaPage = _currentDeltaPage;
 
-            // if the last page has been received
+            // if the last page was received
             if (_currentDeltaPage.NextPageRequest == null)
             {
                 var deltaLink = _currentDeltaPage.AdditionalData[Constants.OdataInstanceAnnotations.DeltaLink].ToString();
@@ -93,6 +89,84 @@ namespace CryptoDrive.Core
 
             return (_currentDeltaPage.ToList(), false);
         }
+
+        #endregion
+
+        #region CRUD
+
+        public async Task<DriveItem> CreateOrUpdateAsync(DriveItem driveItem)
+        {
+            DriveItem newDriveItem = null;
+
+            using (var stream = File.OpenRead(driveItem.Uri().AbsolutePath))
+            {
+                if (driveItem.Size <= 4 * 1024 * 1024) // file.Length <= 4 MB
+                {
+                    newDriveItem = await this.UploadSmallFileAsync(driveItem, stream);
+                }
+                else
+                {
+                    var properties = new DriveItemUploadableProperties()
+                    {
+                        FileSystemInfo = driveItem.FileSystemInfo
+                    };
+
+                    newDriveItem = await this.UploadLargeFileAsync(stream, properties, driveItem.Uri().AbsolutePath);
+                }
+            }
+
+            return newDriveItem;
+        }
+
+        public Task<DriveItem> MoveAsync(DriveItem oldDriveItem, DriveItem newDriveItem)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task DeleteAsync(DriveItem driveItem)
+        {
+            throw new NotImplementedException();
+        }
+
+        #endregion
+
+        #region File Info
+
+        public async Task<Uri> GetDownloadUriAsync(DriveItem driveItem)
+        {
+            var url = (await this.GraphClient.Me.Drive.Items[driveItem.Id].Request().Select(value => CryptoDriveConstants.DownloadUrl).GetAsync()).ToString();
+
+            return new Uri(url);
+        }
+
+        public Task<bool> ExistsAsync(DriveItem driveItem)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task<DateTime> GetLastWriteTimeUtcAsync(DriveItem driveItem)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task SetLastWriteTimeUtcAsync(DriveItem driveItem)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task<string> GetHashAsync(DriveItem driveItem)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task<DriveItem> ToFullDriveItem(DriveItem driveItem)
+        {
+            throw new NotImplementedException();
+        }
+
+        #endregion
+
+        #region Private
 
         private async Task<DriveItem> UploadSmallFileAsync(DriveItem driveItem, Stream stream)
         {
@@ -164,5 +238,7 @@ namespace CryptoDrive.Core
 
             return driveItem;
         }
+
+        #endregion
     }
 }

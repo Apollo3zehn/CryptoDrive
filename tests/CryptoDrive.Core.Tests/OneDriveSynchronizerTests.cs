@@ -4,7 +4,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Graph;
-using Moq;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -19,25 +18,15 @@ namespace CryptoDrive.Core.Tests
 {
     public class OneDriveSynchronizerTests : IDisposable
     {
-        private IOneDriveClient _oneDriveClient;
-
         private List<ILoggerProvider> _loggerProviders;
-        private ILogger<OneDriveSynchronizer> _logger;
+        private ILogger<CryptoDriveSyncEngine> _logger;
 
         private string _localDrivePath;
         private string _remoteDrivePath;
-        private RemoteTestDrive _remoteDrive;
         private Dictionary<string, DriveItem> _driveItemPool;
 
         public OneDriveSynchronizerTests(ITestOutputHelper xunitLogger)
         {
-            // directory
-            _localDrivePath = Path.Combine(Path.GetTempPath(), "CryptoDriveLocal_" + Path.GetRandomFileName().Replace(".", string.Empty));
-            _remoteDrivePath = Path.Combine(Path.GetTempPath(), "CryptoDriveRemote_" + Path.GetRandomFileName().Replace(".", string.Empty));
-            
-            Directory.CreateDirectory(_localDrivePath);
-            Directory.CreateDirectory(_remoteDrivePath);
-
             // logger
             var serviceCollection = new ServiceCollection();
 
@@ -55,32 +44,7 @@ namespace CryptoDrive.Core.Tests
             });
 
             var serviceProvider = serviceCollection.BuildServiceProvider();
-            _logger = serviceProvider.GetService<ILogger<OneDriveSynchronizer>>();
-
-            // _graphClient
-            var oneDriveClientMock = new Mock<IOneDriveClient>();
-
-            oneDriveClientMock
-                .Setup(x => x.GetDeltaPageAsync())
-                .Returns(() => Task.FromResult((_remoteDrive.GetDelta(), true)));
-
-            oneDriveClientMock
-                .Setup(x => x.GetDownloadUrlAsync(It.IsAny<string>()))
-                .Returns<string>(id => Task.FromResult(_remoteDrive.GetDownloadUrl(id)));
-
-            oneDriveClientMock
-                .Setup(x => x.UploadFileAsync(It.IsAny<string>(), It.IsAny<string>()))
-                .Returns<string, string>((filePath, rootFolderPath) =>
-            {
-                var localFilePath = filePath.ToAbsolutePath(rootFolderPath);
-
-                using (var stream = File.OpenRead(localFilePath))
-                {
-                    return Task.FromResult(_remoteDrive.Upload(filePath, stream, File.GetLastWriteTimeUtc(localFilePath)));
-                }
-            });
-
-            _oneDriveClient = oneDriveClientMock.Object;
+            _logger = serviceProvider.GetService<ILogger<CryptoDriveSyncEngine>>();
         }
 
         [Fact]
@@ -93,18 +57,18 @@ namespace CryptoDrive.Core.Tests
                 .UseSqlite($"Data Source={Path.GetTempFileName()}")
                 .Options;
 
-            this.PrepareDrives();
+            (var remoteDrive, var localDrive) = await this.PrepareDrives();
 
             using (var context = new CryptoDriveDbContext(options))
             {
                 context.Database.EnsureCreated();
 
-                var synchronizer = new OneDriveSynchronizer(_localDrivePath, _oneDriveClient, context, _logger);
+                var synchronizer = new CryptoDriveSyncEngine(remoteDrive, localDrive, context, _logger);
                 var hashAlgorithm = new QuickXorHash();
 
                 // Act
+                _logger.LogInformation("Test started.");
                 await synchronizer.SynchronizeTheUniverse();
-
                 _logger.LogInformation("Test finished.");
 
                 // Assert
@@ -112,12 +76,12 @@ namespace CryptoDrive.Core.Tests
                 // file a
                 Assert.True(File.Exists("a".ToAbsolutePath(_localDrivePath)));
                 Assert.True(File.Exists("a"
-                    .ToConflictFilePath(_driveItemPool["a2"].FileSystemInfo.LastModifiedDateTime.Value)
+                    .ToConflictFilePath(_driveItemPool["a2"].LastModified())
                     .ToAbsolutePath(_localDrivePath)));
                 Assert.True(File.Exists("a".ToAbsolutePath(_remoteDrivePath)));
 
                 using (var stream = File.OpenRead("a"
-                    .ToConflictFilePath(_driveItemPool["a2"].FileSystemInfo.LastModifiedDateTime.Value)
+                    .ToConflictFilePath(_driveItemPool["a2"].LastModified())
                     .ToAbsolutePath(_localDrivePath)))
                 {
                     Assert.True(Convert.ToBase64String(hashAlgorithm.ComputeHash(stream)) == _driveItemPool["a2"].CTag);
@@ -131,8 +95,7 @@ namespace CryptoDrive.Core.Tests
                 Assert.True(File.Exists("c".ToAbsolutePath(_localDrivePath)));
                 Assert.True(File.Exists("c".ToAbsolutePath(_remoteDrivePath)));
 
-                using (var stream = File.OpenRead("c"
-                    .ToAbsolutePath(_localDrivePath)))
+                using (var stream = File.OpenRead("c".ToAbsolutePath(_localDrivePath)))
                 {
                     Assert.True(Convert.ToBase64String(hashAlgorithm.ComputeHash(stream)) == _driveItemPool["c1"].CTag);
                 }
@@ -148,14 +111,14 @@ namespace CryptoDrive.Core.Tests
 
                 // file e
                 Assert.True(File.Exists("e"
-                    .ToConflictFilePath(_driveItemPool["e1"].FileSystemInfo.LastModifiedDateTime.Value)
+                    .ToConflictFilePath(_driveItemPool["e1"].LastModified())
                     .ToAbsolutePath(_localDrivePath)));
                 Assert.True(File.Exists("e".ToAbsolutePath(_localDrivePath)));
                 Assert.True(File.Exists("e".ToAbsolutePath(_remoteDrivePath)));
 
                 // file f
                 Assert.True(File.Exists("f"
-                    .ToConflictFilePath(_driveItemPool["f1"].FileSystemInfo.LastModifiedDateTime.Value)
+                    .ToConflictFilePath(_driveItemPool["f1"].LastModified())
                     .ToAbsolutePath(_localDrivePath)));
                 Assert.True(File.Exists("f".ToAbsolutePath(_localDrivePath)));
                 Assert.True(File.Exists("f".ToAbsolutePath(_remoteDrivePath)));
@@ -168,14 +131,14 @@ namespace CryptoDrive.Core.Tests
                 // file g
                 Assert.True(File.Exists("g".ToAbsolutePath(_localDrivePath)));
                 Assert.True(File.Exists("g"
-                    .ToConflictFilePath(_driveItemPool["g1"].FileSystemInfo.LastModifiedDateTime.Value)
+                    .ToConflictFilePath(_driveItemPool["g1"].LastModified())
                     .ToAbsolutePath(_localDrivePath)));
                 Assert.True(File.Exists("g".ToAbsolutePath(_remoteDrivePath)));
 
                 // file h
                 Assert.True(File.Exists("h".ToAbsolutePath(_localDrivePath)));
                 Assert.True(File.Exists("h"
-                    .ToConflictFilePath(_driveItemPool["h1"].FileSystemInfo.LastModifiedDateTime.Value)
+                    .ToConflictFilePath(_driveItemPool["h1"].LastModified())
                     .ToAbsolutePath(_localDrivePath)));
                 Assert.True(File.Exists("h".ToAbsolutePath(_remoteDrivePath)));
 
@@ -187,7 +150,7 @@ namespace CryptoDrive.Core.Tests
 
                 // file i
                 Assert.True(File.Exists("i"
-                    .ToConflictFilePath(_driveItemPool["i1"].FileSystemInfo.LastModifiedDateTime.Value)
+                    .ToConflictFilePath(_driveItemPool["i1"].LastModified())
                     .ToAbsolutePath(_localDrivePath)));
                 Assert.True(File.Exists("i".ToAbsolutePath(_localDrivePath)));
                 Assert.True(File.Exists("i".ToAbsolutePath(_remoteDrivePath)));
@@ -200,16 +163,16 @@ namespace CryptoDrive.Core.Tests
 
                 // file j
                 Assert.True(File.Exists("j"
-                    .ToConflictFilePath(_driveItemPool["j1"].FileSystemInfo.LastModifiedDateTime.Value)
+                    .ToConflictFilePath(_driveItemPool["j1"].LastModified())
                     .ToAbsolutePath(_localDrivePath)));
                 Assert.True(File.Exists("j".ToAbsolutePath(_localDrivePath)));
                 Assert.True(File.Exists("j"
-                    .ToConflictFilePath(_driveItemPool["j3"].FileSystemInfo.LastModifiedDateTime.Value)
+                    .ToConflictFilePath(_driveItemPool["j3"].LastModified())
                     .ToAbsolutePath(_localDrivePath)));
                 Assert.True(File.Exists("j".ToAbsolutePath(_remoteDrivePath)));
 
                 using (var stream = File.OpenRead("j"
-                    .ToConflictFilePath(_driveItemPool["j3"].FileSystemInfo.LastModifiedDateTime.Value)
+                    .ToConflictFilePath(_driveItemPool["j3"].LastModified())
                     .ToAbsolutePath(_localDrivePath)))
                 {
                     Assert.True(Convert.ToBase64String(hashAlgorithm.ComputeHash(stream)) == _driveItemPool["j3"].CTag);
@@ -218,7 +181,7 @@ namespace CryptoDrive.Core.Tests
                 // file k
                 Assert.True(File.Exists("k".ToAbsolutePath(_localDrivePath)));
                 Assert.True(File.Exists("k"
-                    .ToConflictFilePath(_driveItemPool["k1"].FileSystemInfo.LastModifiedDateTime.Value)
+                    .ToConflictFilePath(_driveItemPool["k1"].LastModified())
                     .ToAbsolutePath(_localDrivePath)));
                 Assert.True(File.Exists("k".ToAbsolutePath(_remoteDrivePath)));
 
@@ -231,8 +194,14 @@ namespace CryptoDrive.Core.Tests
             }
         }
 
-        private void PrepareDrives()
+        private async Task<(IDriveProxy, IDriveProxy)> PrepareDrives()
         {
+            _remoteDrivePath = Path.Combine(Path.GetTempPath(), "CryptoDriveRemote_" + Path.GetRandomFileName().Replace(".", string.Empty));
+            var remoteDrive = new LocalDriveProxy(_remoteDrivePath, "OneDrive", _logger);
+
+            _localDrivePath = Path.Combine(Path.GetTempPath(), "CryptoDriveLocal_" + Path.GetRandomFileName().Replace(".", string.Empty));
+            var localDrive = new LocalDriveProxy(_localDrivePath, "local", _logger);
+
             _driveItemPool = new Dictionary<string, DriveItem>()
             {
                 ["a1"] = this.CreateDriveItem("a", 1),
@@ -265,42 +234,42 @@ namespace CryptoDrive.Core.Tests
             };
 
             // _driveItemLocal
-            this.CreateLocalFile(_driveItemPool["a1"]);
+            await localDrive.CreateOrUpdateAsync(_driveItemPool["a1"]);
 
-            this.CreateLocalFile(_driveItemPool["b1"]);
+            await localDrive.CreateOrUpdateAsync(_driveItemPool["b1"]);
 
-            this.CreateLocalFile(_driveItemPool["d1"]);
+            await localDrive.CreateOrUpdateAsync(_driveItemPool["d1"]);
 
-            this.CreateLocalFile(_driveItemPool["e1"], isConflicted: true);
-            this.CreateLocalFile(_driveItemPool["e2"]);
+            await localDrive.CreateOrUpdateAsync(_driveItemPool["e1"].MemberwiseClone().ToConflict());
+            await localDrive.CreateOrUpdateAsync(_driveItemPool["e2"]);
 
-            this.CreateLocalFile(_driveItemPool["f1"], isConflicted: true);
-            this.CreateLocalFile(_driveItemPool["f2"]);
+            await localDrive.CreateOrUpdateAsync(_driveItemPool["f1"].MemberwiseClone().ToConflict());
+            await localDrive.CreateOrUpdateAsync(_driveItemPool["f2"]);
 
-            this.CreateLocalFile(_driveItemPool["g1"]);
-            this.CreateLocalFile(_driveItemPool["g1"], isConflicted: true);
+            await localDrive.CreateOrUpdateAsync(_driveItemPool["g1"]);
+            await localDrive.CreateOrUpdateAsync(_driveItemPool["g1"].MemberwiseClone().ToConflict());
 
-            this.CreateLocalFile(_driveItemPool["h1"], isConflicted: true);
+            await localDrive.CreateOrUpdateAsync(_driveItemPool["h1"].MemberwiseClone().ToConflict());
 
-            this.CreateLocalFile(_driveItemPool["i1"], isConflicted: true);
+            await localDrive.CreateOrUpdateAsync(_driveItemPool["i1"].MemberwiseClone().ToConflict());
 
-            this.CreateLocalFile(_driveItemPool["j1"], isConflicted: true);
-            this.CreateLocalFile(_driveItemPool["j2"]);
+            await localDrive.CreateOrUpdateAsync(_driveItemPool["j1"].MemberwiseClone().ToConflict());
+            await localDrive.CreateOrUpdateAsync(_driveItemPool["j2"]);
 
-            this.CreateLocalFile(_driveItemPool["k1"]);
-            this.CreateLocalFile(_driveItemPool["k1"], isConflicted: true);
+            await localDrive.CreateOrUpdateAsync(_driveItemPool["k1"]);
+            await localDrive.CreateOrUpdateAsync(_driveItemPool["k1"].MemberwiseClone().ToConflict());
 
             // _remoteDrive
-            _remoteDrive = new RemoteTestDrive(_remoteDrivePath);
+            await remoteDrive.CreateOrUpdateAsync(_driveItemPool["a2"]);
+            await remoteDrive.CreateOrUpdateAsync(_driveItemPool["b1"]);
+            await remoteDrive.CreateOrUpdateAsync(_driveItemPool["c1"]);
+            await remoteDrive.CreateOrUpdateAsync(_driveItemPool["e1"]);
+            await remoteDrive.CreateOrUpdateAsync(_driveItemPool["g1"]);
+            await remoteDrive.CreateOrUpdateAsync(_driveItemPool["h1"]);
+            await remoteDrive.CreateOrUpdateAsync(_driveItemPool["i2"]);
+            await remoteDrive.CreateOrUpdateAsync(_driveItemPool["j3"]);
 
-            _remoteDrive.Upload(_driveItemPool["a2"]);
-            _remoteDrive.Upload(_driveItemPool["b1"]);
-            _remoteDrive.Upload(_driveItemPool["c1"]);
-            _remoteDrive.Upload(_driveItemPool["e1"]);
-            _remoteDrive.Upload(_driveItemPool["g1"]);
-            _remoteDrive.Upload(_driveItemPool["h1"]);
-            _remoteDrive.Upload(_driveItemPool["i2"]);
-            _remoteDrive.Upload(_driveItemPool["j3"]);
+            return (remoteDrive, localDrive);
         }
 
         private DriveItem CreateDriveItem(string name, int version)
@@ -311,32 +280,13 @@ namespace CryptoDrive.Core.Tests
 
             return new DriveItem
             {
+                File = new Microsoft.Graph.File(),
                 Name = name,
                 Content = content,
                 CTag = Convert.ToBase64String(hashAlgorithm.ComputeHash(content)),
                 FileSystemInfo = new Microsoft.Graph.FileSystemInfo { LastModifiedDateTime = lastModified },
                 ParentReference = new ItemReference() { Path = CryptoDriveConstants.PathPrefix }
             };
-        }
-
-        private void CreateLocalFile(DriveItem driveItem, bool isConflicted = false)
-        {
-            string name;
-
-            if (isConflicted)
-                name = driveItem.Name.ToConflictFilePath(driveItem.FileSystemInfo.LastModifiedDateTime.Value);
-            else
-                name = driveItem.Name;
-
-            var filePath = name.ToAbsolutePath(_localDrivePath);
-
-            using (var stream = File.OpenWrite(filePath))
-            {
-                driveItem.Content.Seek(0, SeekOrigin.Begin);
-                driveItem.Content.CopyTo(stream);
-            }
-
-            File.SetLastWriteTimeUtc(filePath, driveItem.FileSystemInfo.LastModifiedDateTime.Value.DateTime);
         }
 
         public void Dispose()
