@@ -168,6 +168,52 @@ namespace CryptoDrive.Core
 
         #region Private
 
+
+        //public async Task<DriveItem> UploadSmallFileAsync(DriveItem driveItem, Stream stream)
+        //{
+        //    // Create http PUT request.
+        //    var blobRequest = this.GraphClient.Me.Drive.Root.ItemWithPath(driveItem.GetPath()).Content.Request();
+
+        //    var blob = new HttpRequestMessage(HttpMethod.Put, blobRequest.RequestUrl)
+        //    {
+        //        Content = new StreamContent(stream)
+        //    };
+
+        //    // Create http PATCH request.
+        //    var metadataRequest = this.GraphClient.Me.Drive.Root.ItemWithPath(driveItem.GetPath()).Request();
+        //    var jsonContent = this.GraphClient.HttpProvider.Serializer.SerializeObject(driveItem);
+
+        //    var metadata = new HttpRequestMessage(HttpMethod.Patch, metadataRequest.RequestUrl)
+        //    {
+        //        Content = new StringContent(jsonContent, Encoding.UTF8, "application/json")
+        //    };
+
+        //    // Create batch request steps with request ids.
+        //    var requestStep1 = new BatchRequestStep("1", blob, null);
+        //    var requestStep2 = new BatchRequestStep("2", metadata, new List<string> { "1" });
+
+        //    // Add batch request steps to BatchRequestContent.
+        //    var batch = new BatchRequestContent();
+        //    batch.AddBatchRequestStep(requestStep1);
+        //    batch.AddBatchRequestStep(requestStep2);
+
+        //    // Create the top-level HttpRequestMessage.
+        //    var message = new HttpRequestMessage(HttpMethod.Put, "https://graph.microsoft.com/v1.0/$batch")
+        //    {
+        //        Content = batch
+        //    };
+
+        //    var response = await this.GraphClient.HttpProvider.SendAsync(message);
+
+        //    // Handle http responses using BatchResponseContent.
+        //    var batchResponseContent = new BatchResponseContent(response);
+        //    var responses = await batchResponseContent.GetResponsesAsync();
+        //    var httpResponse = await batchResponseContent.GetResponseByIdAsync("1");
+        //    string nextLink = await batchResponseContent.GetNextLinkAsync();
+
+        //    return driveItem;
+        //}
+
         private async Task<DriveItem> UploadSmallFileAsync(DriveItem driveItem, Stream stream)
         {
             var blobRequest = this.GraphClient.Me.Drive.Root.ItemWithPath(driveItem.Name).Content.Request();

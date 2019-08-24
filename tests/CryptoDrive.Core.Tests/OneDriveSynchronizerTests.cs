@@ -122,7 +122,7 @@ namespace CryptoDrive.Core.Tests
                     .ToAbsolutePath(_localDrivePath)));
                 Assert.True(File.Exists("f".ToAbsolutePath(_localDrivePath)));
                 Assert.True(File.Exists("f".ToAbsolutePath(_remoteDrivePath)));
-
+                
                 using (var stream = File.OpenRead("f".ToAbsolutePath(_localDrivePath)))
                 {
                     Assert.True(Convert.ToBase64String(hashAlgorithm.ComputeHash(stream)) == _driveItemPool["f2"].CTag);

@@ -4,7 +4,7 @@
 @using CryptoDrive.Graph
 @inject IGraphSdkHelper GraphSdkHelper
 @inject CryptoDriveDbContext DbContext
-@inject Microsoft.Extensions.Logging.ILogger<OneDriveSynchronizer> logger
+@inject Microsoft.Extensions.Logging.ILogger<CryptoDriveSyncEngine> logger
 
 <h1>Counter</h1>
 
@@ -39,9 +39,12 @@
         var authState = await authenticationStateTask;
 
         // https://github.com/microsoftgraph/aspnetcore-connect-sample/issues/14
-        var oneDriveClient = new OneDriveClient(this.GraphSdkHelper.GetAuthenticatedClient((ClaimsIdentity)authState.User.Identity));
-        var rootFolderPath = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), "CryptoDrive");
+        var basePath = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), "CryptoDrive");
 
-        await (new OneDriveSynchronizer(rootFolderPath, oneDriveClient, this.DbContext, logger)).SynchronizeTheUniverse();
+        var graphClient = this.GraphSdkHelper.GetAuthenticatedClient((ClaimsIdentity)authState.User.Identity);
+        var oneDrive = new OneDriveProxy(graphClient, logger);
+        var localDrive = new LocalDriveProxy(basePath, "local", logger);
+
+        await (new CryptoDriveSyncEngine(oneDrive, localDrive, this.DbContext, logger)).SynchronizeTheUniverse();
     }
 }
