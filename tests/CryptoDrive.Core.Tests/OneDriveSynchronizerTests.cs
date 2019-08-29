@@ -189,8 +189,6 @@ namespace CryptoDrive.Core.Tests
                 {
                     Assert.True(Convert.ToBase64String(hashAlgorithm.ComputeHash(stream)) == _driveItemPool["k1"].CTag);
                 }
-
-                // remote
             }
         }
 

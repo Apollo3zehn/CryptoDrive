@@ -41,13 +41,13 @@ namespace CryptoDrive.Core
             // prepare database
             _dbContext.Database.EnsureCreated();
 
-            await _remoteDrive.ProcessDelta(async deltaPage => await this.SyncChanges(deltaPage, isLocal: false));
-            await _localDrive.ProcessDelta(async deltaPage => await this.SyncChanges(deltaPage, isLocal: true));
+            await _remoteDrive.ProcessDelta(async deltaPage => await this.SyncChanges(_remoteDrive, _localDrive, deltaPage, isLocal: false));
+            await _localDrive.ProcessDelta(async deltaPage => await this.SyncChanges(_localDrive, _remoteDrive, deltaPage, isLocal: true));
 
             await this.CheckConflicts();
         }
 
-        private async Task SyncChanges(List<DriveItem> deltaPage, bool isLocal)
+        private async Task SyncChanges(IDriveProxy sourceDrive, IDriveProxy targetDrive, List<DriveItem> deltaPage, bool isLocal)
         {
             foreach (var newDriveItem in deltaPage)
             {
@@ -80,10 +80,7 @@ namespace CryptoDrive.Core
                         }
 
                         // synchronize
-                        if (isLocal)
-                            updatedDriveItem = await this.SyncLocal(oldDriveItem, newDriveItem);
-                        else
-                            updatedDriveItem = await this.SyncRemote(oldDriveItem, newDriveItem);
+                        updatedDriveItem = await this.SyncDriveItem(sourceDrive, targetDrive, oldDriveItem, newDriveItem, isLocal);
 
                         // update database
                         if (updatedDriveItem != null)
@@ -106,21 +103,22 @@ namespace CryptoDrive.Core
             }
         }
 
-        private async Task FollowUp(CancellationToken cts)
-        {
-            while (!cts.IsCancellationRequested)
-            {
-                //await this.ProcessChanges();
-                await Task.Delay(TimeSpan.FromSeconds(10), cts);
-            }
-        }
-
         // medium level
-        private async Task<DriveItem> SyncRemote(DriveItem oldDriveItem, DriveItem newDriveItem)
+        private async Task<DriveItem> SyncDriveItem(IDriveProxy sourceDrive, IDriveProxy targetDrive,
+                                                    DriveItem oldDriveItem, DriveItem newDriveItem, 
+                                                    bool isLocal)
         {
             string itemName1;
             string itemName2;
             DriveItem driveItem = null;
+
+            // file is tracked as conflict
+            // action: do nothing, it will be handled by "CheckConflicts" later
+            if (isLocal && _dbContext.Conflicts.Any(conflict => conflict.OriginalFilePath == newDriveItem.GetPath()))
+            {
+                _logger.LogDebug($"File is tracked as conflict. Action(s): do nothing.");
+                return null;
+            }
 
             switch (newDriveItem.Type())
             {
@@ -136,110 +134,55 @@ namespace CryptoDrive.Core
                     throw new ArgumentException();
             }
 
-            // item was deleted on remote drive
-            // actions: delete item on local drive
-            if (newDriveItem.IsDeleted())
+            switch (newDriveItem.GetChangeType(oldDriveItem))
             {
-                _logger.LogInformation($"{itemName1} was deleted on remote drive. Action(s): Delete {itemName2} on local drive.");
+                case WatcherChangeTypes.Changed:
 
-                if (await _localDrive.ExistsAsync(newDriveItem))
-                    await _localDrive.DeleteAsync(newDriveItem);
-                else
-                    _logger.LogWarning($"Cannot delete local {itemName2} because it does not exist.");
-            }
+                    // change
 
-            // item was renamed / moved on remote drive
-            // actions: rename / move item on local drive
-            else if (oldDriveItem != null && oldDriveItem.GetPath() != newDriveItem.GetPath())
-            {
-                _logger.LogInformation($"{itemName1} was renamed / moved on remote drive. Action(s): Rename / move {itemName2} on local drive.");
+                    break;
 
-                if (await _localDrive.ExistsAsync(newDriveItem))
-                    _logger.LogWarning($"Cannot delete move {itemName2} because the target {itemName2} already exists.");
-                else
-                    driveItem = await _localDrive.MoveAsync(oldDriveItem, newDriveItem);
-            }
+                case WatcherChangeTypes.Created:
 
-            // new item was created on remote drive
-            // actions: create on local drive
-            else
-            {
-                _logger.LogInformation($"New {itemName2} was created on remote drive. Action(s): Create {itemName2} on local drive.");
-                driveItem = await this.TransferFile(_remoteDrive, _localDrive, newDriveItem);
+                    // new item was created on source drive
+                    // actions: create on target drive
+                    _logger.LogInformation($"New {itemName2} was created on drive '{sourceDrive.Name}'. Action(s): Create {itemName2} on drive '{targetDrive.Name}'.");
+                    driveItem = await this.TransferFile(sourceDrive, targetDrive, newDriveItem);
+
+                    break;
+
+                case WatcherChangeTypes.Deleted:
+
+                    // item was deleted on source drive
+                    // actions: delete item on target drive
+                    _logger.LogInformation($"{itemName1} was deleted on drive '{sourceDrive.Name}'. Action(s): Delete {itemName2} on drive '{targetDrive.Name}'.");
+
+                    if (await _localDrive.ExistsAsync(newDriveItem))
+                        await _localDrive.DeleteAsync(newDriveItem);
+                    else
+                        _logger.LogWarning($"Cannot delete local {itemName2} because it does not exist.");
+
+                    break;
+
+                case WatcherChangeTypes.Renamed:
+
+                    // item was renamed / moved on source drive
+                    // actions: rename / move item on target drive
+                    _logger.LogInformation($"{itemName1} was renamed / moved on drive '{sourceDrive.Name}'. Action(s): Rename / move {itemName2} on drive '{targetDrive.Name}'.");
+
+                    if (await _localDrive.ExistsAsync(newDriveItem))
+                        _logger.LogWarning($"Cannot delete move {itemName2} because the target {itemName2} already exists.");
+                    else
+                        driveItem = await _localDrive.MoveAsync(oldDriveItem, newDriveItem);
+
+                    break;
+
+                default:
+                    // do nothing
+                    break;
             }
 
             return driveItem;
-        }
-
-        private async Task<DriveItem> SyncLocal(DriveItem oldDriveItem, DriveItem newDriveItem)
-        {
-            // file is tracked as conflict
-            // action: do nothing, it will be handled by "CheckConflicts" later
-            if (_dbContext.Conflicts.Any(conflict => conflict.OriginalFilePath == newDriveItem.GetPath()))
-            {
-                _logger.LogDebug($"File is tracked as conflict. Action(s): do nothing.");
-            }
-
-            // file is not part of any known conflicts
-            else
-            {
-                // file is not available on remote drive
-                if (oldDriveItem == null)
-                {
-                    switch (newDriveItem.GetChangeType(oldDriveItem))
-                    {
-                        case WatcherChangeTypes.Changed:
-                        case WatcherChangeTypes.Created:
-                        case WatcherChangeTypes.Renamed:
-                            return await this.TransferFile(_localDrive, _remoteDrive, newDriveItem);
-
-                        // cannot happen
-                        case WatcherChangeTypes.Deleted:
-                            break;
-
-                        // do nothing
-                        default:
-                            break;
-                    }
-                }
-
-                // file is available on remote drive
-                else
-                {
-                    switch (newDriveItem.GetChangeType(oldDriveItem))
-                    {
-                        case WatcherChangeTypes.Changed:
-
-                            // change
-
-                            break;
-
-                        case WatcherChangeTypes.Created:
-
-                            // upload
-
-                            break;
-
-                        case WatcherChangeTypes.Deleted:
-
-                            // delete
-
-                            break;
-
-                        case WatcherChangeTypes.Renamed:
-
-                            // rename
-
-                            break;
-
-                        default:
-                            // do nothing
-                            break;
-                    }
-                }
-            }
-
-            return null;
         }
 
         private async Task CheckConflicts()
@@ -346,11 +289,16 @@ namespace CryptoDrive.Core
                 // file is unchanged on target drive
                 // actions: do nothing
                 if (await targetDrive.GetLastWriteTimeUtcAsync(driveItem) == driveItem.LastModified())
-                    _logger.LogDebug($"File is unchanged on drive '{targetDrive.Name}'. Action(s): do nothing.");
+                {
+                    _logger.LogDebug($"File already exists and is unchanged on drive '{targetDrive.Name}'. Action(s): do nothing.");
+                }
 
                 // file was modified on target drive
                 else
+                {
+                    _logger.LogDebug($"File already exists and was modified on drive '{targetDrive.Name}'. Action(s): handle conflict.");
                     await this.EnsureConflict(sourceDrive, targetDrive, driveItem);
+                }
             }
             // file does not exist on target drive
             // actions: transfer file
