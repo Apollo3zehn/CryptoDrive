@@ -16,7 +16,7 @@ namespace CryptoDrive.Core
         #region Change Tracking
 
         Task ProcessDelta(Func<List<DriveItem>, Task> action);
-        Task<(List<DriveItem>, bool)> GetDeltaPageAsync();
+        Task<(List<DriveItem> DeltaPage, bool IsFirstDelta)> GetDeltaPageAsync();
 
         #endregion
 
@@ -24,7 +24,7 @@ namespace CryptoDrive.Core
 
         Task<DriveItem> CreateOrUpdateAsync(DriveItem driveItem);
         Task<DriveItem> MoveAsync(DriveItem oldDriveItem, DriveItem newDriveItem);
-        Task DeleteAsync(DriveItem driveItem);
+        Task<DriveItem> DeleteAsync(DriveItem driveItem);
 
         #endregion
 

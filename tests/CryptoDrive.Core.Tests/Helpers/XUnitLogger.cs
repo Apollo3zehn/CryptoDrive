@@ -2,7 +2,7 @@
 using System;
 using Xunit.Abstractions;
 
-namespace CryptoDrive.Tests
+namespace CryptoDrive.Core.Tests
 {
     public class XunitLoggerProvider : ILoggerProvider
     {

@@ -21,8 +21,6 @@ namespace CryptoDrive.Core
         private IDriveProxy _remoteDrive;
         private IDriveProxy _localDrive;
 
-        private object _dbContextLock;
-
         public CryptoDriveSyncEngine(IDriveProxy remoteDrive, IDriveProxy localDrive, CryptoDriveDbContext dbContext, ILogger logger)
         {
             _remoteDrive = remoteDrive;
@@ -30,25 +28,26 @@ namespace CryptoDrive.Core
             _dbContext = dbContext;
             _logger = logger;
 
-            _dbContextLock = new object();
             _regex_conflict = new Regex(@".*\s\(Conflicted Copy [0-9]{4}-[0-9]{2}-[0-9]{2}\s[0-9]{6}\)");
             _regex_replace = new Regex(@"\s\(Conflicted Copy [0-9]{4}-[0-9]{2}-[0-9]{2}\s[0-9]{6}\)");
         }
 
         // high level
-        public async Task SynchronizeTheUniverse()
+        public async Task Synchronize()
         {
             // prepare database
             _dbContext.Database.EnsureCreated();
 
-            await _remoteDrive.ProcessDelta(async deltaPage => await this.SyncChanges(_remoteDrive, _localDrive, deltaPage, isLocal: false));
-            await _localDrive.ProcessDelta(async deltaPage => await this.SyncChanges(_localDrive, _remoteDrive, deltaPage, isLocal: true));
+            await _remoteDrive.ProcessDelta(async deltaPage => await this.SyncChanges(_remoteDrive, _localDrive, deltaPage));
+            await _localDrive.ProcessDelta(async deltaPage => await this.SyncChanges(_localDrive, _remoteDrive, deltaPage));
 
             await this.CheckConflicts();
         }
 
-        private async Task SyncChanges(IDriveProxy sourceDrive, IDriveProxy targetDrive, List<DriveItem> deltaPage, bool isLocal)
+        private async Task SyncChanges(IDriveProxy sourceDrive, IDriveProxy targetDrive, List<DriveItem> deltaPage)
         {
+            var isLocal = sourceDrive == _localDrive;
+
             foreach (var newDriveItem in deltaPage)
             {
                 using (_logger.BeginScope(new Dictionary<string, object>
@@ -59,66 +58,53 @@ namespace CryptoDrive.Core
                     // if file is marked as conflicted copy
                     if (isLocal && _regex_conflict.IsMatch(newDriveItem.Name))
                     {
-                        this.EnsureConflictByConflictFile(conflictFilePath: newDriveItem.GetPath());
+                        this.EnsureLocalConflictByConflictFile(conflictFilePath: newDriveItem.GetPath());
                     }
                     // proceed
                     else
                     {
                         RemoteState oldRemoteState;
-                        DriveItem oldDriveItem;
-                        DriveItem updatedDriveItem;
 
                         // find old remote state item
-                        lock (_dbContextLock)
-                        {
-                            if (isLocal)
-                                oldRemoteState = _dbContext.RemoteStates.FirstOrDefault(current => current.Path == newDriveItem.GetPath());
-                            else
-                                oldRemoteState = _dbContext.RemoteStates.FirstOrDefault(current => current.Id == newDriveItem.Id);
+                        if (isLocal)
+                            oldRemoteState = _dbContext.RemoteStates.FirstOrDefault(current => current.Path == newDriveItem.GetPath());
+                        else
+                            oldRemoteState = _dbContext.RemoteStates.FirstOrDefault(current => current.Id == newDriveItem.Id);
 
-                            oldDriveItem = oldRemoteState?.ToDriveItem();
+                        var oldDriveItem = oldRemoteState?.ToDriveItem();
+
+                        // file is tracked as conflict
+                        // action: do nothing, it will be handled by "CheckConflicts" later
+                        if (isLocal && _dbContext.Conflicts.Any(conflict => conflict.OriginalFilePath == newDriveItem.GetPath()))
+                        {
+                            _logger.LogDebug($"File is tracked as conflict. Action(s): do nothing.");
                         }
 
                         // synchronize
-                        updatedDriveItem = await this.SyncDriveItem(sourceDrive, targetDrive, oldDriveItem, newDriveItem, isLocal);
+                        (var updatedDriveItem, var changeType) = await this.SyncDriveItem(sourceDrive, targetDrive, oldDriveItem, newDriveItem.MemberwiseClone());
 
                         // update database
-                        if (updatedDriveItem != null)
+                        if (!isLocal)
                         {
-                            lock (_dbContextLock)
-                            {
-                                if (updatedDriveItem.GetPath() == "root")
-                                    return;
+                            if (updatedDriveItem.GetPath() == "root")
+                                continue;
 
-                                if (oldDriveItem == null)
-                                    _dbContext.RemoteStates.Add(updatedDriveItem.ToRemoteState());
-                                else
-                                    _dbContext.Entry(oldRemoteState).CurrentValues.SetValues(updatedDriveItem.ToRemoteState());
-
-                                _dbContext.SaveChanges();
-                            }
+                            updatedDriveItem = newDriveItem;
                         }
+                        
+                        await this.UpdateDatabase(oldRemoteState, newRemoteState: updatedDriveItem.ToRemoteState(), changeType);
                     }
                 }
             }
         }
 
         // medium level
-        private async Task<DriveItem> SyncDriveItem(IDriveProxy sourceDrive, IDriveProxy targetDrive,
-                                                    DriveItem oldDriveItem, DriveItem newDriveItem, 
-                                                    bool isLocal)
+        private async Task<(DriveItem UpdateDriveItem, WatcherChangeTypes ChangeType)> SyncDriveItem(IDriveProxy sourceDrive, IDriveProxy targetDrive,
+                                                                                                     DriveItem oldDriveItem, DriveItem newDriveItem)
         {
             string itemName1;
             string itemName2;
-            DriveItem driveItem = null;
-
-            // file is tracked as conflict
-            // action: do nothing, it will be handled by "CheckConflicts" later
-            if (isLocal && _dbContext.Conflicts.Any(conflict => conflict.OriginalFilePath == newDriveItem.GetPath()))
-            {
-                _logger.LogDebug($"File is tracked as conflict. Action(s): do nothing.");
-                return null;
-            }
+            DriveItem updatedDriveItem = null;
 
             switch (newDriveItem.Type())
             {
@@ -129,12 +115,13 @@ namespace CryptoDrive.Core
                     itemName1 = "File"; itemName2 = "file";
                     break;
                 case GraphItemType.RemoteItem:
-                    return null;
                 default:
                     throw new ArgumentException();
             }
 
-            switch (newDriveItem.GetChangeType(oldDriveItem))
+            var changeType = newDriveItem.GetChangeType(oldDriveItem);
+
+            switch (changeType)
             {
                 case WatcherChangeTypes.Changed:
 
@@ -147,7 +134,7 @@ namespace CryptoDrive.Core
                     // new item was created on source drive
                     // actions: create on target drive
                     _logger.LogInformation($"New {itemName2} was created on drive '{sourceDrive.Name}'. Action(s): Create {itemName2} on drive '{targetDrive.Name}'.");
-                    driveItem = await this.TransferFile(sourceDrive, targetDrive, newDriveItem);
+                    updatedDriveItem = await this.TransferFile(sourceDrive, targetDrive, newDriveItem);
 
                     break;
 
@@ -158,7 +145,7 @@ namespace CryptoDrive.Core
                     _logger.LogInformation($"{itemName1} was deleted on drive '{sourceDrive.Name}'. Action(s): Delete {itemName2} on drive '{targetDrive.Name}'.");
 
                     if (await _localDrive.ExistsAsync(newDriveItem))
-                        await _localDrive.DeleteAsync(newDriveItem);
+                        updatedDriveItem = await _localDrive.DeleteAsync(newDriveItem);
                     else
                         _logger.LogWarning($"Cannot delete local {itemName2} because it does not exist.");
 
@@ -173,7 +160,40 @@ namespace CryptoDrive.Core
                     if (await _localDrive.ExistsAsync(newDriveItem))
                         _logger.LogWarning($"Cannot delete move {itemName2} because the target {itemName2} already exists.");
                     else
-                        driveItem = await _localDrive.MoveAsync(oldDriveItem, newDriveItem);
+                        updatedDriveItem = await _localDrive.MoveAsync(oldDriveItem, newDriveItem);
+
+                    break;
+
+                default:
+                    updatedDriveItem = newDriveItem;
+                    break;
+            }
+
+            return (updatedDriveItem, changeType);
+        }
+
+        private async Task UpdateDatabase(RemoteState oldRemoteState, RemoteState newRemoteState, WatcherChangeTypes changeType)
+        {
+            switch (changeType)
+            {
+                // remote state was created or modified
+                // actions: create or update database state
+                case WatcherChangeTypes.Changed:
+                case WatcherChangeTypes.Created:
+                case WatcherChangeTypes.Renamed:
+
+                    if (oldRemoteState == null)
+                        _dbContext.RemoteStates.Add(newRemoteState);
+                    else
+                        _dbContext.Entry(oldRemoteState).CurrentValues.SetValues(newRemoteState);
+
+                    break;
+
+                case WatcherChangeTypes.Deleted:
+
+                    // remote state was deleted
+                    // actions: remove remote state from database
+                    _dbContext.RemoteStates.Remove(oldRemoteState);
 
                     break;
 
@@ -182,7 +202,7 @@ namespace CryptoDrive.Core
                     break;
             }
 
-            return driveItem;
+            await _dbContext.SaveChangesAsync();
         }
 
         private async Task CheckConflicts()
@@ -283,6 +303,8 @@ namespace CryptoDrive.Core
         // low level
         private async Task<DriveItem> TransferFile(IDriveProxy sourceDrive, IDriveProxy targetDrive, DriveItem driveItem)
         {
+            var isLocal = sourceDrive == _localDrive;
+
             // file exists on target drive
             if (await targetDrive.ExistsAsync(driveItem))
             {
@@ -290,25 +312,28 @@ namespace CryptoDrive.Core
                 // actions: do nothing
                 if (await targetDrive.GetLastWriteTimeUtcAsync(driveItem) == driveItem.LastModified())
                 {
-                    _logger.LogDebug($"File already exists and is unchanged on drive '{targetDrive.Name}'. Action(s): do nothing.");
+                    _logger.LogDebug($"File already exists and is unchanged on target drive '{targetDrive.Name}'. Action(s): do nothing.");
                 }
 
                 // file was modified on target drive
                 else
                 {
-                    _logger.LogDebug($"File already exists and was modified on drive '{targetDrive.Name}'. Action(s): handle conflict.");
-                    await this.EnsureConflict(sourceDrive, targetDrive, driveItem);
+                    if (!isLocal)
+                    {
+                        _logger.LogDebug($"File already exists and was modified on target drive '{targetDrive.Name}'. Action(s): handle conflict.");
+                        await this.EnsureLocalConflict(driveItem);
+                    }
                 }
             }
             // file does not exist on target drive
             // actions: transfer file
             else
             {
-                _logger.LogInformation($"File is not available on drive '{targetDrive.Name}'. Action(s): transfer file.");
+                _logger.LogInformation($"File is not available on target drive '{targetDrive.Name}'. Action(s): transfer file.");
                 return await this.InternalTransferFile(sourceDrive, targetDrive, driveItem);
             }
 
-            return null;
+            return driveItem;
         }
 
         private async Task<DriveItem> InternalTransferFile(IDriveProxy sourceDrive, IDriveProxy targetDrive, DriveItem driveItem)
@@ -331,49 +356,46 @@ namespace CryptoDrive.Core
             return newDriveItem;
         }
 
-        private async Task EnsureConflict(IDriveProxy sourceDrive, IDriveProxy targetDrive, DriveItem driveItem)
+        private async Task EnsureLocalConflict(DriveItem driveItem)
         {
             var conflictDriveItem = driveItem.ToConflict();
 
             // conflict file does not exist
-            // actions: download file
+            // actions: transfer file to local drive
             if (!await _localDrive.ExistsAsync(conflictDriveItem))
             {
-                _logger.LogInformation($"Conflict file does not exist on drive '{targetDrive.Name}'. Actions(s): transfer file.");
-                await this.InternalTransferFile(sourceDrive, targetDrive, conflictDriveItem);
+                _logger.LogInformation($"Conflict file does not exist on drive '{_localDrive.Name}'. Actions(s): transfer file.");
+                await this.InternalTransferFile(_remoteDrive, _localDrive, conflictDriveItem);
             }
 
-            this.EnsureConflictByConflictFile(conflictDriveItem.GetPath());
+            this.EnsureLocalConflictByConflictFile(conflictDriveItem.GetPath());
         }
 
-        private void EnsureConflictByConflictFile(string conflictFilePath)
+        private void EnsureLocalConflictByConflictFile(string conflictFilePath)
         {
-            lock (_dbContextLock)
+            var conflict = _dbContext.Conflicts.FirstOrDefault(current => current.ConflictFilePath == conflictFilePath);
+
+            // conflict does not exist in database
+            // actions: add new entity
+            if (conflict == null)
             {
-                var conflict = _dbContext.Conflicts.FirstOrDefault(current => current.ConflictFilePath == conflictFilePath);
+                _logger.LogDebug($"Conflict entity does not exist. Actions(s): Add new entity.");
+                var originalFilePath = _regex_replace.Replace(conflictFilePath, string.Empty);
 
-                // conflict does not exist in database
-                // actions: add new entity
-                if (conflict == null)
+                conflict = new Conflict()
                 {
-                    _logger.LogDebug($"Conflict entity does not exist. Actions(s): Add new entity.");
-                    var originalFilePath = _regex_replace.Replace(conflictFilePath, string.Empty);
+                    OriginalFilePath = originalFilePath,
+                    ConflictFilePath = conflictFilePath
+                };
 
-                    conflict = new Conflict()
-                    {
-                        OriginalFilePath = originalFilePath,
-                        ConflictFilePath = conflictFilePath
-                    };
-
-                    _dbContext.Conflicts.Add(conflict);
-                }
-                else
-                {
-                    _logger.LogDebug($"Conflict entity already exists. Actions(s): do nothing.");
-                }
-
-                _dbContext.SaveChanges();
+                _dbContext.Conflicts.Add(conflict);
             }
+            else
+            {
+                _logger.LogDebug($"Conflict entity already exists. Actions(s): do nothing.");
+            }
+
+            _dbContext.SaveChanges();
         }
     }
 }

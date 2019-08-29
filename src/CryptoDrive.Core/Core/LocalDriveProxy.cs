@@ -91,7 +91,7 @@ namespace CryptoDrive.Core
             }
         }
 
-        public Task<(List<DriveItem>, bool)> GetDeltaPageAsync()
+        public Task<(List<DriveItem> DeltaPage, bool IsFirstDelta)> GetDeltaPageAsync()
         {
             var pageSize = 10;
             var deltaPage = new List<DriveItem>();
@@ -170,7 +170,7 @@ namespace CryptoDrive.Core
             return Task.FromResult(newDriveItem);
         }
 
-        public Task DeleteAsync(DriveItem driveItem)
+        public Task<DriveItem> DeleteAsync(DriveItem driveItem)
         {
             string fullPath = driveItem.GetAbsolutePath(this.BasePath);
 
@@ -190,7 +190,7 @@ namespace CryptoDrive.Core
                     throw new NotSupportedException();
             }
 
-            return Task.CompletedTask;
+            return Task.FromResult(driveItem);
         }
 
         #endregion

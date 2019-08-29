@@ -67,7 +67,7 @@ namespace CryptoDrive.Core
             }
         }
 
-        public async Task<(List<DriveItem>, bool)> GetDeltaPageAsync()
+        public async Task<(List<DriveItem> DeltaPage, bool IsFirstDelta)> GetDeltaPageAsync()
         {
             IDriveItemDeltaCollectionPage _currentDeltaPage;
 
@@ -123,9 +123,9 @@ namespace CryptoDrive.Core
             throw new NotImplementedException();
         }
 
-        public Task DeleteAsync(DriveItem driveItem)
+        public Task<DriveItem> DeleteAsync(DriveItem driveItem)
         {
-            throw new NotImplementedException();
+            return Task.FromResult(driveItem);
         }
 
         #endregion
