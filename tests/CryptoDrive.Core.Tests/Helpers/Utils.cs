@@ -25,6 +25,9 @@ namespace CryptoDrive.Core.Tests
             var localDrivePath = Path.Combine(Path.GetTempPath(), "CryptoDriveLocal_" + Path.GetRandomFileName().Replace(".", string.Empty));
             var localDrive = new LocalDriveProxy(localDrivePath, "local", logger);
 
+            remoteDrive.EnableChangeTracking = false;
+            localDrive.EnableChangeTracking = false;
+
             switch (fileId)
             {
                 case "a":
@@ -33,14 +36,8 @@ namespace CryptoDrive.Core.Tests
                     break;
 
                 case "sub/a":
-                    var driveItem_a1 = Utils.DriveItemPool["a1"].MemberwiseClone();
-                    driveItem_a1.ParentReference.Path += "sub";
-
-                    var driveItem_a2 = Utils.DriveItemPool["a2"].MemberwiseClone();
-                    driveItem_a2.ParentReference.Path += "sub";
-
-                    await localDrive.CreateOrUpdateAsync(driveItem_a1);
-                    await remoteDrive.CreateOrUpdateAsync(driveItem_a2);
+                    await localDrive.CreateOrUpdateAsync(Utils.DriveItemPool["sub/a1"]);
+                    await remoteDrive.CreateOrUpdateAsync(Utils.DriveItemPool["sub/a1"]);
                     break;
 
                 case "b":
@@ -96,6 +93,9 @@ namespace CryptoDrive.Core.Tests
                     break;
             }
 
+            remoteDrive.EnableChangeTracking = true;
+            localDrive.EnableChangeTracking = true;
+
             return new DriveHive(remoteDrive, localDrive, remoteDrivePath, localDrivePath);
         }
 
@@ -105,6 +105,8 @@ namespace CryptoDrive.Core.Tests
             {
                 ["a1"] = Utils.CreateDriveItem("a", 1),
                 ["a2"] = Utils.CreateDriveItem("a", 2),
+
+                ["sub/a1"] = Utils.CreateDriveItem("sub/a", 1),
 
                 ["b1"] = Utils.CreateDriveItem("b", 1),
 
@@ -133,11 +135,14 @@ namespace CryptoDrive.Core.Tests
             };
         }
 
-        private static DriveItem CreateDriveItem(string name, int version)
+        private static DriveItem CreateDriveItem(string itemPath, int version)
         {
+            var name = Path.GetFileName(itemPath);
+            var folderPath = Path.GetDirectoryName(itemPath);
+
             var hashAlgorithm = new QuickXorHash();
             var lastModified = new DateTime(2019, 01, 01, version, 00, 00, DateTimeKind.Utc);
-            var content = $"{name} v{version}".ToMemorySteam();
+            var content = $"{itemPath} v{version}".ToMemorySteam();
             var hash = Convert.ToBase64String(hashAlgorithm.ComputeHash(content));
 
             return new DriveItem
@@ -146,7 +151,10 @@ namespace CryptoDrive.Core.Tests
                 Name = name,
                 Content = content,
                 FileSystemInfo = new Microsoft.Graph.FileSystemInfo { LastModifiedDateTime = lastModified },
-                ParentReference = new ItemReference() { Path = CryptoDriveConstants.PathPrefix }
+                ParentReference = new ItemReference() 
+                {
+                    Path = $"{CryptoDriveConstants.PathPrefix}{folderPath}"
+                }
             };
         }
     }

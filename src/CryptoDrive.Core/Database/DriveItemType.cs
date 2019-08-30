@@ -1,6 +1,6 @@
 ﻿namespace CryptoDrive.Core
 {
-    public enum GraphItemType
+    public enum DriveItemType
     {
         Folder = 0,
         File = 1,

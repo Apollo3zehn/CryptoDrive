@@ -138,7 +138,7 @@ namespace CryptoDrive.Core
             DriveItem oldDriveItem,
             DriveItem newDriveItem)
         {
-            DriveItem updatedDriveItem = null;
+            DriveItem updatedDriveItem;
 
             (var itemName1, var itemName2) = this.GetItemNames(newDriveItem);
             var changeType = newDriveItem.GetChangeType(oldDriveItem);
@@ -161,10 +161,15 @@ namespace CryptoDrive.Core
                     // actions: delete item on target drive
                     _logger.LogInformation($"{itemName1} was deleted on drive '{sourceDrive.Name}'. Action(s): Delete {itemName2} on drive '{targetDrive.Name}'.");
 
-                    if (await _localDrive.ExistsAsync(newDriveItem))
-                        updatedDriveItem = await _localDrive.DeleteAsync(newDriveItem);
+                    if (await targetDrive.ExistsAsync(newDriveItem))
+                    {
+                        updatedDriveItem = await targetDrive.DeleteAsync(newDriveItem);
+                    }
                     else
-                        _logger.LogWarning($"Cannot delete local {itemName2} because it does not exist.");
+                    {
+                        _logger.LogWarning($"Cannot delete {itemName2} because it does not exist on drive '{targetDrive.Name}'.");
+                        throw new InvalidOperationException($"Cannot delete {itemName2} because it does not exist on drive '{targetDrive.Name}'.");
+                    }
 
                     break;
 
@@ -174,14 +179,14 @@ namespace CryptoDrive.Core
                     // actions: rename / move item on target drive
                     _logger.LogInformation($"{itemName1} was renamed / moved on drive '{sourceDrive.Name}'. Action(s): Rename / move {itemName2} on drive '{targetDrive.Name}'.");
 
-                    if (await _localDrive.ExistsAsync(newDriveItem))
+                    if (await targetDrive.ExistsAsync(newDriveItem))
                     {
-                        _logger.LogWarning($"Cannot move {itemName2} because the target {itemName2} already exists.");
-                        throw new InvalidOperationException($"Cannot move {itemName2} because the target {itemName2} already exists.");
+                        _logger.LogWarning($"Cannot move {itemName2} because the target {itemName2} already exists on drive '{targetDrive.Name}'.");
+                        throw new InvalidOperationException($"Cannot move {itemName2} because the target {itemName2} already exists on drive '{targetDrive.Name}'.");
                     }
                     else
                     {
-                        updatedDriveItem = await _localDrive.MoveAsync(oldDriveItem, newDriveItem);
+                        updatedDriveItem = await targetDrive.MoveAsync(oldDriveItem, newDriveItem);
                     }
 
                     break;
@@ -198,19 +203,6 @@ namespace CryptoDrive.Core
         {
             switch (changeType)
             {
-                // remote state was created or modified
-                // actions: create or update database state
-                case WatcherChangeTypes.Changed:
-                case WatcherChangeTypes.Created:
-                case WatcherChangeTypes.Renamed:
-
-                    if (oldRemoteState == null)
-                        _dbContext.RemoteStates.Add(newRemoteState);
-                    else
-                        _dbContext.Entry(oldRemoteState).CurrentValues.SetValues(newRemoteState);
-
-                    break;
-
                 case WatcherChangeTypes.Deleted:
 
                     // remote state was deleted
@@ -219,8 +211,18 @@ namespace CryptoDrive.Core
 
                     break;
 
+                // remote state was created or modified
+                // actions: create or update database state
+                case WatcherChangeTypes.Changed:
+                case WatcherChangeTypes.Created:
+                case WatcherChangeTypes.Renamed:
                 default:
-                    // do nothing
+
+                    if (oldRemoteState == null)
+                        _dbContext.RemoteStates.Add(newRemoteState);
+                    else
+                        _dbContext.Entry(oldRemoteState).CurrentValues.SetValues(newRemoteState);
+
                     break;
             }
 
@@ -325,11 +327,11 @@ namespace CryptoDrive.Core
         private async Task DeleteOrphanedRemoteStates()
         {
             // files
-            foreach (var remoteState in _dbContext.RemoteStates.Where(current => !current.IsLocal && current.Type == GraphItemType.File))
+            foreach (var remoteState in _dbContext.RemoteStates.Where(current => !current.IsLocal && current.Type == DriveItemType.File))
                 await _remoteDrive.DeleteAsync(remoteState.ToDriveItem());
 
             // folders
-            foreach (var remoteState in _dbContext.RemoteStates.Where(current => !current.IsLocal && current.Type == GraphItemType.Folder))
+            foreach (var remoteState in _dbContext.RemoteStates.Where(current => !current.IsLocal && current.Type == DriveItemType.Folder))
                 await _remoteDrive.DeleteAsync(remoteState.ToDriveItem());
         }
 
@@ -440,13 +442,13 @@ namespace CryptoDrive.Core
 
             switch (driveItem.Type())
             {
-                case GraphItemType.Folder:
+                case DriveItemType.Folder:
                     itemName1 = "Folder"; itemName2 = "folder"; break;
 
-                case GraphItemType.File:
+                case DriveItemType.File:
                     itemName1 = "File"; itemName2 = "file"; break;
 
-                case GraphItemType.RemoteItem:
+                case DriveItemType.RemoteItem:
                 default:
                     throw new ArgumentException();
             }

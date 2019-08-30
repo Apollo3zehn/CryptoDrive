@@ -10,7 +10,7 @@ namespace CryptoDrive.Core
         public string Path { get; set; }
         public string QuickXorHash { get; set; }
         public long Size { get; set; }
-        public GraphItemType Type { get; set; }
+        public DriveItemType Type { get; set; }
         public DateTime LastModified { get; set; }
         public bool IsLocal { get; set; }
     }

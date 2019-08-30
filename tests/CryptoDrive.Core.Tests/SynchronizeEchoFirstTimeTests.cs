@@ -68,7 +68,7 @@ namespace CryptoDrive.Core.Tests
         }
 
         [Fact]
-        public void CanSyncFirstTimeATest()
+        public void CanSyncATest()
         {
             this.Execute("a", () =>
             {
@@ -85,7 +85,7 @@ namespace CryptoDrive.Core.Tests
         }
 
         [Fact]
-        public void CanSyncFirstTimeSubATest()
+        public void CanSyncSubATest()
         {
             this.Execute("sub/a", () =>
             {
@@ -96,13 +96,13 @@ namespace CryptoDrive.Core.Tests
 
                 using (var stream = File.OpenRead("sub/a".ToAbsolutePath(_driveHive.RemoteDrivePath)))
                 {
-                    Assert.True(Convert.ToBase64String(hashAlgorithm.ComputeHash(stream)) == Utils.DriveItemPool["a1"].QuickXorHash());
+                    Assert.True(Convert.ToBase64String(hashAlgorithm.ComputeHash(stream)) == Utils.DriveItemPool["sub/a1"].QuickXorHash());
                 }
             });
         }
 
         [Fact]
-        public void CanSyncFirstTimeBTest()
+        public void CanSyncBTest()
         {
             this.Execute("b", () =>
             {
@@ -119,7 +119,7 @@ namespace CryptoDrive.Core.Tests
         }
 
         [Fact]
-        public void CanSyncFirstTimeCTest()
+        public void CanSyncCTest()
         {
             this.Execute("c", () =>
             {
@@ -128,7 +128,7 @@ namespace CryptoDrive.Core.Tests
         }
 
         [Fact]
-        public void CanSyncFirstTimeDTest()
+        public void CanSyncDTest()
         {
             this.Execute("d", () =>
             {
@@ -145,7 +145,7 @@ namespace CryptoDrive.Core.Tests
         }
 
         [Fact]
-        public void CanSyncFirstTimeETest()
+        public void CanSyncETest()
         {
             this.Execute("e", () =>
             {
@@ -162,7 +162,7 @@ namespace CryptoDrive.Core.Tests
         }
 
         [Fact]
-        public void CanSyncFirstTimeFTest()
+        public void CanSyncFTest()
         {
             this.Execute("f", () =>
             {
@@ -179,7 +179,7 @@ namespace CryptoDrive.Core.Tests
         }
 
         [Fact]
-        public void CanSyncFirstTimeGTest()
+        public void CanSyncGTest()
         {
             this.Execute("g", () =>
             {
@@ -196,7 +196,7 @@ namespace CryptoDrive.Core.Tests
         }
 
         [Fact]
-        public void CanSyncFirstTimeHTest()
+        public void CanSyncHTest()
         {
             this.Execute("h", () =>
             {
@@ -205,7 +205,7 @@ namespace CryptoDrive.Core.Tests
         }
 
         [Fact]
-        public void CanSyncFirstTimeITest()
+        public void CanSyncITest()
         {
             this.Execute("i", () =>
             {
@@ -214,7 +214,7 @@ namespace CryptoDrive.Core.Tests
         }
 
         [Fact]
-        public void CanSyncFirstTimeJTest()
+        public void CanSyncJTest()
         {
             this.Execute("j", () =>
             {
@@ -231,7 +231,7 @@ namespace CryptoDrive.Core.Tests
         }
 
         [Fact]
-        public void CanSyncFirstTimeKTest()
+        public void CanSyncKTest()
         {
             this.Execute("k", () =>
             {

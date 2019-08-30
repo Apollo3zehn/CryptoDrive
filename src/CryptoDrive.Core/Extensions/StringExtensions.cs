@@ -13,15 +13,23 @@ namespace CryptoDrive.Extensions
 
         public static string ToConflictFilePath(this string filePath, DateTimeOffset lastModified)
         {
-            var path = Path.GetDirectoryName(filePath);
-            var name = Path.GetFileNameWithoutExtension(filePath);
-            var extension = Path.GetExtension(filePath);
-            var conflictedFilePath = $"{Path.Combine(path, name)} (Conflicted Copy {lastModified.ToString("yyyy-MM-dd HHmmss")})";
+            var conflictFileName = filePath.ToConflictFileName(lastModified);
+
+            var folderPath = Path.GetDirectoryName(filePath);
+            var conflictedFilePath = Path.Combine(folderPath, conflictFileName);
+
+            return conflictedFilePath.NormalizeSlashes();
+        }
+
+        public static string ToConflictFileName(this string fileName, DateTimeOffset lastModified)
+        {
+            var extension = Path.GetExtension(fileName);
+            var conflictFileName = $"{fileName} (Conflicted Copy {lastModified.ToString("yyyy-MM-dd HHmmss")})";
 
             if (!string.IsNullOrWhiteSpace(extension))
-                conflictedFilePath += $".{extension}";
+                conflictFileName += $".{extension}";
 
-            return conflictedFilePath;
+            return conflictFileName;
         }
 
         public static string ToAbsolutePath(this string relativePath, string basePath)
