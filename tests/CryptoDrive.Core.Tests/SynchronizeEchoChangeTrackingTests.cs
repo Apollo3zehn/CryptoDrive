@@ -117,8 +117,8 @@ namespace CryptoDrive.Core.Tests
         {
             _loggerProviders.ForEach(loggerProvider => loggerProvider.Dispose());
 
-            //Directory.Delete(_driveHive.RemoteDrivePath, true);
-            //Directory.Delete(_driveHive.LocalDrivePath, true);
+            Directory.Delete(_driveHive.RemoteDrivePath, true);
+            Directory.Delete(_driveHive.LocalDrivePath, true);
         }
     }
 }
