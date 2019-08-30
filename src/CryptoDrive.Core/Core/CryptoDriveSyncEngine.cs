@@ -6,7 +6,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
-using System.Threading;
 using System.Threading.Tasks;
 
 namespace CryptoDrive.Core
@@ -21,6 +20,8 @@ namespace CryptoDrive.Core
         private IDriveProxy _remoteDrive;
         private IDriveProxy _localDrive;
 
+        private SyncMode _syncMode;
+
         public CryptoDriveSyncEngine(IDriveProxy remoteDrive, IDriveProxy localDrive, CryptoDriveDbContext dbContext, ILogger logger)
         {
             _remoteDrive = remoteDrive;
@@ -33,15 +34,41 @@ namespace CryptoDrive.Core
         }
 
         // high level
-        public async Task Synchronize()
+        public async Task Synchronize(SyncMode syncMode = SyncMode.TwoWay)
         {
+            _syncMode = syncMode;
+
             // prepare database
             _dbContext.Database.EnsureCreated();
 
-            await _remoteDrive.ProcessDelta(async deltaPage => await this.SyncChanges(_remoteDrive, _localDrive, deltaPage));
+            // remote drive
+            if (syncMode == SyncMode.TwoWay)
+            {
+                await _remoteDrive.ProcessDelta(async deltaPage => await this.SyncChanges(_remoteDrive, _localDrive, deltaPage));
+            }
+            else
+            {
+                if (!_dbContext.RemoteStates.Any())
+                {
+                    await _remoteDrive.ProcessDelta(async deltaPage =>
+                    {
+                        foreach (var driveItem in deltaPage)
+                        {
+                            await this.UpdateDatabase(null, newRemoteState: driveItem.ToRemoteState(), WatcherChangeTypes.Created);
+                        }
+                    });
+                }
+            }
+
+            // local drive
             await _localDrive.ProcessDelta(async deltaPage => await this.SyncChanges(_localDrive, _remoteDrive, deltaPage));
 
+            // conflicts
             await this.CheckConflicts();
+
+            // ophaned remote states
+            if (syncMode == SyncMode.Echo)
+                await this.DeleteOrphanedRemoteStates();
         }
 
         private async Task SyncChanges(IDriveProxy sourceDrive, IDriveProxy targetDrive, List<DriveItem> deltaPage)
@@ -64,6 +91,7 @@ namespace CryptoDrive.Core
                     else
                     {
                         RemoteState oldRemoteState;
+                        RemoteState newRemoteState;
 
                         // find old remote state item
                         if (isLocal)
@@ -84,57 +112,46 @@ namespace CryptoDrive.Core
                         (var updatedDriveItem, var changeType) = await this.SyncDriveItem(sourceDrive, targetDrive, oldDriveItem, newDriveItem.MemberwiseClone());
 
                         // update database
-                        if (!isLocal)
+                        if (isLocal)
+                        {
+                            newRemoteState = updatedDriveItem.ToRemoteState();
+                            newRemoteState.IsLocal = true;
+                        }
+                        else
                         {
                             if (updatedDriveItem.GetPath() == "root")
                                 continue;
 
-                            updatedDriveItem = newDriveItem;
+                            newRemoteState = newDriveItem.ToRemoteState();
                         }
-                        
-                        await this.UpdateDatabase(oldRemoteState, newRemoteState: updatedDriveItem.ToRemoteState(), changeType);
+
+                        await this.UpdateDatabase(oldRemoteState, newRemoteState: newRemoteState, changeType);
                     }
                 }
             }
         }
 
         // medium level
-        private async Task<(DriveItem UpdateDriveItem, WatcherChangeTypes ChangeType)> SyncDriveItem(IDriveProxy sourceDrive, IDriveProxy targetDrive,
-                                                                                                     DriveItem oldDriveItem, DriveItem newDriveItem)
+        private async Task<(DriveItem UpdateDriveItem, WatcherChangeTypes ChangeType)> SyncDriveItem(
+            IDriveProxy sourceDrive,
+            IDriveProxy targetDrive,
+            DriveItem oldDriveItem,
+            DriveItem newDriveItem)
         {
-            string itemName1;
-            string itemName2;
             DriveItem updatedDriveItem = null;
 
-            switch (newDriveItem.Type())
-            {
-                case GraphItemType.Folder:
-                    itemName1 = "Folder"; itemName2 = "folder";
-                    break;
-                case GraphItemType.File:
-                    itemName1 = "File"; itemName2 = "file";
-                    break;
-                case GraphItemType.RemoteItem:
-                default:
-                    throw new ArgumentException();
-            }
-
+            (var itemName1, var itemName2) = this.GetItemNames(newDriveItem);
             var changeType = newDriveItem.GetChangeType(oldDriveItem);
 
             switch (changeType)
             {
                 case WatcherChangeTypes.Changed:
-
-                    // change
-
-                    break;
-
                 case WatcherChangeTypes.Created:
 
                     // new item was created on source drive
                     // actions: create on target drive
-                    _logger.LogInformation($"New {itemName2} was created on drive '{sourceDrive.Name}'. Action(s): Create {itemName2} on drive '{targetDrive.Name}'.");
-                    updatedDriveItem = await this.TransferFile(sourceDrive, targetDrive, newDriveItem);
+                    _logger.LogInformation($"New {itemName2} was created or modified on drive '{sourceDrive.Name}'. Action(s): Create or modify {itemName2} on drive '{targetDrive.Name}'.");
+                    updatedDriveItem = await this.TransferDriveItem(sourceDrive, targetDrive, newDriveItem);
 
                     break;
 
@@ -158,9 +175,14 @@ namespace CryptoDrive.Core
                     _logger.LogInformation($"{itemName1} was renamed / moved on drive '{sourceDrive.Name}'. Action(s): Rename / move {itemName2} on drive '{targetDrive.Name}'.");
 
                     if (await _localDrive.ExistsAsync(newDriveItem))
-                        _logger.LogWarning($"Cannot delete move {itemName2} because the target {itemName2} already exists.");
+                    {
+                        _logger.LogWarning($"Cannot move {itemName2} because the target {itemName2} already exists.");
+                        throw new InvalidOperationException($"Cannot move {itemName2} because the target {itemName2} already exists.");
+                    }
                     else
+                    {
                         updatedDriveItem = await _localDrive.MoveAsync(oldDriveItem, newDriveItem);
+                    }
 
                     break;
 
@@ -259,7 +281,7 @@ namespace CryptoDrive.Core
 
                         // hashes are equal
                         // actions: do nothing
-                        if (await _localDrive.GetHashAsync(originalDriveItem) == remoteItem.ETag)
+                        if (await _localDrive.GetHashAsync(originalDriveItem) == remoteItem.QuickXorHash)
                         {
                             _logger.LogDebug($"File is unchanged. Action(s): do nothing.");
                         }
@@ -300,43 +322,56 @@ namespace CryptoDrive.Core
             return false;
         }
 
-        // low level
-        private async Task<DriveItem> TransferFile(IDriveProxy sourceDrive, IDriveProxy targetDrive, DriveItem driveItem)
+        private async Task DeleteOrphanedRemoteStates()
         {
+            // files
+            foreach (var remoteState in _dbContext.RemoteStates.Where(current => !current.IsLocal && current.Type == GraphItemType.File))
+                await _remoteDrive.DeleteAsync(remoteState.ToDriveItem());
+
+            // folders
+            foreach (var remoteState in _dbContext.RemoteStates.Where(current => !current.IsLocal && current.Type == GraphItemType.Folder))
+                await _remoteDrive.DeleteAsync(remoteState.ToDriveItem());
+        }
+
+        // low level
+        private async Task<DriveItem> TransferDriveItem(IDriveProxy sourceDrive, IDriveProxy targetDrive, DriveItem driveItem)
+        {
+            (var itemName1, var itemName2) = this.GetItemNames(driveItem);
             var isLocal = sourceDrive == _localDrive;
 
-            // file exists on target drive
-            if (await targetDrive.ExistsAsync(driveItem))
+            // item exists on target drive
+            if (_syncMode == SyncMode.TwoWay && await targetDrive.ExistsAsync(driveItem))
             {
-                // file is unchanged on target drive
+                // item is unchanged on target drive
                 // actions: do nothing
                 if (await targetDrive.GetLastWriteTimeUtcAsync(driveItem) == driveItem.LastModified())
                 {
-                    _logger.LogDebug($"File already exists and is unchanged on target drive '{targetDrive.Name}'. Action(s): do nothing.");
+                    _logger.LogDebug($"{itemName1} already exists and is unchanged on target drive '{targetDrive.Name}'. Action(s): do nothing.");
                 }
 
-                // file was modified on target drive
+                // item was modified on target drive
                 else
                 {
                     if (!isLocal)
                     {
-                        _logger.LogDebug($"File already exists and was modified on target drive '{targetDrive.Name}'. Action(s): handle conflict.");
+                        _logger.LogDebug($"{itemName1} already exists and was modified on target drive '{targetDrive.Name}'. Action(s): handle conflict.");
                         await this.EnsureLocalConflict(driveItem);
                     }
                 }
             }
-            // file does not exist on target drive
-            // actions: transfer file
+
+            // item does not exist on target drive
+            // actions: transfer item
             else
             {
-                _logger.LogInformation($"File is not available on target drive '{targetDrive.Name}'. Action(s): transfer file.");
-                return await this.InternalTransferFile(sourceDrive, targetDrive, driveItem);
+                _logger.LogInformation($"{itemName1} is not available on target drive '{targetDrive.Name}'. Action(s): transfer {itemName2}.");
+                return await this.InternalTransferDriveItem(sourceDrive, targetDrive, driveItem);
             }
 
             return driveItem;
         }
 
-        private async Task<DriveItem> InternalTransferFile(IDriveProxy sourceDrive, IDriveProxy targetDrive, DriveItem driveItem)
+        private async Task<DriveItem> InternalTransferDriveItem(IDriveProxy sourceDrive, IDriveProxy targetDrive, DriveItem driveItem)
         {
             DriveItem newDriveItem;
 
@@ -365,7 +400,7 @@ namespace CryptoDrive.Core
             if (!await _localDrive.ExistsAsync(conflictDriveItem))
             {
                 _logger.LogInformation($"Conflict file does not exist on drive '{_localDrive.Name}'. Actions(s): transfer file.");
-                await this.InternalTransferFile(_remoteDrive, _localDrive, conflictDriveItem);
+                await this.InternalTransferDriveItem(_remoteDrive, _localDrive, conflictDriveItem);
             }
 
             this.EnsureLocalConflictByConflictFile(conflictDriveItem.GetPath());
@@ -396,6 +431,27 @@ namespace CryptoDrive.Core
             }
 
             _dbContext.SaveChanges();
+        }
+
+        private (string itemName1, string itemName2) GetItemNames(DriveItem driveItem)
+        {
+            string itemName1;
+            string itemName2;
+
+            switch (driveItem.Type())
+            {
+                case GraphItemType.Folder:
+                    itemName1 = "Folder"; itemName2 = "folder"; break;
+
+                case GraphItemType.File:
+                    itemName1 = "File"; itemName2 = "file"; break;
+
+                case GraphItemType.RemoteItem:
+                default:
+                    throw new ArgumentException();
+            }
+
+            return (itemName1, itemName2);
         }
     }
 }

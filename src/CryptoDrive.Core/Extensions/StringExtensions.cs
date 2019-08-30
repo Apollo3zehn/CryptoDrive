@@ -24,14 +24,14 @@ namespace CryptoDrive.Extensions
             return conflictedFilePath;
         }
 
-        public static string ToRelativePath(this string absolutePath, string basePath)
-        {
-            return absolutePath.Substring(basePath.Length + 1).Replace('\\', '/');
-        }
-
         public static string ToAbsolutePath(this string relativePath, string basePath)
         {
-            return Path.Combine(basePath, relativePath);
+            return Path.Combine(basePath, relativePath.TrimStart('/')).NormalizeSlashes();
+        }
+
+        public static string NormalizeSlashes(this string value)
+        {
+            return value.Replace('\\', '/').TrimEnd('/');
         }
     }
 }

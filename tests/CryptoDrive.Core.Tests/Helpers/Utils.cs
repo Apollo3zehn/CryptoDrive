@@ -31,43 +31,65 @@ namespace CryptoDrive.Core.Tests
                     await localDrive.CreateOrUpdateAsync(Utils.DriveItemPool["a1"]);
                     await remoteDrive.CreateOrUpdateAsync(Utils.DriveItemPool["a2"]);
                     break;
+
+                case "sub/a":
+                    var driveItem_a1 = Utils.DriveItemPool["a1"].MemberwiseClone();
+                    driveItem_a1.ParentReference.Path += "sub";
+
+                    var driveItem_a2 = Utils.DriveItemPool["a2"].MemberwiseClone();
+                    driveItem_a2.ParentReference.Path += "sub";
+
+                    await localDrive.CreateOrUpdateAsync(driveItem_a1);
+                    await remoteDrive.CreateOrUpdateAsync(driveItem_a2);
+                    break;
+
                 case "b":
                     await localDrive.CreateOrUpdateAsync(Utils.DriveItemPool["b1"]);
                     await remoteDrive.CreateOrUpdateAsync(Utils.DriveItemPool["b1"]);
                     break;
+
                 case "c":
                     await remoteDrive.CreateOrUpdateAsync(Utils.DriveItemPool["c1"]);
                     break;
+
                 case "d":
                     await localDrive.CreateOrUpdateAsync(Utils.DriveItemPool["d1"]);
                     break;
+
                 case "e":
                     await localDrive.CreateOrUpdateAsync(Utils.DriveItemPool["e1"].MemberwiseClone().ToConflict());
                     await localDrive.CreateOrUpdateAsync(Utils.DriveItemPool["e2"]);
                     await remoteDrive.CreateOrUpdateAsync(Utils.DriveItemPool["e1"]);
                     break;
+
                 case "f":
                     await localDrive.CreateOrUpdateAsync(Utils.DriveItemPool["f1"].MemberwiseClone().ToConflict());
                     await localDrive.CreateOrUpdateAsync(Utils.DriveItemPool["f2"]);
                     break;
+
                 case "g":
                     await localDrive.CreateOrUpdateAsync(Utils.DriveItemPool["g1"]);
                     await localDrive.CreateOrUpdateAsync(Utils.DriveItemPool["g1"].MemberwiseClone().ToConflict());
                     await remoteDrive.CreateOrUpdateAsync(Utils.DriveItemPool["g1"]);
                     break;
+
                 case "h":
                     await localDrive.CreateOrUpdateAsync(Utils.DriveItemPool["h1"].MemberwiseClone().ToConflict());
                     await remoteDrive.CreateOrUpdateAsync(Utils.DriveItemPool["h1"]);
                     break;
+
                 case "i":
                     await localDrive.CreateOrUpdateAsync(Utils.DriveItemPool["i1"].MemberwiseClone().ToConflict());
                     await remoteDrive.CreateOrUpdateAsync(Utils.DriveItemPool["i2"]);
                     break;
+
+
                 case "j":
                     await localDrive.CreateOrUpdateAsync(Utils.DriveItemPool["j1"].MemberwiseClone().ToConflict());
                     await localDrive.CreateOrUpdateAsync(Utils.DriveItemPool["j2"]);
                     await remoteDrive.CreateOrUpdateAsync(Utils.DriveItemPool["j3"]);
                     break;
+
                 case "k":
                     await localDrive.CreateOrUpdateAsync(Utils.DriveItemPool["k1"]);
                     await localDrive.CreateOrUpdateAsync(Utils.DriveItemPool["k1"].MemberwiseClone().ToConflict());
@@ -116,13 +138,13 @@ namespace CryptoDrive.Core.Tests
             var hashAlgorithm = new QuickXorHash();
             var lastModified = new DateTime(2019, 01, 01, version, 00, 00, DateTimeKind.Utc);
             var content = $"{name} v{version}".ToMemorySteam();
+            var hash = Convert.ToBase64String(hashAlgorithm.ComputeHash(content));
 
             return new DriveItem
             {
-                File = new Microsoft.Graph.File(),
+                File = new Microsoft.Graph.File() { Hashes = new Hashes() { QuickXorHash = hash } },
                 Name = name,
                 Content = content,
-                CTag = Convert.ToBase64String(hashAlgorithm.ComputeHash(content)),
                 FileSystemInfo = new Microsoft.Graph.FileSystemInfo { LastModifiedDateTime = lastModified },
                 ParentReference = new ItemReference() { Path = CryptoDriveConstants.PathPrefix }
             };

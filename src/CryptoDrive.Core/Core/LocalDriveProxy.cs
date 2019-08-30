@@ -19,7 +19,7 @@ namespace CryptoDrive.Core
 
         private bool _isFirstDelta;
         private FileSystemWatcher _fileWatcher;
-        private IEnumerator<string> _fileEnumerator;
+        private IEnumerator<DriveItem> _fileEnumerator;
         private ConcurrentQueue<FileSystemEventArgs> _localChanges;
 
         #endregion
@@ -100,13 +100,13 @@ namespace CryptoDrive.Core
             if (_isFirstDelta)
             {
                 if (_fileEnumerator is null)
-                    _fileEnumerator = DirectoryHelper.SafelyEnumerateFiles(this.BasePath, "*", SearchOption.AllDirectories)
-                                                     .Where(current => this.CheckPathAllowed(current))
-                                                     .GetEnumerator();
+                    _fileEnumerator = this.SafelyEnumerateDriveItems(this.BasePath)
+                                          .Where(current => this.CheckPathAllowed(current.GetPath()))
+                                          .GetEnumerator();
 
                 while (_fileEnumerator.MoveNext())
                 {
-                    deltaPage.Add(new FileInfo(_fileEnumerator.Current).ToDriveItem(this.BasePath));
+                    deltaPage.Add(_fileEnumerator.Current);
 
                     if (deltaPage.Count == pageSize)
                         return Task.FromResult((deltaPage, false));
@@ -145,20 +145,37 @@ namespace CryptoDrive.Core
         {
             var fullPath = driveItem.GetAbsolutePath(this.BasePath);
 
-            if (driveItem.Content != null)
+            switch (driveItem.Type())
             {
-                using (var stream = File.OpenWrite(fullPath))
-                {
-                    driveItem.Content.Seek(0, SeekOrigin.Begin);
-                    driveItem.Content.CopyTo(stream);
-                }
-            }
-            else
-            {
-                await new WebClient().DownloadFileTaskAsync(driveItem.Uri(), fullPath);
-            }
+                case GraphItemType.Folder:
+                    Directory.CreateDirectory(fullPath);
+                    break;
 
-            File.SetLastWriteTimeUtc(fullPath, driveItem.FileSystemInfo.LastModifiedDateTime.Value.DateTime);
+                case GraphItemType.File:
+
+                    Directory.CreateDirectory(Path.GetDirectoryName(fullPath));
+
+                    if (driveItem.Content != null)
+                    {
+                        using (var stream = File.OpenWrite(fullPath))
+                        {
+                            driveItem.Content.Seek(0, SeekOrigin.Begin);
+                            driveItem.Content.CopyTo(stream);
+                        }
+                    }
+                    else
+                    {
+                        await new WebClient().DownloadFileTaskAsync(driveItem.Uri(), fullPath);
+                    }
+
+                    File.SetLastWriteTimeUtc(fullPath, driveItem.FileSystemInfo.LastModifiedDateTime.Value.DateTime);
+
+                    break;
+
+                case GraphItemType.RemoteItem:
+                default:
+                    throw new NotSupportedException();
+            }
 
             return driveItem;
         }
@@ -185,7 +202,6 @@ namespace CryptoDrive.Core
                     break;
 
                 case GraphItemType.RemoteItem:
-                    throw new NotSupportedException();
                 default:
                     throw new NotSupportedException();
             }
@@ -218,7 +234,6 @@ namespace CryptoDrive.Core
                     break;
 
                 case GraphItemType.RemoteItem:
-                    throw new NotSupportedException();
                 default:
                     throw new NotSupportedException();
             }
@@ -233,7 +248,22 @@ namespace CryptoDrive.Core
 
         public Task SetLastWriteTimeUtcAsync(DriveItem driveItem)
         {
-            File.SetLastWriteTimeUtc(driveItem.GetAbsolutePath(this.BasePath), driveItem.LastModified());
+            var driveItemPath = driveItem.GetAbsolutePath(this.BasePath);
+
+            switch (driveItem.Type())
+            {
+                case GraphItemType.Folder:
+                    Directory.SetLastWriteTimeUtc(driveItemPath, driveItem.LastModified());
+                    break;
+
+                case GraphItemType.File:
+                    File.SetLastWriteTimeUtc(driveItemPath, driveItem.LastModified());
+                    break;
+
+                case GraphItemType.RemoteItem:
+                default:
+                    throw new NotSupportedException();
+            }
 
             return Task.CompletedTask;
         }
@@ -262,6 +292,29 @@ namespace CryptoDrive.Core
         #endregion
 
         #region Private
+
+        private IEnumerable<DriveItem> SafelyEnumerateDriveItems(string folderPath)
+        {
+            var driveItems = Enumerable.Empty<DriveItem>();
+
+            try
+            {
+                driveItems = Directory.EnumerateDirectories(folderPath)
+                                      .SelectMany(current =>
+                                      {
+                                          var folderDriveInfo = new DirectoryInfo(current).ToDriveItem(this.BasePath);
+                                          return this.SafelyEnumerateDriveItems(current)
+                                                     .Concat(new DriveItem[] { folderDriveInfo });
+                                      });
+
+                return driveItems.Concat(Directory.EnumerateFiles(folderPath)
+                                 .Select(current => new FileInfo(current).ToDriveItem(this.BasePath)));
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return driveItems;
+            }
+        }
 
         private void OnDriveItemChanged(object source, FileSystemEventArgs e)
         {

@@ -13,14 +13,14 @@ using File = System.IO.File;
 
 namespace CryptoDrive.Core.Tests
 {
-    public class SynchronizeFirstTimeTests : IDisposable
+    public class SynchronizeEchoFirstTimeTests : IDisposable
     {
         private List<ILoggerProvider> _loggerProviders;
         private ILogger<CryptoDriveSyncEngine> _logger;
 
         private DriveHive _driveHive;
 
-        public SynchronizeFirstTimeTests(ITestOutputHelper xunitLogger)
+        public SynchronizeEchoFirstTimeTests(ITestOutputHelper xunitLogger)
         {
             // logger
             var serviceCollection = new ServiceCollection();
@@ -60,7 +60,7 @@ namespace CryptoDrive.Core.Tests
                 var synchronizer = new CryptoDriveSyncEngine(_driveHive.RemoteDrive, _driveHive.LocalDrive, context, _logger);
 
                 // Act
-                await synchronizer.Synchronize();
+                await synchronizer.Synchronize(SyncMode.Echo);
 
                 // Assert
                 assertAction?.Invoke();
@@ -68,49 +68,67 @@ namespace CryptoDrive.Core.Tests
         }
 
         [Fact]
-        public void CanSynchronizeFirstTimeFileATest()
+        public void CanSyncFirstTimeATest()
         {
             this.Execute("a", () =>
             {
                 var hashAlgorithm = new QuickXorHash();
 
                 Assert.True(File.Exists("a".ToAbsolutePath(_driveHive.LocalDrivePath)));
-                Assert.True(File.Exists("a"
-                    .ToConflictFilePath(Utils.DriveItemPool["a2"].LastModified())
-                    .ToAbsolutePath(_driveHive.LocalDrivePath)));
                 Assert.True(File.Exists("a".ToAbsolutePath(_driveHive.RemoteDrivePath)));
 
-                using (var stream = File.OpenRead("a"
-                    .ToConflictFilePath(Utils.DriveItemPool["a2"].LastModified())
-                    .ToAbsolutePath(_driveHive.LocalDrivePath)))
+                using (var stream = File.OpenRead("a".ToAbsolutePath(_driveHive.RemoteDrivePath)))
                 {
-                    Assert.True(Convert.ToBase64String(hashAlgorithm.ComputeHash(stream)) == Utils.DriveItemPool["a2"].CTag);
+                    Assert.True(Convert.ToBase64String(hashAlgorithm.ComputeHash(stream)) == Utils.DriveItemPool["a1"].QuickXorHash());
                 }
             });
         }
 
         [Fact]
-        public void CanSynchronizeFirstTimeFileBTest()
+        public void CanSyncFirstTimeSubATest()
+        {
+            this.Execute("sub/a", () =>
+            {
+                var hashAlgorithm = new QuickXorHash();
+
+                Assert.True(File.Exists("sub/a".ToAbsolutePath(_driveHive.LocalDrivePath)));
+                Assert.True(File.Exists("sub/a".ToAbsolutePath(_driveHive.RemoteDrivePath)));
+
+                using (var stream = File.OpenRead("sub/a".ToAbsolutePath(_driveHive.RemoteDrivePath)))
+                {
+                    Assert.True(Convert.ToBase64String(hashAlgorithm.ComputeHash(stream)) == Utils.DriveItemPool["a1"].QuickXorHash());
+                }
+            });
+        }
+
+        [Fact]
+        public void CanSyncFirstTimeBTest()
         {
             this.Execute("b", () =>
             {
+                var hashAlgorithm = new QuickXorHash();
+
                 Assert.True(File.Exists("b".ToAbsolutePath(_driveHive.LocalDrivePath)));
                 Assert.True(File.Exists("b".ToAbsolutePath(_driveHive.RemoteDrivePath)));
+
+                using (var stream = File.OpenRead("b".ToAbsolutePath(_driveHive.RemoteDrivePath)))
+                {
+                    Assert.True(Convert.ToBase64String(hashAlgorithm.ComputeHash(stream)) == Utils.DriveItemPool["b1"].QuickXorHash());
+                }
             });
         }
 
         [Fact]
-        public void CanSynchronizeFirstTimeFileCTest()
+        public void CanSyncFirstTimeCTest()
         {
             this.Execute("c", () =>
             {
-                Assert.True(File.Exists("c".ToAbsolutePath(_driveHive.LocalDrivePath)));
-                Assert.True(File.Exists("c".ToAbsolutePath(_driveHive.RemoteDrivePath)));
+                Assert.True(!File.Exists("c".ToAbsolutePath(_driveHive.RemoteDrivePath)));
             });
         }
 
         [Fact]
-        public void CanSynchronizeFirstTimeFileDTest()
+        public void CanSyncFirstTimeDTest()
         {
             this.Execute("d", () =>
             {
@@ -119,142 +137,112 @@ namespace CryptoDrive.Core.Tests
                 Assert.True(File.Exists("d".ToAbsolutePath(_driveHive.LocalDrivePath)));
                 Assert.True(File.Exists("d".ToAbsolutePath(_driveHive.RemoteDrivePath)));
 
-                using (var stream = File.OpenRead("d".ToAbsolutePath(_driveHive.LocalDrivePath)))
+                using (var stream = File.OpenRead("d".ToAbsolutePath(_driveHive.RemoteDrivePath)))
                 {
-                    Assert.True(Convert.ToBase64String(hashAlgorithm.ComputeHash(stream)) == Utils.DriveItemPool["d1"].CTag);
+                    Assert.True(Convert.ToBase64String(hashAlgorithm.ComputeHash(stream)) == Utils.DriveItemPool["d1"].QuickXorHash());
                 }
             });
         }
 
         [Fact]
-        public void CanSynchronizeFirstTimeFileETest()
+        public void CanSyncFirstTimeETest()
         {
             this.Execute("e", () =>
             {
-                Assert.True(File.Exists("e"
-                    .ToConflictFilePath(Utils.DriveItemPool["e1"].LastModified())
-                    .ToAbsolutePath(_driveHive.LocalDrivePath)));
+                var hashAlgorithm = new QuickXorHash();
+
                 Assert.True(File.Exists("e".ToAbsolutePath(_driveHive.LocalDrivePath)));
                 Assert.True(File.Exists("e".ToAbsolutePath(_driveHive.RemoteDrivePath)));
+
+                using (var stream = File.OpenRead("e".ToAbsolutePath(_driveHive.RemoteDrivePath)))
+                {
+                    Assert.True(Convert.ToBase64String(hashAlgorithm.ComputeHash(stream)) == Utils.DriveItemPool["e2"].QuickXorHash());
+                }
             });
         }
 
         [Fact]
-        public void CanSynchronizeFirstTimeFileFTest()
+        public void CanSyncFirstTimeFTest()
         {
             this.Execute("f", () =>
             {
                 var hashAlgorithm = new QuickXorHash();
 
-                Assert.True(File.Exists("f"
-                    .ToConflictFilePath(Utils.DriveItemPool["f1"].LastModified())
-                    .ToAbsolutePath(_driveHive.LocalDrivePath)));
                 Assert.True(File.Exists("f".ToAbsolutePath(_driveHive.LocalDrivePath)));
                 Assert.True(File.Exists("f".ToAbsolutePath(_driveHive.RemoteDrivePath)));
 
-                using (var stream = File.OpenRead("f".ToAbsolutePath(_driveHive.LocalDrivePath)))
+                using (var stream = File.OpenRead("f".ToAbsolutePath(_driveHive.RemoteDrivePath)))
                 {
-                    Assert.True(Convert.ToBase64String(hashAlgorithm.ComputeHash(stream)) == Utils.DriveItemPool["f2"].CTag);
+                    Assert.True(Convert.ToBase64String(hashAlgorithm.ComputeHash(stream)) == Utils.DriveItemPool["f2"].QuickXorHash());
                 }
             });
         }
 
         [Fact]
-        public void CanSynchronizeFirstTimeFileGTest()
+        public void CanSyncFirstTimeGTest()
         {
             this.Execute("g", () =>
             {
+                var hashAlgorithm = new QuickXorHash();
+
                 Assert.True(File.Exists("g".ToAbsolutePath(_driveHive.LocalDrivePath)));
-                Assert.True(File.Exists("g"
-                    .ToConflictFilePath(Utils.DriveItemPool["g1"].LastModified())
-                    .ToAbsolutePath(_driveHive.LocalDrivePath)));
                 Assert.True(File.Exists("g".ToAbsolutePath(_driveHive.RemoteDrivePath)));
+
+                using (var stream = File.OpenRead("g".ToAbsolutePath(_driveHive.RemoteDrivePath)))
+                {
+                    Assert.True(Convert.ToBase64String(hashAlgorithm.ComputeHash(stream)) == Utils.DriveItemPool["g1"].QuickXorHash());
+                }
             });
         }
 
         [Fact]
-        public void CanSynchronizeFirstTimeFileHTest()
+        public void CanSyncFirstTimeHTest()
         {
             this.Execute("h", () =>
             {
-                var hashAlgorithm = new QuickXorHash();
-
-                Assert.True(File.Exists("h".ToAbsolutePath(_driveHive.LocalDrivePath)));
-                Assert.True(File.Exists("h"
-                    .ToConflictFilePath(Utils.DriveItemPool["h1"].LastModified())
-                    .ToAbsolutePath(_driveHive.LocalDrivePath)));
-                Assert.True(File.Exists("h".ToAbsolutePath(_driveHive.RemoteDrivePath)));
-
-                using (var stream = File.OpenRead("h"
-                    .ToAbsolutePath(_driveHive.LocalDrivePath)))
-                {
-                    Assert.True(Convert.ToBase64String(hashAlgorithm.ComputeHash(stream)) == Utils.DriveItemPool["h1"].CTag);
-                }
+                Assert.True(!File.Exists("h".ToAbsolutePath(_driveHive.RemoteDrivePath)));
             });
         }
 
         [Fact]
-        public void CanSynchronizeFirstTimeFileITest()
+        public void CanSyncFirstTimeITest()
         {
             this.Execute("i", () =>
             {
-                var hashAlgorithm = new QuickXorHash();
-
-                Assert.True(File.Exists("i"
-                    .ToConflictFilePath(Utils.DriveItemPool["i1"].LastModified())
-                    .ToAbsolutePath(_driveHive.LocalDrivePath)));
-                Assert.True(File.Exists("i".ToAbsolutePath(_driveHive.LocalDrivePath)));
-                Assert.True(File.Exists("i".ToAbsolutePath(_driveHive.RemoteDrivePath)));
-
-                using (var stream = File.OpenRead("i"
-                    .ToAbsolutePath(_driveHive.LocalDrivePath)))
-                {
-                    Assert.True(Convert.ToBase64String(hashAlgorithm.ComputeHash(stream)) == Utils.DriveItemPool["i2"].CTag);
-                }
+                Assert.True(!File.Exists("i".ToAbsolutePath(_driveHive.RemoteDrivePath)));
             });
         }
 
         [Fact]
-        public void CanSynchronizeFirstTimeFileJTest()
+        public void CanSyncFirstTimeJTest()
         {
             this.Execute("j", () =>
             {
                 var hashAlgorithm = new QuickXorHash();
 
-                Assert.True(File.Exists("j"
-                    .ToConflictFilePath(Utils.DriveItemPool["j1"].LastModified())
-                    .ToAbsolutePath(_driveHive.LocalDrivePath)));
                 Assert.True(File.Exists("j".ToAbsolutePath(_driveHive.LocalDrivePath)));
-                Assert.True(File.Exists("j"
-                    .ToConflictFilePath(Utils.DriveItemPool["j3"].LastModified())
-                    .ToAbsolutePath(_driveHive.LocalDrivePath)));
                 Assert.True(File.Exists("j".ToAbsolutePath(_driveHive.RemoteDrivePath)));
 
-                using (var stream = File.OpenRead("j"
-                    .ToConflictFilePath(Utils.DriveItemPool["j3"].LastModified())
-                    .ToAbsolutePath(_driveHive.LocalDrivePath)))
+                using (var stream = File.OpenRead("j".ToAbsolutePath(_driveHive.RemoteDrivePath)))
                 {
-                    Assert.True(Convert.ToBase64String(hashAlgorithm.ComputeHash(stream)) == Utils.DriveItemPool["j3"].CTag);
+                    Assert.True(Convert.ToBase64String(hashAlgorithm.ComputeHash(stream)) == Utils.DriveItemPool["j2"].QuickXorHash());
                 }
             });
         }
 
         [Fact]
-        public void CanSynchronizeFirstTimeFileKTest()
+        public void CanSyncFirstTimeKTest()
         {
             this.Execute("k", () =>
             {
                 var hashAlgorithm = new QuickXorHash();
 
                 Assert.True(File.Exists("k".ToAbsolutePath(_driveHive.LocalDrivePath)));
-                Assert.True(File.Exists("k"
-                    .ToConflictFilePath(Utils.DriveItemPool["k1"].LastModified())
-                    .ToAbsolutePath(_driveHive.LocalDrivePath)));
                 Assert.True(File.Exists("k".ToAbsolutePath(_driveHive.RemoteDrivePath)));
 
-                using (var stream = File.OpenRead("k".ToAbsolutePath(_driveHive.LocalDrivePath)))
+                using (var stream = File.OpenRead("k".ToAbsolutePath(_driveHive.RemoteDrivePath)))
                 {
-                    Assert.True(Convert.ToBase64String(hashAlgorithm.ComputeHash(stream)) == Utils.DriveItemPool["k1"].CTag);
+                    Assert.True(Convert.ToBase64String(hashAlgorithm.ComputeHash(stream)) == Utils.DriveItemPool["k1"].QuickXorHash());
                 }
             });
         }

@@ -13,45 +13,39 @@ namespace CryptoDrive.Extensions
         // from remote state to drive item and vice versa
         public static RemoteState ToRemoteState(this DriveItem driveItem)
         {
-            GraphItemType type;
-
-            if (driveItem.Folder != null)
-                type = GraphItemType.Folder;
-            else if (driveItem.File != null)
-                type = GraphItemType.File;
-            else if (driveItem.RemoteItem != null)
-                type = GraphItemType.RemoteItem;
-            else
-                throw new ArgumentException();
+            var type = driveItem.Type();
 
             return new RemoteState()
             {
-                ETag = driveItem.ETag,
+                QuickXorHash = type == GraphItemType.File && driveItem.File.Hashes != null ? driveItem.QuickXorHash() : null,
                 Id = driveItem.Id,
-                IsDeleted = driveItem.Deleted != null,
-                LastModified = driveItem.FileSystemInfo.LastModifiedDateTime.Value.DateTime,
+                LastModified = driveItem.FileSystemInfo.LastModifiedDateTime.Value.UtcDateTime,
                 Path = driveItem.GetPath(),
-                Size = driveItem.Size.Value,
+                Size = type == GraphItemType.File ? driveItem.Size.Value : 0,
                 Type = type
             };
         }
 
         public static DriveItem ToDriveItem(this RemoteState remoteState)
         {
+            var fileName = Path.GetFileName(remoteState.Path);
+            var folderPath = Path.GetDirectoryName(remoteState.Path).NormalizeSlashes();
+
             return new DriveItem()
             {
-                Deleted = remoteState.IsDeleted ? new Deleted() : null,
-                ETag = remoteState.ETag,
+                File = remoteState.Type == GraphItemType.File ? new File() { Hashes = new Hashes() { QuickXorHash = remoteState.QuickXorHash } } : null,
                 FileSystemInfo = new FileSystemInfo()
                 {
                     LastModifiedDateTime = remoteState.LastModified
                 },
+                Folder = remoteState.Type == GraphItemType.Folder ? new Folder() : null,
                 Id = remoteState.Id,
-                Name = Path.GetFileName(remoteState.Path),
+                Name = fileName,
                 ParentReference = new ItemReference()
                 {
-                    Path = $"{CryptoDriveConstants.PathPrefix}{Path.GetDirectoryName(remoteState.Path)}",
+                    Path = $"{CryptoDriveConstants.PathPrefix}{folderPath}",
                 },
+                RemoteItem = remoteState.Type == GraphItemType.RemoteItem ? new RemoteItem() : null,
                 Size = remoteState.Size
             };
         }
@@ -84,7 +78,7 @@ namespace CryptoDrive.Extensions
                 Name = folderInfo.Name,
                 ParentReference = new ItemReference()
                 {
-                    Path = folderInfo.Parent.FullName.Replace(basePath, CryptoDriveConstants.PathPrefix)
+                    Path = folderInfo.Parent.FullName.Replace(basePath, CryptoDriveConstants.PathPrefix).NormalizeSlashes()
                 }
             };
         }
@@ -106,7 +100,7 @@ namespace CryptoDrive.Extensions
                 Name = fileInfo.Name,
                 ParentReference = new ItemReference()
                 {
-                    Path = fileInfo.DirectoryName.Replace(basePath, CryptoDriveConstants.PathPrefix)
+                    Path = fileInfo.DirectoryName.Replace(basePath, CryptoDriveConstants.PathPrefix).NormalizeSlashes()
                 },
                 Size = fileInfo.Length
             };
@@ -129,12 +123,12 @@ namespace CryptoDrive.Extensions
 
         public static string GetPath(this DriveItem driveItem)
         {
-            return $"{driveItem.ParentReference.Path.Substring(CryptoDriveConstants.PathPrefix.Length) + driveItem.Name}";
+            return $"{driveItem.ParentReference.Path.Substring(CryptoDriveConstants.PathPrefix.Length)}/{driveItem.Name}";
         }
 
         public static string GetAbsolutePath(this DriveItem driveItem, string basePath)
         {
-            return $"{driveItem.GetPath()}".ToAbsolutePath(basePath);
+            return driveItem.GetPath().ToAbsolutePath(basePath);
         }
 
         public static string GetConflictFilePath(this DriveItem driveItem)
@@ -154,6 +148,7 @@ namespace CryptoDrive.Extensions
             Dictionary<string, object> additionalData = null;
             ItemReference parentReference = null;
             FileSystemInfo fileSystemInfo = null;
+            Hashes hashes = null;
 
             if (driveItem.AdditionalData != null)
                 additionalData = new Dictionary<string, object>() { [CryptoDriveConstants.DownloadUrl] = driveItem.AdditionalData[CryptoDriveConstants.DownloadUrl] };
@@ -171,16 +166,20 @@ namespace CryptoDrive.Extensions
                 };
             }
 
+            if (driveItem.File?.Hashes != null)
+            {
+                hashes = new Hashes() { QuickXorHash = driveItem.QuickXorHash() };
+            }
+
             return new DriveItem()
             {
                 AdditionalData = additionalData,
                 Content = driveItem.Content,
                 Deleted = driveItem.Deleted == null ? null : new Deleted(),
-                File = driveItem.File == null ? null : new File(),
+                File = driveItem.File == null ? null : new File() { Hashes = hashes },
                 Folder = driveItem.Folder == null ? null : new Folder(),
                 Id = driveItem.Id,
                 Name = driveItem.Name,
-                ETag = driveItem.ETag,
                 ParentReference = parentReference,
                 RemoteItem = driveItem.RemoteItem == null ? null : new RemoteItem(),
                 Size = driveItem.Size,
@@ -200,7 +199,7 @@ namespace CryptoDrive.Extensions
             else if (oldDriveItem.GetPath() != newDriveItem.GetPath())
                 return WatcherChangeTypes.Renamed;
 
-            else if (oldDriveItem.CTag != oldDriveItem.CTag)
+            else if (oldDriveItem.LastModified() != newDriveItem.LastModified())
                 return WatcherChangeTypes.Changed;
 
             else if (newDriveItem.Deleted != null)
@@ -214,6 +213,12 @@ namespace CryptoDrive.Extensions
         public static bool IsDeleted(this DriveItem driveItem)
         {
             return driveItem.Deleted != null;
+        }
+
+
+        public static string QuickXorHash(this DriveItem driveItem)
+        {
+            return driveItem.File.Hashes.QuickXorHash;
         }
 
         public static GraphItemType Type(this DriveItem driveItem)
@@ -230,7 +235,7 @@ namespace CryptoDrive.Extensions
 
         public static DateTime LastModified(this DriveItem driveItem)
         {
-            return driveItem.FileSystemInfo.LastModifiedDateTime.Value.DateTime;
+            return driveItem.FileSystemInfo.LastModifiedDateTime.Value.UtcDateTime;
         }
     }
 }
