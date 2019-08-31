@@ -8,6 +8,7 @@ using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using File = System.IO.File;
 
@@ -17,6 +18,12 @@ namespace CryptoDrive.Core
     // https://github.com/microsoftgraph/msgraph-sdk-dotnet/issues/218
     public class OneDriveProxy : IDriveProxy
     {
+        #region Events
+
+        public event EventHandler<string> FolderChanged;
+
+        #endregion
+
         #region "Fields"
 
         IDriveItemDeltaCollectionPage _lastDeltaPage;
@@ -44,7 +51,10 @@ namespace CryptoDrive.Core
 
         #region Change Tracking
 
-        public async Task ProcessDelta(Func<List<DriveItem>, Task> action)
+        public async Task ProcessDelta(Func<List<DriveItem>, Task> action,
+                                       string folderPath,
+                                       CryptoDriveDbContext dbContext,
+                                       CancellationToken cancellationToken)
         {
             var pageCounter = 0;
 
@@ -67,7 +77,7 @@ namespace CryptoDrive.Core
             }
         }
 
-        public async Task<(List<DriveItem> DeltaPage, bool IsFirstDelta)> GetDeltaPageAsync()
+        private async Task<(List<DriveItem> DeltaPage, bool IsLast)> GetDeltaPageAsync()
         {
             IDriveItemDeltaCollectionPage _currentDeltaPage;
 
@@ -283,6 +293,15 @@ namespace CryptoDrive.Core
             }
 
             return driveItem;
+        }
+
+        #endregion
+
+        #region IDisposable
+
+        public void Dispose()
+        {
+            //
         }
 
         #endregion

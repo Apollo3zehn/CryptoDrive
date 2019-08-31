@@ -85,15 +85,19 @@ namespace CryptoDrive.Extensions
             }
         }
 
-        public static DriveItem ToDriveItem(this string relativeFilePath)
+        public static DriveItem ToDriveItem(this string relativePath, DriveItemType driveItemType)
         {
-            var fileName = Path.GetFileName(relativeFilePath);
-            var folderPath = Path.GetDirectoryName(relativeFilePath).NormalizeSlashes();
+            var itemName = Path.GetFileName(relativePath);
+            var folderPath = Path.GetDirectoryName(relativePath).NormalizeSlashes();
+
+            if (driveItemType == DriveItemType.RemoteItem)
+                throw new NotSupportedException();
 
             var driveItem = new DriveItem()
             {
-                File = new Microsoft.Graph.File(),
-                Name = fileName,
+                File = driveItemType == DriveItemType.File ? new Microsoft.Graph.File() : null,
+                Folder = driveItemType == DriveItemType.Folder ? new Folder() : null,
+                Name = itemName,
                 ParentReference = new ItemReference()
                 {
                     Path = $"{CryptoDriveConstants.PathPrefix}{folderPath}"
@@ -250,7 +254,8 @@ namespace CryptoDrive.Extensions
             else if (oldDriveItem.GetPath() != newDriveItem.GetPath())
                 return WatcherChangeTypes.Renamed;
 
-            else if (oldDriveItem.LastModified() != newDriveItem.LastModified())
+            else if (oldDriveItem.LastModified() != newDriveItem.LastModified() 
+                            || oldDriveItem.Size != newDriveItem.Size)
                 return WatcherChangeTypes.Changed;
 
             // no change

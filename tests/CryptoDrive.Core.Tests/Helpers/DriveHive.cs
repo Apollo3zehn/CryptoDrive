@@ -1,6 +1,8 @@
-﻿namespace CryptoDrive.Core.Tests
+﻿using System;
+
+namespace CryptoDrive.Core.Tests
 {
-    public class DriveHive
+    public class DriveHive : IDisposable
     {
         public DriveHive(IDriveProxy remoteDrive, IDriveProxy localDrive, string remoteDrivePath, string localDrivePath)
         {
@@ -14,5 +16,11 @@
         public IDriveProxy LocalDrive { get; }
         public string RemoteDrivePath { get; }
         public string LocalDrivePath { get; }
+
+        public void Dispose()
+        {
+            this.LocalDrive.Dispose();
+            this.RemoteDrive.Dispose();
+        }
     }
 }

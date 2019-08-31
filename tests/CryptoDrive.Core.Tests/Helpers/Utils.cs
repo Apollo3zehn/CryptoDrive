@@ -19,11 +19,11 @@ namespace CryptoDrive.Core.Tests
 
         public static async Task<DriveHive> PrepareDrives(string fileId, ILogger logger)
         {
-            var remoteDrivePath = Path.Combine(Path.GetTempPath(), "CryptoDriveRemote_" + Path.GetRandomFileName().Replace(".", string.Empty));
-            var remoteDrive = new LocalDriveProxy(remoteDrivePath, "OneDrive", logger);
+            var remoteDrivePath = Path.Combine(Path.GetTempPath(), "CryptoDriveRemote_" +Guid.NewGuid().ToString());
+            var remoteDrive = new LocalDriveProxy(remoteDrivePath, "OneDrive", logger, TimeSpan.FromMilliseconds(500));
 
-            var localDrivePath = Path.Combine(Path.GetTempPath(), "CryptoDriveLocal_" + Path.GetRandomFileName().Replace(".", string.Empty));
-            var localDrive = new LocalDriveProxy(localDrivePath, "local", logger);
+            var localDrivePath = Path.Combine(Path.GetTempPath(), "CryptoDriveLocal_" + Guid.NewGuid().ToString());
+            var localDrive = new LocalDriveProxy(localDrivePath, "local", logger, TimeSpan.FromMilliseconds(500));
 
             remoteDrive.EnableChangeTracking = false;
             localDrive.EnableChangeTracking = false;
@@ -90,6 +90,9 @@ namespace CryptoDrive.Core.Tests
                 case "k":
                     await localDrive.CreateOrUpdateAsync(Utils.DriveItemPool["k1"]);
                     await localDrive.CreateOrUpdateAsync(Utils.DriveItemPool["k1"].MemberwiseClone().ToConflict());
+                    break;
+
+                default:
                     break;
             }
 

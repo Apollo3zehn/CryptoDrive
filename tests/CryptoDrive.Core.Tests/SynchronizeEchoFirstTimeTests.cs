@@ -6,6 +6,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 using Xunit;
 using Xunit.Abstractions;
 using Directory = System.IO.Directory;
@@ -57,13 +58,27 @@ namespace CryptoDrive.Core.Tests
             {
                 context.Database.EnsureCreated();
 
-                var synchronizer = new CryptoDriveSyncEngine(_driveHive.RemoteDrive, _driveHive.LocalDrive, context, _logger);
+                var syncEngine = new CryptoDriveSyncEngine(_driveHive.RemoteDrive, _driveHive.LocalDrive, context, SyncMode.Echo, _logger);
 
                 // Act
-                await synchronizer.Synchronize(SyncMode.Echo);
+                syncEngine.Start();
+                await syncEngine.Stop();
 
                 // Assert
                 assertAction?.Invoke();
+            }
+        }
+
+        private void CompareFiles(string fileName, string versionName, string basePath)
+        {
+            var hashAlgorithm = new QuickXorHash();
+
+            using (var stream = File.OpenRead(fileName.ToAbsolutePath(basePath)))
+            {
+                var actual = Convert.ToBase64String(hashAlgorithm.ComputeHash(stream));
+                var expected = Utils.DriveItemPool[versionName].QuickXorHash();
+
+                Assert.True(actual == expected, "The hashes are not equal.");
             }
         }
 
@@ -72,15 +87,10 @@ namespace CryptoDrive.Core.Tests
         {
             this.Execute("a", () =>
             {
-                var hashAlgorithm = new QuickXorHash();
+                Assert.True(File.Exists("a".ToAbsolutePath(_driveHive.LocalDrivePath)), "File does not exist.");
+                Assert.True(File.Exists("a".ToAbsolutePath(_driveHive.RemoteDrivePath)), "File does not exist.");
 
-                Assert.True(File.Exists("a".ToAbsolutePath(_driveHive.LocalDrivePath)));
-                Assert.True(File.Exists("a".ToAbsolutePath(_driveHive.RemoteDrivePath)));
-
-                using (var stream = File.OpenRead("a".ToAbsolutePath(_driveHive.RemoteDrivePath)))
-                {
-                    Assert.True(Convert.ToBase64String(hashAlgorithm.ComputeHash(stream)) == Utils.DriveItemPool["a1"].QuickXorHash());
-                }
+                this.CompareFiles("a", "a1", _driveHive.RemoteDrivePath);
             });
         }
 
@@ -89,15 +99,10 @@ namespace CryptoDrive.Core.Tests
         {
             this.Execute("sub/a", () =>
             {
-                var hashAlgorithm = new QuickXorHash();
+                Assert.True(File.Exists("sub/a".ToAbsolutePath(_driveHive.LocalDrivePath)), "File does not exist.");
+                Assert.True(File.Exists("sub/a".ToAbsolutePath(_driveHive.RemoteDrivePath)), "File does not exist.");
 
-                Assert.True(File.Exists("sub/a".ToAbsolutePath(_driveHive.LocalDrivePath)));
-                Assert.True(File.Exists("sub/a".ToAbsolutePath(_driveHive.RemoteDrivePath)));
-
-                using (var stream = File.OpenRead("sub/a".ToAbsolutePath(_driveHive.RemoteDrivePath)))
-                {
-                    Assert.True(Convert.ToBase64String(hashAlgorithm.ComputeHash(stream)) == Utils.DriveItemPool["sub/a1"].QuickXorHash());
-                }
+                this.CompareFiles("sub/a", "sub/a1", _driveHive.RemoteDrivePath);
             });
         }
 
@@ -106,15 +111,10 @@ namespace CryptoDrive.Core.Tests
         {
             this.Execute("b", () =>
             {
-                var hashAlgorithm = new QuickXorHash();
+                Assert.True(File.Exists("b".ToAbsolutePath(_driveHive.LocalDrivePath)), "File does not exist.");
+                Assert.True(File.Exists("b".ToAbsolutePath(_driveHive.RemoteDrivePath)), "File does not exist.");
 
-                Assert.True(File.Exists("b".ToAbsolutePath(_driveHive.LocalDrivePath)));
-                Assert.True(File.Exists("b".ToAbsolutePath(_driveHive.RemoteDrivePath)));
-
-                using (var stream = File.OpenRead("b".ToAbsolutePath(_driveHive.RemoteDrivePath)))
-                {
-                    Assert.True(Convert.ToBase64String(hashAlgorithm.ComputeHash(stream)) == Utils.DriveItemPool["b1"].QuickXorHash());
-                }
+                this.CompareFiles("b", "b1", _driveHive.RemoteDrivePath);
             });
         }
 
@@ -123,7 +123,7 @@ namespace CryptoDrive.Core.Tests
         {
             this.Execute("c", () =>
             {
-                Assert.True(!File.Exists("c".ToAbsolutePath(_driveHive.RemoteDrivePath)));
+                Assert.True(!File.Exists("c".ToAbsolutePath(_driveHive.RemoteDrivePath)), "File should not exist.");
             });
         }
 
@@ -132,15 +132,10 @@ namespace CryptoDrive.Core.Tests
         {
             this.Execute("d", () =>
             {
-                var hashAlgorithm = new QuickXorHash();
+                Assert.True(File.Exists("d".ToAbsolutePath(_driveHive.LocalDrivePath)), "File does not exist.");
+                Assert.True(File.Exists("d".ToAbsolutePath(_driveHive.RemoteDrivePath)), "File does not exist.");
 
-                Assert.True(File.Exists("d".ToAbsolutePath(_driveHive.LocalDrivePath)));
-                Assert.True(File.Exists("d".ToAbsolutePath(_driveHive.RemoteDrivePath)));
-
-                using (var stream = File.OpenRead("d".ToAbsolutePath(_driveHive.RemoteDrivePath)))
-                {
-                    Assert.True(Convert.ToBase64String(hashAlgorithm.ComputeHash(stream)) == Utils.DriveItemPool["d1"].QuickXorHash());
-                }
+                this.CompareFiles("d", "d1", _driveHive.RemoteDrivePath);
             });
         }
 
@@ -149,15 +144,10 @@ namespace CryptoDrive.Core.Tests
         {
             this.Execute("e", () =>
             {
-                var hashAlgorithm = new QuickXorHash();
+                Assert.True(File.Exists("e".ToAbsolutePath(_driveHive.LocalDrivePath)), "File does not exist.");
+                Assert.True(File.Exists("e".ToAbsolutePath(_driveHive.RemoteDrivePath)), "File does not exist.");
 
-                Assert.True(File.Exists("e".ToAbsolutePath(_driveHive.LocalDrivePath)));
-                Assert.True(File.Exists("e".ToAbsolutePath(_driveHive.RemoteDrivePath)));
-
-                using (var stream = File.OpenRead("e".ToAbsolutePath(_driveHive.RemoteDrivePath)))
-                {
-                    Assert.True(Convert.ToBase64String(hashAlgorithm.ComputeHash(stream)) == Utils.DriveItemPool["e2"].QuickXorHash());
-                }
+                this.CompareFiles("e", "e2", _driveHive.RemoteDrivePath);
             });
         }
 
@@ -166,15 +156,10 @@ namespace CryptoDrive.Core.Tests
         {
             this.Execute("f", () =>
             {
-                var hashAlgorithm = new QuickXorHash();
+                Assert.True(File.Exists("f".ToAbsolutePath(_driveHive.LocalDrivePath)), "File does not exist.");
+                Assert.True(File.Exists("f".ToAbsolutePath(_driveHive.RemoteDrivePath)), "File does not exist.");
 
-                Assert.True(File.Exists("f".ToAbsolutePath(_driveHive.LocalDrivePath)));
-                Assert.True(File.Exists("f".ToAbsolutePath(_driveHive.RemoteDrivePath)));
-
-                using (var stream = File.OpenRead("f".ToAbsolutePath(_driveHive.RemoteDrivePath)))
-                {
-                    Assert.True(Convert.ToBase64String(hashAlgorithm.ComputeHash(stream)) == Utils.DriveItemPool["f2"].QuickXorHash());
-                }
+                this.CompareFiles("f", "f2", _driveHive.RemoteDrivePath);
             });
         }
 
@@ -183,15 +168,10 @@ namespace CryptoDrive.Core.Tests
         {
             this.Execute("g", () =>
             {
-                var hashAlgorithm = new QuickXorHash();
+                Assert.True(File.Exists("g".ToAbsolutePath(_driveHive.LocalDrivePath)), "File does not exist.");
+                Assert.True(File.Exists("g".ToAbsolutePath(_driveHive.RemoteDrivePath)), "File does not exist.");
 
-                Assert.True(File.Exists("g".ToAbsolutePath(_driveHive.LocalDrivePath)));
-                Assert.True(File.Exists("g".ToAbsolutePath(_driveHive.RemoteDrivePath)));
-
-                using (var stream = File.OpenRead("g".ToAbsolutePath(_driveHive.RemoteDrivePath)))
-                {
-                    Assert.True(Convert.ToBase64String(hashAlgorithm.ComputeHash(stream)) == Utils.DriveItemPool["g1"].QuickXorHash());
-                }
+                this.CompareFiles("g", "g1", _driveHive.RemoteDrivePath);
             });
         }
 
@@ -200,7 +180,7 @@ namespace CryptoDrive.Core.Tests
         {
             this.Execute("h", () =>
             {
-                Assert.True(!File.Exists("h".ToAbsolutePath(_driveHive.RemoteDrivePath)));
+                Assert.True(!File.Exists("h".ToAbsolutePath(_driveHive.RemoteDrivePath)), "File should not exist.");
             });
         }
 
@@ -209,7 +189,7 @@ namespace CryptoDrive.Core.Tests
         {
             this.Execute("i", () =>
             {
-                Assert.True(!File.Exists("i".ToAbsolutePath(_driveHive.RemoteDrivePath)));
+                Assert.True(!File.Exists("i".ToAbsolutePath(_driveHive.RemoteDrivePath)), "File should not exist.");
             });
         }
 
@@ -218,15 +198,10 @@ namespace CryptoDrive.Core.Tests
         {
             this.Execute("j", () =>
             {
-                var hashAlgorithm = new QuickXorHash();
+                Assert.True(File.Exists("j".ToAbsolutePath(_driveHive.LocalDrivePath)), "File does not exist.");
+                Assert.True(File.Exists("j".ToAbsolutePath(_driveHive.RemoteDrivePath)), "File does not exist.");
 
-                Assert.True(File.Exists("j".ToAbsolutePath(_driveHive.LocalDrivePath)));
-                Assert.True(File.Exists("j".ToAbsolutePath(_driveHive.RemoteDrivePath)));
-
-                using (var stream = File.OpenRead("j".ToAbsolutePath(_driveHive.RemoteDrivePath)))
-                {
-                    Assert.True(Convert.ToBase64String(hashAlgorithm.ComputeHash(stream)) == Utils.DriveItemPool["j2"].QuickXorHash());
-                }
+                this.CompareFiles("j", "j2", _driveHive.RemoteDrivePath);
             });
         }
 
@@ -235,15 +210,10 @@ namespace CryptoDrive.Core.Tests
         {
             this.Execute("k", () =>
             {
-                var hashAlgorithm = new QuickXorHash();
+                Assert.True(File.Exists("k".ToAbsolutePath(_driveHive.LocalDrivePath)), "File does not exist.");
+                Assert.True(File.Exists("k".ToAbsolutePath(_driveHive.RemoteDrivePath)), "File does not exist.");
 
-                Assert.True(File.Exists("k".ToAbsolutePath(_driveHive.LocalDrivePath)));
-                Assert.True(File.Exists("k".ToAbsolutePath(_driveHive.RemoteDrivePath)));
-
-                using (var stream = File.OpenRead("k".ToAbsolutePath(_driveHive.RemoteDrivePath)))
-                {
-                    Assert.True(Convert.ToBase64String(hashAlgorithm.ComputeHash(stream)) == Utils.DriveItemPool["k1"].QuickXorHash());
-                }
+                this.CompareFiles("k", "k1", _driveHive.RemoteDrivePath);
             });
         }
 

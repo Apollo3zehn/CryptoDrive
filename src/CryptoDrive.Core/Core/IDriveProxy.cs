@@ -1,12 +1,19 @@
 ﻿using Microsoft.Graph;
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace CryptoDrive.Core
 {
-    public interface IDriveProxy
+    public interface IDriveProxy : IDisposable
     {
+        #region Events
+
+        public event EventHandler<string> FolderChanged;
+
+        #endregion
+
         #region Properties
 
         string Name { get; }
@@ -15,8 +22,10 @@ namespace CryptoDrive.Core
 
         #region Change Tracking
 
-        Task ProcessDelta(Func<List<DriveItem>, Task> action);
-        Task<(List<DriveItem> DeltaPage, bool IsFirstDelta)> GetDeltaPageAsync();
+        Task ProcessDelta(Func<List<DriveItem>, Task> action,
+                          string folderPath,
+                          CryptoDriveDbContext dbContext,
+                          CancellationToken cancellationToken);
 
         #endregion
 

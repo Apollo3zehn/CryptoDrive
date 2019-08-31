@@ -1,17 +1,22 @@
 ﻿using CryptoDrive.Extensions;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Graph;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace CryptoDrive.Core
 {
-    public class CryptoDriveSyncEngine
+    public class CryptoDriveSyncEngine : IDisposable
     {
+        #region Fields
+
         private CryptoDriveDbContext _dbContext;
         private Regex _regex_conflict;
         private Regex _regex_replace;
@@ -22,29 +27,135 @@ namespace CryptoDrive.Core
 
         private SyncMode _syncMode;
 
-        public CryptoDriveSyncEngine(IDriveProxy remoteDrive, IDriveProxy localDrive, CryptoDriveDbContext dbContext, ILogger logger)
+        private CancellationTokenSource _cts;
+        private ManualResetEventSlim _manualReset;
+        private ConcurrentQueue<string> _changesQueue;
+        private Task _watchTask;
+
+        EventHandler<string> _handler;
+
+        #endregion
+
+        #region Constructors
+
+        public CryptoDriveSyncEngine(IDriveProxy remoteDrive,
+                                     IDriveProxy localDrive,
+                                     CryptoDriveDbContext dbContext,
+                                     SyncMode syncMode,
+                                     ILogger logger)
         {
             _remoteDrive = remoteDrive;
             _localDrive = localDrive;
             _dbContext = dbContext;
+            _syncMode = syncMode;
             _logger = logger;
 
             _regex_conflict = new Regex(@".*\s\(Conflicted Copy [0-9]{4}-[0-9]{2}-[0-9]{2}\s[0-9]{6}\)");
             _regex_replace = new Regex(@"\s\(Conflicted Copy [0-9]{4}-[0-9]{2}-[0-9]{2}\s[0-9]{6}\)");
+
+            // changes
+            _cts = new CancellationTokenSource();
+            _manualReset = new ManualResetEventSlim();
+            _changesQueue = new ConcurrentQueue<string>();
+
+            // handler
+            _handler = (sender, e) =>
+            {
+                _changesQueue.Enqueue(e);
+                _manualReset.Set();
+            };
         }
 
-        // high level
-        public async Task Synchronize(SyncMode syncMode = SyncMode.TwoWay)
+        #endregion
+
+        #region Properties
+
+        public bool IsEnabled { get; private set; }
+
+        #endregion
+
+        #region Methods
+
+        // public
+
+        public void Start(string folderPath = "")
         {
-            _syncMode = syncMode;
+            // if already running, throw exception
+            if (this.IsEnabled)
+                throw new InvalidOperationException("The sync engine is already started.");
+
+            // sync engine and change tracking is now enabled
+            this.IsEnabled = true;
+
+            // create watch task
+            _watchTask = Task.Run(() => this.WatchForChanges(folderPath));
+
+            // add folder change event handler to local drive
+            _localDrive.FolderChanged += _handler;
+
+            _logger.LogInformation("Sync engine started.");
+        }
+
+        public async Task Stop()
+        {
+            if (this.IsEnabled)
+            {
+                // avoid new entries to changes queue
+                _localDrive.FolderChanged -= _handler;
+
+                // clear changes queue
+                _changesQueue.Clear();
+
+                // disable while loop
+                this.IsEnabled = false;
+
+                // avoid possible deadlock due to waiting for manual reset event signal
+                _manualReset.Set();
+
+                // wait for watch task to finish
+                await _watchTask;
+
+                // clear database since from now on we miss events and so we need to re-sync 
+                // everything the next time the engine is started
+                this.ClearDatabase();
+            }
+
+            _logger.LogInformation("Sync engine stopped.");
+        }
+
+        // private
+
+        /* high level */
+        private async Task WatchForChanges(string folderPath)
+        {
+            await this.Synchronize(folderPath);
+
+            while (this.IsEnabled)
+            {
+                _manualReset.Wait(_cts.Token);
+
+                if (_cts.IsCancellationRequested)
+                    break;
+
+                if (_changesQueue.TryDequeue(out var currentFolderPath))
+                    await this.Synchronize(currentFolderPath);
+                else
+                    _manualReset.Reset();
+            }
+        }
+
+        private async Task Synchronize(string folderPath = "")
+        {
+            _logger.LogInformation($"Synchronizing folder '{folderPath}'.");
 
             // prepare database
             _dbContext.Database.EnsureCreated();
 
             // remote drive
-            if (syncMode == SyncMode.TwoWay)
+            if (_syncMode == SyncMode.TwoWay)
             {
-                await _remoteDrive.ProcessDelta(async deltaPage => await this.SyncChanges(_remoteDrive, _localDrive, deltaPage));
+                await _remoteDrive.ProcessDelta(async deltaPage => await this.InternalSynchronize(_remoteDrive, _localDrive, deltaPage),
+                                               folderPath, _dbContext, _cts.Token);
             }
             else
             {
@@ -53,25 +164,26 @@ namespace CryptoDrive.Core
                     await _remoteDrive.ProcessDelta(async deltaPage =>
                     {
                         foreach (var driveItem in deltaPage)
-                        {
                             await this.UpdateDatabase(null, newRemoteState: driveItem.ToRemoteState(), WatcherChangeTypes.Created);
-                        }
-                    });
+                    }, folderPath, _dbContext, _cts.Token);
                 }
             }
 
             // local drive
-            await _localDrive.ProcessDelta(async deltaPage => await this.SyncChanges(_localDrive, _remoteDrive, deltaPage));
+            await _localDrive.ProcessDelta(async deltaPage => await this.InternalSynchronize(_localDrive, _remoteDrive, deltaPage),
+                                           folderPath, _dbContext, _cts.Token);
 
             // conflicts
             await this.CheckConflicts();
 
-            // ophaned remote states
-            if (syncMode == SyncMode.Echo)
+            // orphaned remote states
+            if (_syncMode == SyncMode.Echo)
                 await this.DeleteOrphanedRemoteStates();
+
+            _logger.LogInformation("Synchronisation finished.");
         }
 
-        private async Task SyncChanges(IDriveProxy sourceDrive, IDriveProxy targetDrive, List<DriveItem> deltaPage)
+        private async Task InternalSynchronize(IDriveProxy sourceDrive, IDriveProxy targetDrive, List<DriveItem> deltaPage)
         {
             var isLocal = sourceDrive == _localDrive;
 
@@ -131,7 +243,6 @@ namespace CryptoDrive.Core
             }
         }
 
-        // medium level
         private async Task<(DriveItem UpdateDriveItem, WatcherChangeTypes ChangeType)> SyncDriveItem(
             IDriveProxy sourceDrive,
             IDriveProxy targetDrive,
@@ -199,6 +310,12 @@ namespace CryptoDrive.Core
             return (updatedDriveItem, changeType);
         }
 
+        private void ClearDatabase()
+        {
+            _dbContext.Database.ExecuteSqlRaw($"DELETE FROM {nameof(RemoteState)}s;");
+            _dbContext.Database.ExecuteSqlRaw($"DELETE FROM {nameof(Conflict)}s;");
+        }
+
         private async Task UpdateDatabase(RemoteState oldRemoteState, RemoteState newRemoteState, WatcherChangeTypes changeType)
         {
             switch (changeType)
@@ -256,13 +373,13 @@ namespace CryptoDrive.Core
         private async Task<bool> CheckConflict(Conflict conflict)
         {
             var remoteItem = _dbContext.RemoteStates.FirstOrDefault(current => current.Path == conflict.OriginalFilePath);
-            var originalDriveItem = conflict.OriginalFilePath.ToDriveItem();
+            var originalDriveItem = conflict.OriginalFilePath.ToDriveItem(DriveItemType.File);
 
             // original file exists locally
             if (await _localDrive.ExistsAsync(originalDriveItem))
             {
                 _logger.LogDebug($"Original file exists locally.");
-                var conflictDriveItem = conflict.ConflictFilePath.ToDriveItem();
+                var conflictDriveItem = conflict.ConflictFilePath.ToDriveItem(DriveItemType.File);
 
                 // conflict file exists locally
                 // actions: do nothing - user must delete or rename conflict file manually
@@ -328,14 +445,20 @@ namespace CryptoDrive.Core
         {
             // files
             foreach (var remoteState in _dbContext.RemoteStates.Where(current => !current.IsLocal && current.Type == DriveItemType.File))
+            {
+                _logger.LogInformation($"Delete orphaned file '{remoteState.Path}' from drive '{_remoteDrive.Name}'.");
                 await _remoteDrive.DeleteAsync(remoteState.ToDriveItem());
+            }
 
             // folders
             foreach (var remoteState in _dbContext.RemoteStates.Where(current => !current.IsLocal && current.Type == DriveItemType.Folder))
+            {
+                _logger.LogInformation($"Delete orphaned folder '{remoteState.Path}' from drive '{_remoteDrive.Name}'.");
                 await _remoteDrive.DeleteAsync(remoteState.ToDriveItem());
+            }
         }
 
-        // low level
+        /* low level */
         private async Task<DriveItem> TransferDriveItem(IDriveProxy sourceDrive, IDriveProxy targetDrive, DriveItem driveItem)
         {
             (var itemName1, var itemName2) = this.GetItemNames(driveItem);
@@ -455,5 +578,23 @@ namespace CryptoDrive.Core
 
             return (itemName1, itemName2);
         }
+
+        #endregion
+
+        #region IDisposable
+
+        public void Dispose()
+        {
+            // cancel all operations
+            _cts?.Cancel();
+
+            // avoid possible deadlock due to waiting for manual reset event signal
+            _manualReset.Set();
+
+            // wait for watch task to finish
+            _watchTask?.Wait();
+        }
+
+        #endregion
     }
 }

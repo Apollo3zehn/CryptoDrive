@@ -57,10 +57,11 @@ namespace CryptoDrive.Core.Tests
             {
                 context.Database.EnsureCreated();
 
-                var synchronizer = new CryptoDriveSyncEngine(_driveHive.RemoteDrive, _driveHive.LocalDrive, context, _logger);
+                var syncEngine = new CryptoDriveSyncEngine(_driveHive.RemoteDrive, _driveHive.LocalDrive, context, SyncMode.TwoWay, _logger);
 
                 // Act
-                await synchronizer.Synchronize();
+                syncEngine.Start();
+                await syncEngine.Stop();
 
                 // Assert
                 assertAction?.Invoke();
