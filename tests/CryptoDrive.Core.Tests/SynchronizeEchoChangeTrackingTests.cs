@@ -1,12 +1,11 @@
 using CryptoDrive.Extensions;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
 using Xunit.Abstractions;
@@ -22,26 +21,12 @@ namespace CryptoDrive.Core.Tests
 
         private DriveHive _driveHive;
 
+        private ManualResetEventSlim _manualReset;
+
         public SynchronizeEchoChangeTrackingTests(ITestOutputHelper xunitLogger)
         {
-            // logger
-            var serviceCollection = new ServiceCollection();
-
-            serviceCollection.AddLogging(loggingBuilder =>
-            {
-                loggingBuilder
-                .AddSeq()
-                .AddProvider(new XunitLoggerProvider(xunitLogger))
-                .SetMinimumLevel(LogLevel.Trace);
-
-                _loggerProviders = loggingBuilder.Services
-                    .Where(descriptor => typeof(ILoggerProvider).IsAssignableFrom(descriptor.ImplementationInstance?.GetType()))
-                    .Select(descriptor => (ILoggerProvider)descriptor.ImplementationInstance)
-                    .ToList();
-            });
-
-            var serviceProvider = serviceCollection.BuildServiceProvider();
-            _logger = serviceProvider.GetService<ILogger<CryptoDriveSyncEngine>>();
+            _manualReset = new ManualResetEventSlim();
+            (_logger, _loggerProviders) = Utils.GetLogger(xunitLogger);
         }
 
         private async void Execute(string fileId, Func<Task> actAction, Action assertAction)
@@ -62,17 +47,30 @@ namespace CryptoDrive.Core.Tests
                 context.Database.EnsureCreated();
 
                 var syncEngine = new CryptoDriveSyncEngine(_driveHive.RemoteDrive, _driveHive.LocalDrive, context, SyncMode.Echo, _logger);
-                syncEngine.Start();
+
+                syncEngine.SyncCompleted += (sender, e) =>
+                {
+                    try
+                    {
+                        switch (e.SyncId)
+                        {
+                            case 0: actAction?.Invoke().Wait(); break;
+                            case 1: syncEngine.Stop();  break;
+                        }
+                    }
+                    finally
+                    {
+                        if (e.SyncId == 1)
+                            _manualReset.Set();
+                    }
+                };
 
                 // Act
-                await Task.Delay(TimeSpan.FromSeconds(5));
-                await actAction?.Invoke();
-                await Task.Delay(TimeSpan.FromSeconds(1));
-                await syncEngine.Stop();
+                syncEngine.Start();
+                _manualReset.Wait();
 
                 // Assert
                 assertAction?.Invoke();
-
                 _driveHive.Dispose();
             }
         }

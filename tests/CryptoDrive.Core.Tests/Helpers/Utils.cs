@@ -1,10 +1,13 @@
 ﻿using CryptoDrive.Extensions;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Graph;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
+using Xunit.Abstractions;
 
 namespace CryptoDrive.Core.Tests
 {
@@ -13,6 +16,30 @@ namespace CryptoDrive.Core.Tests
         static Utils()
         {
             Utils.DriveItemPool = Utils.CreateDriveItemPool();
+        }
+
+        public static (ILogger<CryptoDriveSyncEngine>, List<ILoggerProvider>) GetLogger(ITestOutputHelper xunitLogger)
+        {
+            List<ILoggerProvider> loggerProviders = null;
+            var serviceCollection = new ServiceCollection();
+
+            serviceCollection.AddLogging(loggingBuilder =>
+            {
+                loggingBuilder
+                .AddSeq()
+                .AddProvider(new XunitLoggerProvider(xunitLogger))
+                .SetMinimumLevel(LogLevel.Trace);
+
+                loggerProviders = loggingBuilder.Services
+                    .Where(descriptor => typeof(ILoggerProvider).IsAssignableFrom(descriptor.ImplementationInstance?.GetType()))
+                    .Select(descriptor => (ILoggerProvider)descriptor.ImplementationInstance)
+                    .ToList();
+            });
+
+            var serviceProvider = serviceCollection.BuildServiceProvider();
+            var logger = serviceProvider.GetRequiredService<ILogger<CryptoDriveSyncEngine>>();
+
+            return (logger, loggerProviders);
         }
 
         public static Dictionary<string, DriveItem> DriveItemPool { get; }

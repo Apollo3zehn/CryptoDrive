@@ -15,6 +15,12 @@ namespace CryptoDrive.Core
 {
     public class CryptoDriveSyncEngine : IDisposable
     {
+        #region Events
+
+        public event EventHandler<SyncCompletedEventArgs> SyncCompleted;
+
+        #endregion
+
         #region Fields
 
         private CryptoDriveDbContext _dbContext;
@@ -32,7 +38,9 @@ namespace CryptoDrive.Core
         private ConcurrentQueue<string> _changesQueue;
         private Task _watchTask;
 
-        EventHandler<string> _handler;
+        private EventHandler<string> _handler;
+
+        private int _syncId;
 
         #endregion
 
@@ -49,6 +57,8 @@ namespace CryptoDrive.Core
             _dbContext = dbContext;
             _syncMode = syncMode;
             _logger = logger;
+
+            _syncId = 0;
 
             _regex_conflict = new Regex(@".*\s\(Conflicted Copy [0-9]{4}-[0-9]{2}-[0-9]{2}\s[0-9]{6}\)");
             _regex_replace = new Regex(@"\s\(Conflicted Copy [0-9]{4}-[0-9]{2}-[0-9]{2}\s[0-9]{6}\)");
@@ -96,7 +106,31 @@ namespace CryptoDrive.Core
             _logger.LogInformation("Sync engine started.");
         }
 
-        public async Task Stop()
+        public void Stop()
+        {
+            if (this.IsEnabled)
+            {
+                // avoid new entries to changes queue
+                _localDrive.FolderChanged -= _handler;
+
+                // clear changes queue
+                _changesQueue.Clear();
+
+                // avoid possible deadlock due to waiting for manual reset event signal
+                _manualReset.Set();
+
+                // disable while loop
+                this.IsEnabled = false;
+
+                // clear database since from now on we miss events and so we need to re-sync 
+                // everything the next time the engine is started
+                this.ClearDatabase();
+            }
+
+            _logger.LogInformation("Sync engine stopped.");
+        }
+
+        public async Task StopAsync()
         {
             if (this.IsEnabled)
             {
@@ -129,6 +163,8 @@ namespace CryptoDrive.Core
         private async Task WatchForChanges(string folderPath)
         {
             await this.Synchronize(folderPath);
+            this.SyncCompleted?.Invoke(this, new SyncCompletedEventArgs(_syncId));
+            _syncId++;
 
             while (this.IsEnabled)
             {
@@ -138,9 +174,15 @@ namespace CryptoDrive.Core
                     break;
 
                 if (_changesQueue.TryDequeue(out var currentFolderPath))
+                {
                     await this.Synchronize(currentFolderPath);
+                    this.SyncCompleted?.Invoke(this, new SyncCompletedEventArgs(_syncId));
+                    _syncId++;
+                }
                 else
+                {
                     _manualReset.Reset();
+                }
             }
         }
 

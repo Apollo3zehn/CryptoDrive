@@ -1,11 +1,9 @@
 using CryptoDrive.Extensions;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using Xunit;
 using Xunit.Abstractions;
 using Directory = System.IO.Directory;
@@ -22,24 +20,7 @@ namespace CryptoDrive.Core.Tests
 
         public SynchronizeTwoWayFirstTimeTests(ITestOutputHelper xunitLogger)
         {
-            // logger
-            var serviceCollection = new ServiceCollection();
-
-            serviceCollection.AddLogging(loggingBuilder =>
-            {
-                loggingBuilder
-                .AddSeq()
-                .AddProvider(new XunitLoggerProvider(xunitLogger))
-                .SetMinimumLevel(LogLevel.Trace);
-
-                _loggerProviders = loggingBuilder.Services
-                    .Where(descriptor => typeof(ILoggerProvider).IsAssignableFrom(descriptor.ImplementationInstance?.GetType()))
-                    .Select(descriptor => (ILoggerProvider)descriptor.ImplementationInstance)
-                    .ToList();
-            });
-
-            var serviceProvider = serviceCollection.BuildServiceProvider();
-            _logger = serviceProvider.GetService<ILogger<CryptoDriveSyncEngine>>();
+            (_logger, _loggerProviders) = Utils.GetLogger(xunitLogger);
         }
 
         private async void Execute(string fileId, Action assertAction)
@@ -61,7 +42,7 @@ namespace CryptoDrive.Core.Tests
 
                 // Act
                 syncEngine.Start();
-                await syncEngine.Stop();
+                await syncEngine.StopAsync();
 
                 // Assert
                 assertAction?.Invoke();
