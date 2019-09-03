@@ -53,7 +53,7 @@ namespace CryptoDrive.Core
 
         public async Task ProcessDelta(Func<List<DriveItem>, Task> action,
                                        string folderPath,
-                                       CryptoDriveDbContext dbContext,
+                                       CryptoDriveContext context,
                                        CancellationToken cancellationToken)
         {
             var pageCounter = 0;

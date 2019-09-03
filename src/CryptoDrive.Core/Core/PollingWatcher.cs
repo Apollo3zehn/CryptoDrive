@@ -10,7 +10,7 @@ namespace CryptoDrive.Core
     {
         #region Events
 
-        public event EventHandler<FileSystemChangedEventArgs> FileSystemChanged;
+        public event EventHandler<DriveChangedEventArgs> DriveChanged;
 
         #endregion
 
@@ -93,7 +93,7 @@ namespace CryptoDrive.Core
             lock (_changesLock)
             {
                 if (_changesHashSet.Any())
-                    this.FileSystemChanged?.Invoke(this, new FileSystemChangedEventArgs(_changesHashSet.ToList()));
+                    this.DriveChanged?.Invoke(this, new DriveChangedEventArgs(_changesHashSet.ToList()));
 
                 _changesHashSet.Clear();
             }

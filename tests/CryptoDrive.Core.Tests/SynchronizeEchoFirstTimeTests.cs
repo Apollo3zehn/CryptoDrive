@@ -1,9 +1,7 @@
 using CryptoDrive.Extensions;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
-using System.IO;
 using Xunit;
 using Xunit.Abstractions;
 using Directory = System.IO.Directory;
@@ -25,28 +23,16 @@ namespace CryptoDrive.Core.Tests
 
         private async void Execute(string fileId, Action assertAction)
         {
-            // Arrange
-            var options = new DbContextOptionsBuilder<CryptoDriveDbContext>()
-                // InMemoryDatabase is currently broken
-                //.UseInMemoryDatabase(databaseName: "CryptoDrive")
-                .UseSqlite($"Data Source={Path.GetTempFileName()}")
-                .Options;
-
             _driveHive = await Utils.PrepareDrives(fileId, _logger);
 
-            using (var context = new CryptoDriveDbContext(options))
-            {
-                context.Database.EnsureCreated();
+            var syncEngine = new CryptoDriveSyncEngine(_driveHive.RemoteDrive, _driveHive.LocalDrive, SyncMode.Echo, _logger);
 
-                var syncEngine = new CryptoDriveSyncEngine(_driveHive.RemoteDrive, _driveHive.LocalDrive, context, SyncMode.Echo, _logger);
+            // Act
+            syncEngine.Start();
+            await syncEngine.StopAsync();
 
-                // Act
-                syncEngine.Start();
-                await syncEngine.StopAsync();
-
-                // Assert
-                assertAction?.Invoke();
-            }
+            // Assert
+            assertAction?.Invoke();
         }
 
         private void CompareFiles(string fileName, string versionName, string basePath)

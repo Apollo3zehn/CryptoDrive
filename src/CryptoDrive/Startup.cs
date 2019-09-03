@@ -7,7 +7,6 @@ using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -66,7 +65,7 @@ namespace CryptoDrive
 
             // entitiy framework
             services.AddEntityFrameworkSqlite()
-                .AddDbContext<CryptoDriveDbContext>(options => options.UseSqlite("Data Source=CryptoDrive.db"));
+                .AddDbContext<CryptoDriveContext>(options => options.UseSqlite("Data Source=CryptoDrive.db"));
 
             // graph
             services.AddSingleton<IGraphAuthProvider, GraphAuthProvider>();

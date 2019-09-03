@@ -1,5 +1,4 @@
 using CryptoDrive.Extensions;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
@@ -31,48 +30,33 @@ namespace CryptoDrive.Core.Tests
 
         private async void Execute(string fileId, Func<Task> actAction, Action assertAction)
         {
-            var dbName = Path.GetTempFileName();
-
-            // Arrange
-            var options = new DbContextOptionsBuilder<CryptoDriveDbContext>()
-                // InMemoryDatabase is currently broken
-                //.UseInMemoryDatabase(databaseName: "CryptoDrive")
-                .UseSqlite($"Data Source={dbName}")
-                .Options;
-
             _driveHive = await Utils.PrepareDrives(fileId, _logger);
+            var syncEngine = new CryptoDriveSyncEngine(_driveHive.RemoteDrive, _driveHive.LocalDrive, SyncMode.Echo, _logger);
 
-            using (var context = new CryptoDriveDbContext(options))
+            syncEngine.SyncCompleted += (sender, e) =>
             {
-                context.Database.EnsureCreated();
-
-                var syncEngine = new CryptoDriveSyncEngine(_driveHive.RemoteDrive, _driveHive.LocalDrive, context, SyncMode.Echo, _logger);
-
-                syncEngine.SyncCompleted += (sender, e) =>
+                try
                 {
-                    try
+                    switch (e.SyncId)
                     {
-                        switch (e.SyncId)
-                        {
-                            case 0: actAction?.Invoke().Wait(); break;
-                            case 1: syncEngine.Stop();  break;
-                        }
+                        case 0: actAction?.Invoke().Wait(); break;
+                        case 1: syncEngine.Stop(); break;
                     }
-                    finally
-                    {
-                        if (e.SyncId == 1)
-                            _manualReset.Set();
-                    }
-                };
+                }
+                finally
+                {
+                    if (e.SyncId == 1)
+                        _manualReset.Set();
+                }
+            };
 
-                // Act
-                syncEngine.Start();
-                _manualReset.Wait();
+            // Act
+            syncEngine.Start();
+            _manualReset.Wait(timeout: TimeSpan.FromSeconds(300));
 
-                // Assert
-                assertAction?.Invoke();
-                _driveHive.Dispose();
-            }
+            // Assert
+            assertAction?.Invoke();
+            _driveHive.Dispose();
         }
 
         private void CompareFiles(string fileName, string versionName, string basePath)
@@ -94,6 +78,7 @@ namespace CryptoDrive.Core.Tests
             this.Execute("sub/a", async () =>
             {
                 /* add new file */
+                _logger.LogInformation("TEST: Add file.");
                 await _driveHive.LocalDrive.CreateOrUpdateAsync(Utils.DriveItemPool["b1"]);
             },
             () =>
@@ -112,6 +97,7 @@ namespace CryptoDrive.Core.Tests
             this.Execute("sub/a", async () =>
             {
                 /* delete file */
+                _logger.LogInformation("TEST: Delete file.");
                 await _driveHive.LocalDrive.DeleteAsync(Utils.DriveItemPool["sub/a1"]);
             },
             () =>
@@ -134,6 +120,7 @@ namespace CryptoDrive.Core.Tests
                     driveItem.FileSystemInfo.LastModifiedDateTime = DateTime.UtcNow;
 
                     /* modify file */
+                    _logger.LogInformation("TEST: Modify file.");
                     await _driveHive.LocalDrive.CreateOrUpdateAsync(driveItem);
                 }
             },
@@ -163,6 +150,7 @@ namespace CryptoDrive.Core.Tests
                 newDriveItem.ParentReference.Path = newDriveItem.ParentReference.Path.Replace("sub", "sub_new");
 
                 /* move file to new folder */
+                _logger.LogInformation("TEST: Move file.");
                 await _driveHive.LocalDrive.MoveAsync(Utils.DriveItemPool["sub/a1"], newDriveItem);
             },
             () =>
@@ -181,6 +169,7 @@ namespace CryptoDrive.Core.Tests
                 newDriveItem.Name = newDriveItem.Name.Replace("a", "a_new");
 
                 /* rename file */
+                _logger.LogInformation("TEST: Rename file.");
                 await _driveHive.LocalDrive.MoveAsync(Utils.DriveItemPool["sub/a1"], newDriveItem);
             },
             () =>
@@ -201,6 +190,7 @@ namespace CryptoDrive.Core.Tests
                 newDriveItem.Name = newDriveItem.Name.Replace("sub", "sub_new");
 
                 /* rename folder */
+                _logger.LogInformation("TEST: Rename file.");
                 await _driveHive.LocalDrive.MoveAsync(oldDriveItem, newDriveItem);
             },
             () =>
@@ -221,6 +211,7 @@ namespace CryptoDrive.Core.Tests
                 await externalDrive.CreateOrUpdateAsync(Utils.DriveItemPool["sub/a1"]);
 
                 /* move folder from external drive to local drive */
+                _logger.LogInformation("TEST: Move folder from external to local drive.");
                 var newDriveItem = Utils.DriveItemPool["sub/a1"].MemberwiseClone();
                 var sourcePath = Path.GetDirectoryName(newDriveItem.GetAbsolutePath(externalDrivePath));
                 var targetPath = Path.GetDirectoryName(newDriveItem.GetAbsolutePath(_driveHive.LocalDrivePath));
