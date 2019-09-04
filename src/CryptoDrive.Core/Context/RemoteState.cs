@@ -21,7 +21,7 @@ namespace CryptoDrive.Core
 
         public string GetItemPath()
         {
-            return $"{this.Path}/{this.Name}";
+            return PathHelper.Combine(this.Path, this.Name);
         }
 
         #endregion

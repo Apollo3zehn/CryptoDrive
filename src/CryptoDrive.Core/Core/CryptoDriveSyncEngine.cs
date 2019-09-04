@@ -86,7 +86,7 @@ namespace CryptoDrive.Core
 
         // public
 
-        public void Start(string folderPath = "")
+        public void Start(string folderPath = "/")
         {
             // if already running, throw exception
             if (this.IsEnabled)
@@ -161,7 +161,6 @@ namespace CryptoDrive.Core
         private async Task WatchForChanges(string folderPath)
         {
             await this.TrySynchronize(folderPath);
-            _syncId++;
 
             while (this.IsEnabled)
             {
@@ -173,7 +172,6 @@ namespace CryptoDrive.Core
                 if (_changesQueue.TryDequeue(out var currentFolderPath))
                 {
                     await this.TrySynchronize(currentFolderPath);
-                    _syncId++;
                 }
                 else
                 {
@@ -191,27 +189,33 @@ namespace CryptoDrive.Core
             }
             catch (Exception ex)
             {
+                _logger.LogError($"Synchronization failed with message '{ex.Message}'.");
                 this.SyncCompleted?.Invoke(this, new SyncCompletedEventArgs(_syncId, ex));
+            }
+            finally
+            {
+                _syncId++;
             }
         }
 
-        private async Task Synchronize(string folderPath = "")
+        private async Task Synchronize(string folderPath = "/")
         {
-            if (string.IsNullOrWhiteSpace(folderPath))
-                _logger.LogInformation($"Synchronizing root folder.");
-            else
-                _logger.LogInformation($"Synchronizing folder '{folderPath}'.");
+            _logger.LogInformation($"Synchronizing folder '{folderPath}'.");
 
             // remote drive
             if (_syncMode == SyncMode.TwoWay)
             {
+                _logger.LogInformation($"Search for changes on remote drive '{_remoteDrive.Name}'.");
+
                 await _remoteDrive.ProcessDelta(async deltaPage => await this.InternalSynchronize(_remoteDrive, _localDrive, deltaPage),
-                                               folderPath, _context, _cts.Token);
+                                                folderPath, _context, _cts.Token);
             }
             else
             {
-                if (!_context.RemoteStates.Any())
+                if (!_context.IsInitialized)
                 {
+                    _logger.LogInformation($"Build item index of remote drive '{_remoteDrive.Name}'.");
+
                     await _remoteDrive.ProcessDelta(deltaPage =>
                     {
                         foreach (var driveItem in deltaPage)
@@ -219,15 +223,18 @@ namespace CryptoDrive.Core
 
                         return Task.CompletedTask;
                     }, folderPath, _context, _cts.Token);
+
+                    _context.IsInitialized = true;
                 }
             }
 
             // local drive
+            _logger.LogInformation($"Search for changes on local drive '{_localDrive.Name}'.");
             await _localDrive.ProcessDelta(async deltaPage => await this.InternalSynchronize(_localDrive, _remoteDrive, deltaPage),
                                            folderPath, _context, _cts.Token);
 
-            // conflicts
-            await this.CheckConflicts();
+            //// conflicts
+            //await this.CheckConflicts();
 
             // orphaned remote states
             //if (_syncMode == SyncMode.Echo)
@@ -247,7 +254,7 @@ namespace CryptoDrive.Core
             {
                 using (_logger.BeginScope(new Dictionary<string, object>
                 {
-                    ["FilePath"] = newDriveItem.GetItemPath()
+                    ["ItemPath"] = newDriveItem.GetItemPath()
                 }))
                 {
                     // if file is marked as conflicted copy

@@ -38,21 +38,21 @@ namespace CryptoDrive.Core.Tests
         [Fact]
         public void CanSyncATest()
         {
-            this.Execute("a", () =>
+            this.Execute("/a", () =>
             {
                 var hashAlgorithm = new QuickXorHash();
 
-                Assert.True(File.Exists("a".ToAbsolutePath(_driveHive.LocalDrivePath)));
-                Assert.True(File.Exists("a"
-                    .ToConflictFilePath(Utils.DriveItemPool["a2"].LastModified())
-                    .ToAbsolutePath(_driveHive.LocalDrivePath)));
-                Assert.True(File.Exists("a".ToAbsolutePath(_driveHive.RemoteDrivePath)));
+                Assert.True(File.Exists("/a".ToAbsolutePath(_driveHive.LocalDrivePath)), "File does not exist.");
+                Assert.True(File.Exists("/a"
+                    .ToConflictFilePath(Utils.DriveItemPool["/a2"].LastModified())
+                    .ToAbsolutePath(_driveHive.LocalDrivePath)), "File does not exist.");
+                Assert.True(File.Exists("/a".ToAbsolutePath(_driveHive.RemoteDrivePath)), "File does not exist.");
 
-                using (var stream = File.OpenRead("a"
-                    .ToConflictFilePath(Utils.DriveItemPool["a2"].LastModified())
+                using (var stream = File.OpenRead("/a"
+                    .ToConflictFilePath(Utils.DriveItemPool["/a2"].LastModified())
                     .ToAbsolutePath(_driveHive.LocalDrivePath)))
                 {
-                    Assert.True(Convert.ToBase64String(hashAlgorithm.ComputeHash(stream)) == Utils.DriveItemPool["a2"].QuickXorHash());
+                    Assert.True(Convert.ToBase64String(hashAlgorithm.ComputeHash(stream)) == Utils.DriveItemPool["/a2"].QuickXorHash());
                 }
             });
         }
@@ -60,36 +60,36 @@ namespace CryptoDrive.Core.Tests
         [Fact]
         public void CanSyncBTest()
         {
-            this.Execute("b", () =>
+            this.Execute("/b", () =>
             {
-                Assert.True(File.Exists("b".ToAbsolutePath(_driveHive.LocalDrivePath)));
-                Assert.True(File.Exists("b".ToAbsolutePath(_driveHive.RemoteDrivePath)));
+                Assert.True(File.Exists("/b".ToAbsolutePath(_driveHive.LocalDrivePath)), "File does not exist.");
+                Assert.True(File.Exists("/b".ToAbsolutePath(_driveHive.RemoteDrivePath)), "File does not exist.");
             });
         }
 
         [Fact]
         public void CanSyncCTest()
         {
-            this.Execute("c", () =>
+            this.Execute("/c", () =>
             {
-                Assert.True(File.Exists("c".ToAbsolutePath(_driveHive.LocalDrivePath)));
-                Assert.True(File.Exists("c".ToAbsolutePath(_driveHive.RemoteDrivePath)));
+                Assert.True(File.Exists("/c".ToAbsolutePath(_driveHive.LocalDrivePath)), "File does not exist.");
+                Assert.True(File.Exists("/c".ToAbsolutePath(_driveHive.RemoteDrivePath)), "File does not exist.");
             });
         }
 
         [Fact]
         public void CanSyncDTest()
         {
-            this.Execute("d", () =>
+            this.Execute("/d", () =>
             {
                 var hashAlgorithm = new QuickXorHash();
 
-                Assert.True(File.Exists("d".ToAbsolutePath(_driveHive.LocalDrivePath)));
-                Assert.True(File.Exists("d".ToAbsolutePath(_driveHive.RemoteDrivePath)));
+                Assert.True(File.Exists("/d".ToAbsolutePath(_driveHive.LocalDrivePath)), "File does not exist.");
+                Assert.True(File.Exists("/d".ToAbsolutePath(_driveHive.RemoteDrivePath)), "File does not exist.");
 
-                using (var stream = File.OpenRead("d".ToAbsolutePath(_driveHive.LocalDrivePath)))
+                using (var stream = File.OpenRead("/d".ToAbsolutePath(_driveHive.LocalDrivePath)))
                 {
-                    Assert.True(Convert.ToBase64String(hashAlgorithm.ComputeHash(stream)) == Utils.DriveItemPool["d1"].QuickXorHash());
+                    Assert.True(Convert.ToBase64String(hashAlgorithm.ComputeHash(stream)) == Utils.DriveItemPool["/d1"].QuickXorHash());
                 }
             });
         }
@@ -97,112 +97,95 @@ namespace CryptoDrive.Core.Tests
         [Fact]
         public void CanSyncETest()
         {
-            this.Execute("e", () =>
+            this.Execute("/e", () =>
             {
-                Assert.True(File.Exists("e"
-                    .ToConflictFilePath(Utils.DriveItemPool["e1"].LastModified())
-                    .ToAbsolutePath(_driveHive.LocalDrivePath)));
-                Assert.True(File.Exists("e".ToAbsolutePath(_driveHive.LocalDrivePath)));
-                Assert.True(File.Exists("e".ToAbsolutePath(_driveHive.RemoteDrivePath)));
+                Assert.True(File.Exists("/e"
+                    .ToConflictFilePath(Utils.DriveItemPool["/e1"].LastModified())
+                    .ToAbsolutePath(_driveHive.LocalDrivePath)), "File does not exist.");
+                Assert.True(File.Exists("/e".ToAbsolutePath(_driveHive.LocalDrivePath)), "File does not exist.");
+                Assert.True(File.Exists("/e".ToAbsolutePath(_driveHive.RemoteDrivePath)), "File does not exist.");
             });
         }
 
         [Fact]
         public void CanSyncFTest()
         {
-            this.Execute("f", () =>
+            this.Execute("/f", () =>
             {
-                var hashAlgorithm = new QuickXorHash();
+                Assert.True(File.Exists("/f"
+                    .ToConflictFilePath(Utils.DriveItemPool["/f1"].LastModified())
+                    .ToAbsolutePath(_driveHive.LocalDrivePath)), "File does not exist.");
+                Assert.True(File.Exists("/f".ToAbsolutePath(_driveHive.LocalDrivePath)), "File does not exist.");
+                Assert.True(File.Exists("/f".ToAbsolutePath(_driveHive.RemoteDrivePath)), "File does not exist.");
 
-                Assert.True(File.Exists("f"
-                    .ToConflictFilePath(Utils.DriveItemPool["f1"].LastModified())
-                    .ToAbsolutePath(_driveHive.LocalDrivePath)));
-                Assert.True(File.Exists("f".ToAbsolutePath(_driveHive.LocalDrivePath)));
-                Assert.True(File.Exists("f".ToAbsolutePath(_driveHive.RemoteDrivePath)));
-
-                using (var stream = File.OpenRead("f".ToAbsolutePath(_driveHive.LocalDrivePath)))
-                {
-                    Assert.True(Convert.ToBase64String(hashAlgorithm.ComputeHash(stream)) == Utils.DriveItemPool["f2"].QuickXorHash());
-                }
+                Utils.CompareFiles("/f", "/f2", _driveHive.LocalDrivePath);
             });
         }
 
         [Fact]
         public void CanSyncGTest()
         {
-            this.Execute("g", () =>
+            this.Execute("/g", () =>
             {
-                Assert.True(File.Exists("g".ToAbsolutePath(_driveHive.LocalDrivePath)));
-                Assert.True(File.Exists("g"
-                    .ToConflictFilePath(Utils.DriveItemPool["g1"].LastModified())
-                    .ToAbsolutePath(_driveHive.LocalDrivePath)));
-                Assert.True(File.Exists("g".ToAbsolutePath(_driveHive.RemoteDrivePath)));
+                Assert.True(File.Exists("/g".ToAbsolutePath(_driveHive.LocalDrivePath)), "File does not exist.");
+                Assert.True(File.Exists("/g"
+                    .ToConflictFilePath(Utils.DriveItemPool["/g1"].LastModified())
+                    .ToAbsolutePath(_driveHive.LocalDrivePath)), "File does not exist.");
+                Assert.True(File.Exists("/g".ToAbsolutePath(_driveHive.RemoteDrivePath)), "File does not exist.");
             });
         }
 
         [Fact]
         public void CanSyncHTest()
         {
-            this.Execute("h", () =>
+            this.Execute("/h", () =>
             {
-                var hashAlgorithm = new QuickXorHash();
+                Assert.True(File.Exists("/h".ToAbsolutePath(_driveHive.LocalDrivePath)), "File does not exist.");
+                Assert.True(File.Exists("/h"
+                    .ToConflictFilePath(Utils.DriveItemPool["/h1"].LastModified())
+                    .ToAbsolutePath(_driveHive.LocalDrivePath)), "File does not exist.");
+                Assert.True(File.Exists("/h".ToAbsolutePath(_driveHive.RemoteDrivePath)), "File does not exist.");
 
-                Assert.True(File.Exists("h".ToAbsolutePath(_driveHive.LocalDrivePath)));
-                Assert.True(File.Exists("h"
-                    .ToConflictFilePath(Utils.DriveItemPool["h1"].LastModified())
-                    .ToAbsolutePath(_driveHive.LocalDrivePath)));
-                Assert.True(File.Exists("h".ToAbsolutePath(_driveHive.RemoteDrivePath)));
-
-                using (var stream = File.OpenRead("h"
-                    .ToAbsolutePath(_driveHive.LocalDrivePath)))
-                {
-                    Assert.True(Convert.ToBase64String(hashAlgorithm.ComputeHash(stream)) == Utils.DriveItemPool["h1"].QuickXorHash());
-                }
+                Utils.CompareFiles("/h", "/h1", _driveHive.LocalDrivePath);
             });
         }
 
         [Fact]
         public void CanSyncITest()
         {
-            this.Execute("i", () =>
+            this.Execute("/i", () =>
             {
-                var hashAlgorithm = new QuickXorHash();
+                Assert.True(File.Exists("/i"
+                    .ToConflictFilePath(Utils.DriveItemPool["/i1"].LastModified())
+                    .ToAbsolutePath(_driveHive.LocalDrivePath)), "File does not exist.");
+                Assert.True(File.Exists("/i".ToAbsolutePath(_driveHive.LocalDrivePath)), "File does not exist.");
+                Assert.True(File.Exists("/i".ToAbsolutePath(_driveHive.RemoteDrivePath)), "File does not exist.");
 
-                Assert.True(File.Exists("i"
-                    .ToConflictFilePath(Utils.DriveItemPool["i1"].LastModified())
-                    .ToAbsolutePath(_driveHive.LocalDrivePath)));
-                Assert.True(File.Exists("i".ToAbsolutePath(_driveHive.LocalDrivePath)));
-                Assert.True(File.Exists("i".ToAbsolutePath(_driveHive.RemoteDrivePath)));
-
-                using (var stream = File.OpenRead("i"
-                    .ToAbsolutePath(_driveHive.LocalDrivePath)))
-                {
-                    Assert.True(Convert.ToBase64String(hashAlgorithm.ComputeHash(stream)) == Utils.DriveItemPool["i2"].QuickXorHash());
-                }
+                Utils.CompareFiles("/i", "/i2", _driveHive.LocalDrivePath);
             });
         }
 
         [Fact]
         public void CanSyncJTest()
         {
-            this.Execute("j", () =>
+            this.Execute("/j", () =>
             {
                 var hashAlgorithm = new QuickXorHash();
 
-                Assert.True(File.Exists("j"
-                    .ToConflictFilePath(Utils.DriveItemPool["j1"].LastModified())
-                    .ToAbsolutePath(_driveHive.LocalDrivePath)));
-                Assert.True(File.Exists("j".ToAbsolutePath(_driveHive.LocalDrivePath)));
-                Assert.True(File.Exists("j"
-                    .ToConflictFilePath(Utils.DriveItemPool["j3"].LastModified())
-                    .ToAbsolutePath(_driveHive.LocalDrivePath)));
-                Assert.True(File.Exists("j".ToAbsolutePath(_driveHive.RemoteDrivePath)));
+                Assert.True(File.Exists("/j"
+                    .ToConflictFilePath(Utils.DriveItemPool["/j1"].LastModified())
+                    .ToAbsolutePath(_driveHive.LocalDrivePath)), "File does not exist.");
+                Assert.True(File.Exists("/j".ToAbsolutePath(_driveHive.LocalDrivePath)), "File does not exist.");
+                Assert.True(File.Exists("/j"
+                    .ToConflictFilePath(Utils.DriveItemPool["/j3"].LastModified())
+                    .ToAbsolutePath(_driveHive.LocalDrivePath)), "File does not exist.");
+                Assert.True(File.Exists("/j".ToAbsolutePath(_driveHive.RemoteDrivePath)), "File does not exist.");
 
-                using (var stream = File.OpenRead("j"
-                    .ToConflictFilePath(Utils.DriveItemPool["j3"].LastModified())
+                using (var stream = File.OpenRead("/j"
+                    .ToConflictFilePath(Utils.DriveItemPool["/j3"].LastModified())
                     .ToAbsolutePath(_driveHive.LocalDrivePath)))
                 {
-                    Assert.True(Convert.ToBase64String(hashAlgorithm.ComputeHash(stream)) == Utils.DriveItemPool["j3"].QuickXorHash());
+                    Assert.True(Convert.ToBase64String(hashAlgorithm.ComputeHash(stream)) == Utils.DriveItemPool["/j3"].QuickXorHash());
                 }
             });
         }
@@ -210,20 +193,15 @@ namespace CryptoDrive.Core.Tests
         [Fact]
         public void CanSyncKTest()
         {
-            this.Execute("k", () =>
+            this.Execute("/k", () =>
             {
-                var hashAlgorithm = new QuickXorHash();
+                Assert.True(File.Exists("/k".ToAbsolutePath(_driveHive.LocalDrivePath)), "File does not exist.");
+                Assert.True(File.Exists("/k"
+                    .ToConflictFilePath(Utils.DriveItemPool["/k1"].LastModified())
+                    .ToAbsolutePath(_driveHive.LocalDrivePath)), "File does not exist.");
+                Assert.True(File.Exists("/k".ToAbsolutePath(_driveHive.RemoteDrivePath)), "File does not exist.");
 
-                Assert.True(File.Exists("k".ToAbsolutePath(_driveHive.LocalDrivePath)));
-                Assert.True(File.Exists("k"
-                    .ToConflictFilePath(Utils.DriveItemPool["k1"].LastModified())
-                    .ToAbsolutePath(_driveHive.LocalDrivePath)));
-                Assert.True(File.Exists("k".ToAbsolutePath(_driveHive.RemoteDrivePath)));
-
-                using (var stream = File.OpenRead("k".ToAbsolutePath(_driveHive.LocalDrivePath)))
-                {
-                    Assert.True(Convert.ToBase64String(hashAlgorithm.ComputeHash(stream)) == Utils.DriveItemPool["k1"].QuickXorHash());
-                }
+                Utils.CompareFiles("/k", "/k1", _driveHive.LocalDrivePath);
             });
         }
 

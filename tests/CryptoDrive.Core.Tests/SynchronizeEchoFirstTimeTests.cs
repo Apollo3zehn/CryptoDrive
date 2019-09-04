@@ -35,151 +35,138 @@ namespace CryptoDrive.Core.Tests
             assertAction?.Invoke();
         }
 
-        private void CompareFiles(string fileName, string versionName, string basePath)
-        {
-            var hashAlgorithm = new QuickXorHash();
-
-            using (var stream = File.OpenRead(fileName.ToAbsolutePath(basePath)))
-            {
-                var actual = Convert.ToBase64String(hashAlgorithm.ComputeHash(stream));
-                var expected = Utils.DriveItemPool[versionName].QuickXorHash();
-
-                Assert.True(actual == expected, "The hashes are not equal.");
-            }
-        }
-
         [Fact]
         public void CanSyncATest()
         {
-            this.Execute("a", () =>
+            this.Execute("/a", () =>
             {
-                Assert.True(File.Exists("a".ToAbsolutePath(_driveHive.LocalDrivePath)), "File does not exist.");
-                Assert.True(File.Exists("a".ToAbsolutePath(_driveHive.RemoteDrivePath)), "File does not exist.");
+                Assert.True(File.Exists("/a".ToAbsolutePath(_driveHive.LocalDrivePath)), "File does not exist.");
+                Assert.True(File.Exists("/a".ToAbsolutePath(_driveHive.RemoteDrivePath)), "File does not exist.");
 
-                this.CompareFiles("a", "a1", _driveHive.RemoteDrivePath);
+                Utils.CompareFiles("/a", "/a1", _driveHive.RemoteDrivePath);
             });
         }
 
         [Fact]
         public void CanSyncSubATest()
         {
-            this.Execute("sub/a", () =>
+            this.Execute("/sub/a", () =>
             {
-                Assert.True(File.Exists("sub/a".ToAbsolutePath(_driveHive.LocalDrivePath)), "File does not exist.");
-                Assert.True(File.Exists("sub/a".ToAbsolutePath(_driveHive.RemoteDrivePath)), "File does not exist.");
+                Assert.True(File.Exists("/sub/a".ToAbsolutePath(_driveHive.LocalDrivePath)), "File does not exist.");
+                Assert.True(File.Exists("/sub/a".ToAbsolutePath(_driveHive.RemoteDrivePath)), "File does not exist.");
 
-                this.CompareFiles("sub/a", "sub/a1", _driveHive.RemoteDrivePath);
+                Utils.CompareFiles("/sub/a", "/sub/a1", _driveHive.RemoteDrivePath);
             });
         }
 
         [Fact]
         public void CanSyncBTest()
         {
-            this.Execute("b", () =>
+            this.Execute("/b", () =>
             {
-                Assert.True(File.Exists("b".ToAbsolutePath(_driveHive.LocalDrivePath)), "File does not exist.");
-                Assert.True(File.Exists("b".ToAbsolutePath(_driveHive.RemoteDrivePath)), "File does not exist.");
+                Assert.True(File.Exists("/b".ToAbsolutePath(_driveHive.LocalDrivePath)), "File does not exist.");
+                Assert.True(File.Exists("/b".ToAbsolutePath(_driveHive.RemoteDrivePath)), "File does not exist.");
 
-                this.CompareFiles("b", "b1", _driveHive.RemoteDrivePath);
+                Utils.CompareFiles("/b", "/b1", _driveHive.RemoteDrivePath);
             });
         }
 
         [Fact]
         public void CanSyncCTest()
         {
-            this.Execute("c", () =>
+            this.Execute("/c", () =>
             {
-                Assert.True(!File.Exists("c".ToAbsolutePath(_driveHive.RemoteDrivePath)), "File should not exist.");
+                Assert.True(!File.Exists("/c".ToAbsolutePath(_driveHive.RemoteDrivePath)), "File should not exist.");
             });
         }
 
         [Fact]
         public void CanSyncDTest()
         {
-            this.Execute("d", () =>
+            this.Execute("/d", () =>
             {
-                Assert.True(File.Exists("d".ToAbsolutePath(_driveHive.LocalDrivePath)), "File does not exist.");
-                Assert.True(File.Exists("d".ToAbsolutePath(_driveHive.RemoteDrivePath)), "File does not exist.");
+                Assert.True(File.Exists("/d".ToAbsolutePath(_driveHive.LocalDrivePath)), "File does not exist.");
+                Assert.True(File.Exists("/d".ToAbsolutePath(_driveHive.RemoteDrivePath)), "File does not exist.");
 
-                this.CompareFiles("d", "d1", _driveHive.RemoteDrivePath);
+                Utils.CompareFiles("/d", "/d1", _driveHive.RemoteDrivePath);
             });
         }
 
         [Fact]
         public void CanSyncETest()
         {
-            this.Execute("e", () =>
+            this.Execute("/e", () =>
             {
-                Assert.True(File.Exists("e".ToAbsolutePath(_driveHive.LocalDrivePath)), "File does not exist.");
-                Assert.True(File.Exists("e".ToAbsolutePath(_driveHive.RemoteDrivePath)), "File does not exist.");
+                Assert.True(File.Exists("/e".ToAbsolutePath(_driveHive.LocalDrivePath)), "File does not exist.");
+                Assert.True(File.Exists("/e".ToAbsolutePath(_driveHive.RemoteDrivePath)), "File does not exist.");
 
-                this.CompareFiles("e", "e2", _driveHive.RemoteDrivePath);
+                Utils.CompareFiles("/e", "/e2", _driveHive.RemoteDrivePath);
             });
         }
 
         [Fact]
         public void CanSyncFTest()
         {
-            this.Execute("f", () =>
+            this.Execute("/f", () =>
             {
-                Assert.True(File.Exists("f".ToAbsolutePath(_driveHive.LocalDrivePath)), "File does not exist.");
-                Assert.True(File.Exists("f".ToAbsolutePath(_driveHive.RemoteDrivePath)), "File does not exist.");
+                Assert.True(File.Exists("/f".ToAbsolutePath(_driveHive.LocalDrivePath)), "File does not exist.");
+                Assert.True(File.Exists("/f".ToAbsolutePath(_driveHive.RemoteDrivePath)), "File does not exist.");
 
-                this.CompareFiles("f", "f2", _driveHive.RemoteDrivePath);
+                Utils.CompareFiles("/f", "/f2", _driveHive.RemoteDrivePath);
             });
         }
 
         [Fact]
         public void CanSyncGTest()
         {
-            this.Execute("g", () =>
+            this.Execute("/g", () =>
             {
-                Assert.True(File.Exists("g".ToAbsolutePath(_driveHive.LocalDrivePath)), "File does not exist.");
-                Assert.True(File.Exists("g".ToAbsolutePath(_driveHive.RemoteDrivePath)), "File does not exist.");
+                Assert.True(File.Exists("/g".ToAbsolutePath(_driveHive.LocalDrivePath)), "File does not exist.");
+                Assert.True(File.Exists("/g".ToAbsolutePath(_driveHive.RemoteDrivePath)), "File does not exist.");
 
-                this.CompareFiles("g", "g1", _driveHive.RemoteDrivePath);
+                Utils.CompareFiles("/g", "/g1", _driveHive.RemoteDrivePath);
             });
         }
 
         [Fact]
         public void CanSyncHTest()
         {
-            this.Execute("h", () =>
+            this.Execute("/h", () =>
             {
-                Assert.True(!File.Exists("h".ToAbsolutePath(_driveHive.RemoteDrivePath)), "File should not exist.");
+                Assert.True(!File.Exists("/h".ToAbsolutePath(_driveHive.RemoteDrivePath)), "File should not exist.");
             });
         }
 
         [Fact]
         public void CanSyncITest()
         {
-            this.Execute("i", () =>
+            this.Execute("/i", () =>
             {
-                Assert.True(!File.Exists("i".ToAbsolutePath(_driveHive.RemoteDrivePath)), "File should not exist.");
+                Assert.True(!File.Exists("/i".ToAbsolutePath(_driveHive.RemoteDrivePath)), "File should not exist.");
             });
         }
 
         [Fact]
         public void CanSyncJTest()
         {
-            this.Execute("j", () =>
+            this.Execute("/j", () =>
             {
-                Assert.True(File.Exists("j".ToAbsolutePath(_driveHive.LocalDrivePath)), "File does not exist.");
-                Assert.True(File.Exists("j".ToAbsolutePath(_driveHive.RemoteDrivePath)), "File does not exist.");
+                Assert.True(File.Exists("/j".ToAbsolutePath(_driveHive.LocalDrivePath)), "File does not exist.");
+                Assert.True(File.Exists("/j".ToAbsolutePath(_driveHive.RemoteDrivePath)), "File does not exist.");
 
-                this.CompareFiles("j", "j2", _driveHive.RemoteDrivePath);
+                Utils.CompareFiles("/j", "/j2", _driveHive.RemoteDrivePath);
             });
         }
 
         [Fact]
         public void CanSyncKTest()
         {
-            this.Execute("k", () =>
+            this.Execute("/k", () =>
             {
-                Assert.True(File.Exists("k".ToAbsolutePath(_driveHive.LocalDrivePath)), "File does not exist.");
-                Assert.True(File.Exists("k".ToAbsolutePath(_driveHive.RemoteDrivePath)), "File does not exist.");
+                Assert.True(File.Exists("/k".ToAbsolutePath(_driveHive.LocalDrivePath)), "File does not exist.");
+                Assert.True(File.Exists("/k".ToAbsolutePath(_driveHive.RemoteDrivePath)), "File does not exist.");
 
-                this.CompareFiles("k", "k1", _driveHive.RemoteDrivePath);
+                Utils.CompareFiles("/k", "/k1", _driveHive.RemoteDrivePath);
             });
         }
 

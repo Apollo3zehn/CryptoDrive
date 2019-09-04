@@ -1,4 +1,5 @@
-﻿using System;
+﻿using CryptoDrive.Core;
+using System;
 using System.IO;
 using System.Text;
 
@@ -14,11 +15,9 @@ namespace CryptoDrive.Extensions
         public static string ToConflictFilePath(this string filePath, DateTimeOffset lastModified)
         {
             var conflictFileName = filePath.ToConflictFileName(lastModified);
+            var folderPath = Path.GetDirectoryName(filePath).NormalizeSlashes();
 
-            var folderPath = Path.GetDirectoryName(filePath);
-            var conflictedFilePath = Path.Combine(folderPath, conflictFileName);
-
-            return conflictedFilePath.NormalizeSlashes();
+            return PathHelper.Combine(folderPath, conflictFileName);
         }
 
         public static string ToConflictFileName(this string fileName, DateTimeOffset lastModified)
@@ -34,12 +33,18 @@ namespace CryptoDrive.Extensions
 
         public static string ToAbsolutePath(this string relativePath, string basePath)
         {
-            return Path.Combine(basePath, relativePath.TrimStart('/')).NormalizeSlashes();
+            return Path.Combine(basePath, relativePath.TrimStart('/'));
         }
 
         public static string NormalizeSlashes(this string value)
         {
-            return value.Replace('\\', '/').TrimEnd('/');
+            value = value.Replace('\\', '/');
+            value = value.TrimEnd('/');
+
+            if (!value.StartsWith('/'))
+                value = $"/{value}";
+
+            return value;
         }
     }
 }

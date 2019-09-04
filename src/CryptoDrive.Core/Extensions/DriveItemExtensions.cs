@@ -179,7 +179,9 @@ namespace CryptoDrive.Extensions
 
         public static string GetItemPath(this DriveItem driveItem)
         {
-            return $"{driveItem.ParentReference.Path.Substring(CryptoDriveConstants.PathPrefix.Length)}/{driveItem.Name}";
+            var folderPath = $"{driveItem.ParentReference.Path.Substring(CryptoDriveConstants.PathPrefix.Length)}";
+
+            return PathHelper.Combine(folderPath, driveItem.Name);
         }
 
         public static string GetAbsolutePath(this DriveItem driveItem, string basePath)
@@ -277,10 +279,13 @@ namespace CryptoDrive.Extensions
         {
             if (driveItem.File != null)
                 return DriveItemType.File;
+
             else if (driveItem.Folder != null)
                 return DriveItemType.Folder;
+
             else if (driveItem.RemoteItem != null)
                 return DriveItemType.RemoteItem;
+
             else
                 throw new ArgumentException();
         }

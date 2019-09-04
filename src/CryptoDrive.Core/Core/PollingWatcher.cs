@@ -1,4 +1,5 @@
-﻿using System;
+﻿using CryptoDrive.Extensions;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -80,7 +81,9 @@ namespace CryptoDrive.Core
         {
             lock (_changesLock)
             {
-                var folderPath = Path.GetDirectoryName(e.FullPath.Substring(_fileWatcher.Path.Length + 1));
+                var relativePath = e.FullPath.Substring(_fileWatcher.Path.Length + 1);
+                var folderPath = Path.GetDirectoryName(e.FullPath.Substring(_fileWatcher.Path.Length + 1)).NormalizeSlashes();
+
                 _changesHashSet.Add(folderPath);
 
                 // reset timer

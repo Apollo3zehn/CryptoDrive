@@ -1,4 +1,4 @@
-﻿using CryptoDrive.Extensions;
+using CryptoDrive.Extensions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Graph;
 using System;
@@ -45,7 +45,7 @@ namespace CryptoDrive.Core
                 pollInterval = TimeSpan.FromSeconds(5);
 
             _pollingWatcher = new PollingWatcher(this.BasePath, pollInterval);
-            _pollingWatcher.FileSystemChanged += this.OnFileSystemChanged;
+            _pollingWatcher.DriveChanged += this.OnDriveChanged;
             _pollingWatcher.EnableRaisingEvents = true;
         }
 
@@ -70,7 +70,7 @@ namespace CryptoDrive.Core
 
         public async Task ProcessDelta(Func<List<DriveItem>, Task> action,
                                        string folderPath,
-                                       CryptoDriveDbContext dbContext,
+                                       CryptoDriveContext context,
                                        CancellationToken cancellationToken)
         {
             var pageCounter = 0;
@@ -82,7 +82,7 @@ namespace CryptoDrive.Core
                     [$"DeltaPage ({this.Name})"] = pageCounter
                 }))
                 {
-                    (var deltaPage, var isLast) = await this.GetDeltaPageAsync(folderPath, dbContext, cancellationToken);
+                    (var deltaPage, var isLast) = await this.GetDeltaPageAsync(folderPath, context, cancellationToken);
 
                     if (cancellationToken.IsCancellationRequested)
                         break;
@@ -98,16 +98,16 @@ namespace CryptoDrive.Core
         }
 
         private Task<(List<DriveItem> DeltaPage, bool IsLast)> GetDeltaPageAsync(string folderPath,
-                                                                                 CryptoDriveDbContext dbContext,
+                                                                                 CryptoDriveContext context,
                                                                                  CancellationToken cancellationToken)
         {
             var pageSize = 10;
             var deltaPage = new List<DriveItem>();
 
             if (_fileEnumerator is null)
-                _fileEnumerator = this.SafelyEnumerateDriveItems(folderPath, dbContext)
-                                      .Where(current => this.CheckPathAllowed(current.GetPath()))
-                                      .GetEnumerator();
+                _fileEnumerator = this.SafelyEnumerateDriveItems(folderPath, context)
+                    .Where(current => this.CheckPathAllowed(current.GetItemPath()))
+                    .GetEnumerator();
 
             while (!cancellationToken.IsCancellationRequested && _fileEnumerator.MoveNext())
             {
@@ -196,7 +196,7 @@ namespace CryptoDrive.Core
             switch (driveItem.Type())
             {
                 case DriveItemType.Folder:
-                    Directory.Delete(fullPath);
+                    Directory.Delete(fullPath, recursive: true);
                     break;
 
                 case DriveItemType.File:
@@ -295,50 +295,71 @@ namespace CryptoDrive.Core
 
         #region Private
 
-        private void OnFileSystemChanged(object source, FileSystemChangedEventArgs e)
+        private void OnDriveChanged(object source, DriveChangedEventArgs e)
         {
-            foreach (var folderPath in e.FileSystemEventArgs)
+            foreach (var folderPath in e.FolderPaths)
             {
                 this.FolderChanged?.Invoke(this, folderPath);
             }
         }
 
-        private IEnumerable<DriveItem> SafelyEnumerateDriveItems(string folderPath, CryptoDriveDbContext dbContext, [CallerMemberName] string callerName = "")
+        private IEnumerable<DriveItem> SafelyEnumerateDriveItems(string folderPath, CryptoDriveContext context, [CallerMemberName] string callerName = "")
         {
             var forceNew = callerName == nameof(this.SafelyEnumerateDriveItems);
             var driveItems = Enumerable.Empty<DriveItem>();
-
-            folderPath = Path.Combine(this.BasePath, folderPath);
+            var absoluteFolderPath = folderPath.ToAbsolutePath(this.BasePath);
 
             try
             {
-                driveItems = driveItems.Concat(Directory.EnumerateDirectories(folderPath, "*", SearchOption.TopDirectoryOnly)
-                    .SelectMany(currentFolderPath =>
+                // get all folders in current folder
+                driveItems = driveItems.Concat(Directory.EnumerateDirectories(absoluteFolderPath, "*", SearchOption.TopDirectoryOnly)
+                    .SelectMany(current =>
                     {
                         RemoteState oldRemoteState = null;
-                        var driveInfo = new DirectoryInfo(currentFolderPath).ToDriveItem(this.BasePath);
+                        var driveInfo = new DirectoryInfo(current).ToDriveItem(this.BasePath);
+                        var folderPath2 = current.Substring(this.BasePath.Length).NormalizeSlashes();
 
                         if (!forceNew)
-                            oldRemoteState = dbContext.RemoteStates.FirstOrDefault(remoteState => remoteState.Path == currentFolderPath
-                                                                                               && remoteState.Type == DriveItemType.Folder);
+                            oldRemoteState = context.RemoteStates.FirstOrDefault(remoteState => remoteState.GetItemPath() == folderPath2
+                                                                                             && remoteState.Type == DriveItemType.Folder);
 
+                        // When we know that the parent folder is not in the database (oldRemoteState == null),
+                        // the children aren't there neither (forceNew = true).
                         if (forceNew || oldRemoteState == null)
-                        {
-                            return this.SafelyEnumerateDriveItems(currentFolderPath, dbContext)
-                                        .Concat(new DriveItem[] { driveInfo });
-                        }
+                            return this.SafelyEnumerateDriveItems(folderPath2, context)
+                                       .Concat(new DriveItem[] { driveInfo });
                         else
-                        {
                             return new List<DriveItem> { driveInfo };
-                        }
                     }));
 
-                driveItems = driveItems.Concat(Directory.EnumerateFiles(folderPath)
-                    .SelectMany(currentFilePath =>
+                // get all files in current folder
+                driveItems = driveItems.Concat(Directory.EnumerateFiles(absoluteFolderPath)
+                    .SelectMany(current =>
                     {
-                        var driveInfo = new FileInfo(currentFilePath).ToDriveItem(this.BasePath);
+                        var driveInfo = new FileInfo(current).ToDriveItem(this.BasePath);
                         return new List<DriveItem> { driveInfo };
                     }).ToList());
+
+                // get all deleted items
+                var remoteStates = context.RemoteStates.Where(current => current.Path == folderPath);              
+
+                var deletedItems = remoteStates.Where(current =>
+                {
+                    switch (current.Type)
+                    {
+                        case DriveItemType.Folder:
+                            return !Directory.Exists(current.GetItemPath().ToAbsolutePath(this.BasePath));
+
+                        case DriveItemType.File:
+                            return !File.Exists(current.GetItemPath().ToAbsolutePath(this.BasePath));
+
+                        case DriveItemType.RemoteItem:
+                        default:
+                            throw new NotSupportedException();
+                    }
+                }).Select(current => current.ToDriveItem(deleted: true));
+
+                driveItems = driveItems.Concat(deletedItems);
 
                 return driveItems;
             }
