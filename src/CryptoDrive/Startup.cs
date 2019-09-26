@@ -63,10 +63,6 @@ namespace CryptoDrive
                 logging.AddDebug();
             });
 
-            // entitiy framework
-            services.AddEntityFrameworkSqlite()
-                .AddDbContext<CryptoDriveContext>(options => options.UseSqlite("Data Source=CryptoDrive.db"));
-
             // graph
             services.AddSingleton<IGraphAuthProvider, GraphAuthProvider>();
             services.AddTransient<IGraphSdkHelper, GraphSdkHelper>();

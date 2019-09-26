@@ -45,6 +45,6 @@
         var oneDrive = new OneDriveProxy(graphClient, logger);
         var localDrive = new LocalDriveProxy(basePath, "local", logger);
 
-        (new CryptoDriveSyncEngine(oneDrive, localDrive, this.DbContext, SyncMode.Echo, logger)).Start();
+        (new CryptoDriveSyncEngine(oneDrive, localDrive, SyncMode.Echo, logger)).Start();
     }
 }
