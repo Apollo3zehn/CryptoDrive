@@ -24,7 +24,7 @@ namespace CryptoDrive.Core
 
         #endregion
 
-        #region "Fields"
+        #region Fields
 
         IDriveItemDeltaCollectionPage _lastDeltaPage;
 
@@ -267,7 +267,6 @@ namespace CryptoDrive.Core
             var maxChunkSize = 1280 * 1024; // 1280 KB - Change this to your chunk size. 5MB is the default.
             var provider = new ChunkedUploadProvider(uploadSession, this.GraphClient, stream, maxChunkSize);
             var chunkRequests = provider.GetUploadChunkRequests();
-            var readBuffer = new byte[maxChunkSize];
             var trackedExceptions = new List<Exception>();
 
             DriveItem driveItem = null;
@@ -278,7 +277,7 @@ namespace CryptoDrive.Core
                 // Do your updates here: update progress bar, etc.
                 // ...
                 // Send chunk request
-                var result = await provider.GetChunkRequestResponseAsync(request, readBuffer, trackedExceptions);
+                var result = await provider.GetChunkRequestResponseAsync(request, trackedExceptions);
 
                 if (result.UploadSucceeded)
                 {

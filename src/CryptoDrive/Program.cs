@@ -1,5 +1,4 @@
-using Microsoft.AspNetCore.Hosting;
-using Microsoft.Extensions.Hosting;
+using WebWindows.Blazor;
 
 namespace CryptoDrive
 {
@@ -7,14 +6,7 @@ namespace CryptoDrive
     {
         public static void Main(string[] args)
         {
-            CreateHostBuilder(args).Build().Run();
+            ComponentsDesktop.Run<Startup>("Crypto Drive", "wwwroot/index.html");
         }
-
-        public static IHostBuilder CreateHostBuilder(string[] args) =>
-            Host.CreateDefaultBuilder(args)
-                .ConfigureWebHostDefaults(webBuilder =>
-                {
-                    webBuilder.UseStartup<Startup>();
-                });
     }
 }

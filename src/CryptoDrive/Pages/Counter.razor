@@ -1,10 +1,4 @@
 ﻿@page "/counter"
-@using System.Security.Claims
-@using CryptoDrive.Core
-@using CryptoDrive.Graph
-@inject IGraphSdkHelper GraphSdkHelper
-@inject CryptoDriveContext DbContext
-@inject Microsoft.Extensions.Logging.ILogger<CryptoDriveSyncEngine> logger
 
 <h1>Counter</h1>
 
@@ -12,39 +6,11 @@
 
 <button class="btn btn-primary" @onclick="IncrementCount">Click me</button>
 
-<AuthorizeView>
-    <Authorized>
-        <h1>Hello, @context.User.Identity.Name!</h1>
-        <button class="btn btn-primary" @onclick="Synchronize">Synchronize!</button>
-    </Authorized>
-    <NotAuthorized>
-        <h1>Authentication Failure!</h1>
-        <p>You're not signed in.</p>
-    </NotAuthorized>
-</AuthorizeView>
-
 @code {
     int currentCount = 0;
-
-    [CascadingParameter]
-    private Task<AuthenticationState> authenticationStateTask { get; set; }
 
     void IncrementCount()
     {
         currentCount++;
-    }
-
-    async void Synchronize()
-    {
-        var authState = await authenticationStateTask;
-
-        // https://github.com/microsoftgraph/aspnetcore-connect-sample/issues/14
-        var basePath = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), "CryptoDrive");
-
-        var graphClient = this.GraphSdkHelper.GetAuthenticatedClient((ClaimsIdentity)authState.User.Identity);
-        var oneDrive = new OneDriveProxy(graphClient, logger);
-        var localDrive = new LocalDriveProxy(basePath, "local", logger);
-
-        (new CryptoDriveSyncEngine(oneDrive, localDrive, SyncMode.Echo, logger)).Start();
     }
 }

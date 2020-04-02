@@ -1,61 +1,17 @@
 using CryptoDrive.Core;
-using CryptoDrive.Data;
-using CryptoDrive.Extensions;
 using CryptoDrive.Graph;
-using Microsoft.AspNetCore.Authentication.Cookies;
-using Microsoft.AspNetCore.Authentication.OpenIdConnect;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using System.IO;
+using WebWindows.Blazor;
 
 namespace CryptoDrive
 {
-    // TODO: SQLite Token Cache: https://github.com/Azure-Samples/active-directory-aspnetcore-webapp-openidconnect-v2/tree/master/2-WebApp-graph-user/2-2-TokenCache
     public class Startup
     {
-        public Startup(IConfiguration configuration)
-        {
-            this.Configuration = configuration;
-        }
-
-        public IConfiguration Configuration { get; }
-
-        // This method gets called by the runtime. Use this method to add services to the container.
-        // For more information on how to configure your application, visit https://go.microsoft.com/fwlink/?LinkID=398940
         public void ConfigureServices(IServiceCollection services)
         {
-            // default cookie settings
-            services.Configure<CookiePolicyOptions>(options =>
-            {
-                options.CheckConsentNeeded = context => true;
-                options.MinimumSameSitePolicy = SameSiteMode.None;
-            });
-
-            // blazor
-            services.AddRazorPages();
-            services.AddServerSideBlazor();
-
-            // authentication
-            services.AddAuthentication(sharedOptions =>
-            {
-                sharedOptions.DefaultAuthenticateScheme = CookieAuthenticationDefaults.AuthenticationScheme;
-                sharedOptions.DefaultScheme = CookieAuthenticationDefaults.AuthenticationScheme;
-                sharedOptions.DefaultChallengeScheme = OpenIdConnectDefaults.AuthenticationScheme;
-            })
-            .AddAzureAd(options => Configuration.Bind("AzureAd", options))
-            .AddCookie();
-
-            services.AddControllersWithViews(options =>
-            {
-                //var policy = new AuthorizationPolicyBuilder()
-                //    .RequireAuthenticatedUser()
-                //    .Build();
-                //options.Filters.Add(new AuthorizeFilter(policy));
-            });
-
             // logging
             services.AddLogging(logging =>
             {
@@ -63,31 +19,25 @@ namespace CryptoDrive
                 logging.AddDebug();
             });
 
-            // graph
-            services.AddSingleton<IGraphAuthProvider, GraphAuthProvider>();
-            services.AddTransient<IGraphSdkHelper, GraphSdkHelper>();
-
             // custom services
-            services.AddSingleton<WeatherForecastService>();
+            services.AddSingleton<CryptoDriveContext>();
+            services.AddSingleton<IGraphService, GraphService>();
+
+            // configuration (workaround)
+            var configurationBuilder = new ConfigurationBuilder()
+                .SetBasePath(Directory.GetCurrentDirectory())
+                .AddJsonFile("appsettings.json", optional: true);
+
+            var configuration = configurationBuilder.Build();
+
+            // custom options
+            services.Configure<GraphOptions>(configuration.GetSection("Graph"));
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
-        public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
+        public void Configure(DesktopApplicationBuilder app)
         {
-            app.UseDeveloperExceptionPage();
-
-            app.UseHttpsRedirection();
-            app.UseStaticFiles();
-            app.UseRouting();
-            app.UseCookiePolicy();
-            app.UseAuthentication();
-
-            app.UseEndpoints(endpoints =>
-            {
-                endpoints.MapControllers();
-                endpoints.MapBlazorHub();
-                endpoints.MapFallbackToPage("/_Host");
-            });
+            app.AddComponent<App>("app");
         }
     }
 }
