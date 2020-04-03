@@ -1,43 +1,63 @@
 using CryptoDrive.Core;
 using CryptoDrive.Graph;
+using CryptoDrive.ViewModels;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
-using System.IO;
-using WebWindows.Blazor;
 
 namespace CryptoDrive
 {
     public class Startup
     {
+        #region Constructors
+
+        public Startup(IConfiguration configuration)
+        {
+            this.Configuration = configuration;
+        }
+
+        #endregion
+
+        #region Properties
+
+        public IConfiguration Configuration { get; }
+
+        #endregion
+
+        #region Methods
+
         public void ConfigureServices(IServiceCollection services)
         {
-            // logging
-            services.AddLogging(logging =>
-            {
-                logging.AddConsole();
-                logging.AddDebug();
-            });
+            // blazor
+            services.AddRazorPages();
+            services.AddServerSideBlazor();
 
             // custom services
+            services.AddSingleton<AppStateViewModel>();
             services.AddSingleton<CryptoDriveContext>();
             services.AddSingleton<IGraphService, GraphService>();
-
-            // configuration (workaround)
-            var configurationBuilder = new ConfigurationBuilder()
-                .SetBasePath(Directory.GetCurrentDirectory())
-                .AddJsonFile("appsettings.json", optional: true);
-
-            var configuration = configurationBuilder.Build();
+            services.AddSingleton<IWebWindowManager, WebWindowManager>();
 
             // custom options
-            services.Configure<GraphOptions>(configuration.GetSection("Graph"));
+            services.Configure<GraphOptions>(this.Configuration.GetSection("Graph"));
         }
 
-        // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
-        public void Configure(DesktopApplicationBuilder app)
+        public void Configure(IApplicationBuilder app, IWebWindowManager webWindowManager)
         {
-            app.AddComponent<App>("app");
+            app.UseDeveloperExceptionPage();
+
+            app.UseStaticFiles();
+            app.UseRouting();
+
+            app.UseEndpoints(endpoints =>
+            {
+                endpoints.MapBlazorHub();
+                endpoints.MapFallbackToPage("/_Host");
+            });
+
+            webWindowManager.NavigateToUrl(Program.BaseUrl);
         }
+
+        #endregion
     }
 }

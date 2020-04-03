@@ -1,5 +1,83 @@
 ﻿@page "/"
 
-<h1>Hello, world!</h1>
+@inherits AppStateComponentBase
 
-Welcome to your new app.
+    <div class="login-display">
+        @if (this.AppState.IsSignedIn)
+        {
+            <h3>Sync Folders</h3>
+
+            @if (this.AppState.Config.SyncFolderPairs.Any())
+            {
+                <ul class="list-group">
+                    @foreach (var syncFolderPair in this.AppState.Config.SyncFolderPairs)
+                    {
+                        <li class="list-group-item mb-4">
+
+                            <div class="input-group mb-2">
+                                <div class="input-group-prepend">
+                                    <span class="input-group-text"><i class="far fa-hdd"></i></span>
+                                </div>
+                                <input type="text"
+                                       class="form-control"
+                                       placeholder="e.g. C:\Users\Cryptobot\Documents"
+                                       aria-label="Local Drive"
+                                       @bind-value="syncFolderPair.Local"
+                                       @bind-value:event="oninput"
+                                       @onchange="this.AppState.SaveConfig">
+                            </div>
+
+                            <div class="input-group mb-2">
+                                <div class="input-group-prepend">
+                                    <span class="input-group-text"><i class="fas fa-cloud"></i></span>
+                                </div>
+                                <input type="text"
+                                       class="form-control"
+                                       placeholder="e.g. /documents"
+                                       aria-label="Cloud Drive"
+                                       @bind-value="syncFolderPair.Remote"
+                                       @bind-value:event="oninput"
+                                       @onchange="this.AppState.SaveConfig">
+                            </div>
+
+                            <button type="button"
+                                    class="btn btn-outline-danger"
+                                    @ondblclick="() => this.AppState.RemoveSyncFolderPair(syncFolderPair)">
+                                <i class="far fa-trash-alt"></i>
+                            </button>
+                        </li>
+                    }
+                </ul>
+            }
+            else
+            {
+                <div class="alert alert-info" role="alert">
+                    I couldn't find any sync folder pairs. Simply add new one to get started (only one-way sync is supported).
+                </div>
+            }
+
+            <button type="button" 
+                    class="btn btn-outline-info" 
+                    @onclick="this.AppState.AddSyncFolderPair">
+                <i class="fas fa-folder-plus"></i>
+            </button>
+
+            <button type="button" 
+                    class="btn btn-outline-info" 
+                    @onclick="this.AppState.Synchronize">
+                <i class="fas fa-sync"></i>&nbsp; Synchronize!
+            </button>
+        }
+        else
+        {
+            <div class="jumbotron">
+                <h1 class="display-4">Hello, Human!</h1>
+                <p class="lead">Here is your Crypto Drive speaking. With me you are able to safely backup your data without the need to trust anyone but you!</p>
+                <hr class="my-4">
+                <p>Sign-in to your Microsoft account to start your encrypted backup. You will get asked for some permissions to allow me to up- and download your files automatically.</p>
+                <p class="lead">
+                    <a class="btn btn-outline-primary btn-lg" role="button" @onclick="this.AppState.SignInAsync">Sign-in</a>
+                </p>
+            </div>
+        }
+    </div>

@@ -214,12 +214,21 @@ namespace CryptoDrive.Core
             {
                 if (!_context.IsInitialized)
                 {
-                    _logger.LogInformation($"Build item index of remote drive '{_remoteDrive.Name}'.");
+                    _logger.LogInformation($"Building item index of remote drive '{_remoteDrive.Name}'.");
 
                     await _remoteDrive.ProcessDelta(deltaPage =>
                     {
                         foreach (var driveItem in deltaPage)
-                            this.UpdateContext(null, newRemoteState: driveItem.ToRemoteState(), WatcherChangeTypes.Created);
+                        {
+                            try
+                            {
+                                this.UpdateContext(null, newRemoteState: driveItem.ToRemoteState(), WatcherChangeTypes.Created);
+                            }
+                            catch (Exception)
+                            {
+                                _logger.LogError($"Could not update item index of remote drive '{_remoteDrive.Name}'.");
+                            }
+                        }
 
                         return Task.CompletedTask;
                     }, folderPath, _context, _cts.Token);
@@ -555,7 +564,7 @@ namespace CryptoDrive.Core
             // actions: transfer item
             else
             {
-                _logger.LogInformation($"{itemName1} is not available on target drive '{targetDrive.Name}'. Action(s): transfer {itemName2}.");
+                _logger.LogInformation($"{itemName1} is not available on target drive '{targetDrive.Name}'. Action(s): Transfer {itemName2}.");
                 return await this.InternalTransferDriveItem(sourceDrive, targetDrive, driveItem);
             }
 
@@ -590,7 +599,7 @@ namespace CryptoDrive.Core
             // actions: transfer file to local drive
             if (!await _localDrive.ExistsAsync(conflictDriveItem))
             {
-                _logger.LogInformation($"Conflict file does not exist on drive '{_localDrive.Name}'. Actions(s): transfer file.");
+                _logger.LogInformation($"Conflict file does not exist on drive '{_localDrive.Name}'. Actions(s): Transfer file.");
                 await this.InternalTransferDriveItem(_remoteDrive, _localDrive, conflictDriveItem);
             }
 

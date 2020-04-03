@@ -148,3 +148,11 @@ app {
         display: block;
     }
 }
+
+.jumbotron {
+    background-color: white;
+}
+
+.navbar > img {
+    width: 7rem;
+}

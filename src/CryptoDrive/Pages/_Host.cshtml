@@ -1,0 +1,28 @@
+﻿@page "/"
+@namespace CryptoDrive.Pages
+@addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CryptoDrive</title>
+    <base href="~/" />
+    <link rel="stylesheet" href="css/bootstrap/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/lib/font-awesome/css/fontawesome.min.css" />
+    <link rel="stylesheet" href="~/lib/font-awesome/css/solid.min.css" />
+    <link rel="stylesheet" href="~/lib/font-awesome/css/regular.min.css" />
+    <link rel="stylesheet" href="css/site.css" />
+</head>
+<body>
+    <app>
+        @(await Html.RenderComponentAsync<App>(RenderMode.ServerPrerendered))
+    </app>
+
+    <script src="_framework/blazor.server.js"></script>
+    <script src="~/lib/font-awesome/js/fontawesome.min.js"></script>
+    <script src="~/lib/font-awesome/js/solid.min.js"></script>
+    <script src="~/lib/font-awesome/js/regular.min.js"></script>
+</body>
+</html>

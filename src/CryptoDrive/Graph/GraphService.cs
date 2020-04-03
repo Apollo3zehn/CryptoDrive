@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Components;
+﻿using CryptoDrive.Core;
 using Microsoft.Extensions.Options;
 using Microsoft.Graph;
 using Microsoft.Graph.Auth;
@@ -16,15 +16,15 @@ namespace CryptoDrive.Graph
         private string[] _scopes;
         private GraphOptions _options;
         private IPublicClientApplication _app;
-        private NavigationManager _navigationManager;
+        private IWebWindowManager _webWindowManager;
 
         #endregion
 
         #region Constructors
 
-        public GraphService(NavigationManager navigationManager, IOptions<GraphOptions> options)
+        public GraphService(IWebWindowManager webWindowManager, IOptions<GraphOptions> options)
         {
-            _navigationManager = navigationManager;
+            _webWindowManager = webWindowManager;
             _options = options.Value;
             _scopes = _options.Scopes.Split(' ', StringSplitOptions.RemoveEmptyEntries);
 
@@ -45,35 +45,30 @@ namespace CryptoDrive.Graph
 
         public IGraphServiceClient GraphClient { get; }
 
+        public bool IsSignedIn => _app.GetAccountsAsync().Result.Any();
+
         #endregion
 
         #region Methods
 
-        public async Task<bool> IsRegisteredAsync()
+        public async Task SignInAsync()
         {
-            return (await _app.GetAccountsAsync()).Any();
+            var webViewOptions = new SystemWebViewOptions()
+            {
+                BrowserRedirectSuccess = new Uri(Program.BaseUrl),
+                BrowserRedirectError = new Uri(Program.BaseUrl),
+                OpenBrowserAsync = uri => this.NavigateToAsync(uri)
+            };
+
+            await _app.AcquireTokenInteractive(_scopes)
+                    .WithSystemWebViewOptions(webViewOptions)
+                    .ExecuteAsync();
+
+            // delete not yet working:
+            // https://docs.microsoft.com/en-us/graph/api/application-delete?view=graph-rest-1.0&tabs=http
         }
 
-        public async Task RegisterAsync()
-        {
-            //var webViewOptions = new SystemWebViewOptions()
-            //{
-            //    BrowserRedirectSuccess = new Uri("http://app/"),
-            //    OpenBrowserAsync = uri => this.NavigateToAsync(uri)
-            //};
-
-            //await _app.AcquireTokenInteractive(_scopes)
-            //        .WithSystemWebViewOptions(webViewOptions)
-            //        .ExecuteAsync();
-
-            await _app
-                .AcquireTokenInteractive(_scopes)
-                .ExecuteAsync();
-
-            //return await this.GraphClient.Me.Request().GetAsync();
-        }
-
-        public async Task UnregisterAsync()
+        public async Task SignOutAsync()
         {
             var accounts = await _app.GetAccountsAsync();
 
@@ -87,7 +82,7 @@ namespace CryptoDrive.Graph
 
         private Task NavigateToAsync(Uri uri)
         {
-            _navigationManager.NavigateTo(uri.ToString());
+            _webWindowManager.NavigateToUrl(uri.ToString());
 
             return Task.CompletedTask;
         }
@@ -99,10 +94,10 @@ namespace CryptoDrive.Graph
     {
         IGraphServiceClient GraphClient { get; }
 
-        Task<bool> IsRegisteredAsync();
+        bool IsSignedIn { get; }
 
-        Task RegisterAsync();
+        Task SignInAsync();
 
-        Task UnregisterAsync();
+        Task SignOutAsync();
     }
 }
