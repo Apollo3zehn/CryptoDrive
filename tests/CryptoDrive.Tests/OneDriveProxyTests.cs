@@ -20,7 +20,7 @@ namespace CryptoDrive.Core.Tests
             (_logger, _loggerProviders) = Utils.GetLogger(xunitLogger);
         }
 
-        [Fact(Skip = "Only for manual execution."]
+        [Fact(Skip = "Only for manual execution.")]
         public async void CanUploadSmallFileTest()
         {
             // Arrange
@@ -52,7 +52,7 @@ namespace CryptoDrive.Core.Tests
             // Assert
         }
 
-        [Fact(Skip = "Only for manual execution."]
+        [Fact(Skip = "Only for manual execution.")]
         public async void CanUploadLargeFileTest()
         {
             // Arrange

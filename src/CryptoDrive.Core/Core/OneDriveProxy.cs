@@ -207,8 +207,6 @@ namespace CryptoDrive.Core
             var requestStep2 = new BatchRequestStep("2", metadata, new List<string> { "1" });
 
             // Create batch request content.
-            BatchRequestContentPatch.ApplyPatch();
-
             var batch = new BatchRequestContent();
             batch.AddBatchRequestStep(requestStep1);
             batch.AddBatchRequestStep(requestStep2);
@@ -216,49 +214,11 @@ namespace CryptoDrive.Core
             var response = await this.GraphClient.Batch.Request().PostAsync(batch);
 
             // Handle http responses using BatchResponseContent.
-            //var batchResponseContent = new BatchResponseContent(response);
-            //var responses = await batchResponseContent.GetResponsesAsync();
-            //var httpResponse = await batchResponseContent.GetResponseByIdAsync("1");
-            //string nextLink = await batchResponseContent.GetNextLinkAsync();
+            //var responses = await response.GetResponsesAsync();
+            //var httpResponse = await response.GetResponseByIdAsync("1");
+            //string nextLink = await response.GetNextLinkAsync();
 
             return driveItem;
-        }
-
-        private async Task<DriveItem> UploadSmallFileAsync2(DriveItem driveItem, Stream stream)
-        {
-            var blobRequest = this.GraphClient.Me.Drive.Root.ItemWithPath(driveItem.Name).Content.Request();
-            var metadataRequest = this.GraphClient.Me.Drive.Root.ItemWithPath(driveItem.Name).Request();
-            var baseUrl = "https://graph.microsoft.com:443/v1.0";
-
-            var batch = new StringContent($@"
-{{'requests': [
-    {{
-        'id': '1',
-        'method': 'PUT',
-        'url': '{blobRequest.RequestUrl.Substring(baseUrl.Length)}',
-        'body': '{stream.ToBase64()}',
-        'headers': {{ 'Content-Type': 'application/octet-stream' }}
-    }},
-    {{
-        'id': '2',
-        'dependsOn': [ '1' ],
-        'url': '{metadataRequest.RequestUrl.Substring(baseUrl.Length)}',
-        'method': 'PATCH',
-        'body': {JsonConvert.SerializeObject(driveItem)},
-        'headers': {{ 'Content-Type': 'application/json' }}
-    }}
-]}}".Replace('\'', '"'), Encoding.UTF8, "application/json");
-
-            var message = new HttpRequestMessage(HttpMethod.Post, "https://graph.microsoft.com/v1.0/$batch")
-            {
-                Content = batch
-            };
-
-            var response = await this.GraphClient.HttpProvider.SendAsync(message);
-            var jsonString = await response.Content.ReadAsStringAsync();
-            var newDriveItem = this.GraphClient.HttpProvider.Serializer.DeserializeObject<DriveItem>(jsonString);
-
-            return newDriveItem;
         }
 
         private async Task<DriveItem> UploadLargeFileAsync(Stream stream, DriveItemUploadableProperties properties, string filePath)

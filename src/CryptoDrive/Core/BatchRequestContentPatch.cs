@@ -11,7 +11,7 @@ using System.Net.Mime;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace CryptoDrive.Core
+namespace CryptoDrive
 {
     [HarmonyPatch(typeof(BatchRequestContent))]
     [HarmonyPatch("GetBatchRequestContentFromStepAsync")]
