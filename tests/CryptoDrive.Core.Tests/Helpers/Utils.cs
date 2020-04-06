@@ -1,5 +1,4 @@
 ﻿using CryptoDrive.Extensions;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Graph;
 using System;
@@ -36,23 +35,21 @@ namespace CryptoDrive.Core.Tests
         public static (ILogger<CryptoDriveSyncEngine>, List<ILoggerProvider>) GetLogger(ITestOutputHelper xunitLogger)
         {
             List<ILoggerProvider> loggerProviders = null;
-            var serviceCollection = new ServiceCollection();
 
-            serviceCollection.AddLogging(loggingBuilder =>
+            var loggerFactory = LoggerFactory.Create(logging =>
             {
-                loggingBuilder
-                .AddSeq()
-                .AddProvider(new XunitLoggerProvider(xunitLogger))
-                .SetMinimumLevel(LogLevel.Trace);
+                logging
+                    .AddSeq()
+                    .AddProvider(new XunitLoggerProvider(xunitLogger))
+                    .SetMinimumLevel(LogLevel.Trace);
 
-                loggerProviders = loggingBuilder.Services
+                loggerProviders = logging.Services
                     .Where(descriptor => typeof(ILoggerProvider).IsAssignableFrom(descriptor.ImplementationInstance?.GetType()))
                     .Select(descriptor => (ILoggerProvider)descriptor.ImplementationInstance)
                     .ToList();
             });
 
-            var serviceProvider = serviceCollection.BuildServiceProvider();
-            var logger = serviceProvider.GetRequiredService<ILogger<CryptoDriveSyncEngine>>();
+            var logger = loggerFactory.CreateLogger<CryptoDriveSyncEngine>();
 
             return (logger, loggerProviders);
         }
@@ -61,7 +58,7 @@ namespace CryptoDrive.Core.Tests
 
         public static async Task<DriveHive> PrepareDrives(string fileId, ILogger logger)
         {
-            var remoteDrivePath = Path.Combine(Path.GetTempPath(), "CryptoDriveRemote_" +Guid.NewGuid().ToString());
+            var remoteDrivePath = Path.Combine(Path.GetTempPath(), "CryptoDriveRemote_" + Guid.NewGuid().ToString());
             var remoteDrive = new LocalDriveProxy(remoteDrivePath, "OneDrive", logger, TimeSpan.FromMilliseconds(500));
 
             var localDrivePath = Path.Combine(Path.GetTempPath(), "CryptoDriveLocal_" + Guid.NewGuid().ToString());
@@ -121,7 +118,6 @@ namespace CryptoDrive.Core.Tests
                     await localDrive.CreateOrUpdateAsync(Utils.DriveItemPool["/i1"].MemberwiseClone().ToConflict());
                     await remoteDrive.CreateOrUpdateAsync(Utils.DriveItemPool["/i2"]);
                     break;
-
 
                 case "/j":
                     await localDrive.CreateOrUpdateAsync(Utils.DriveItemPool["/j1"].MemberwiseClone().ToConflict());

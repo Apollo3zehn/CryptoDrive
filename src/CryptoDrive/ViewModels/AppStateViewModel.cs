@@ -4,7 +4,6 @@ using Microsoft.Extensions.Logging;
 using Prism.Mvvm;
 using System;
 using System.IO;
-using System.Linq;
 using System.Threading.Tasks;
 
 namespace CryptoDrive.ViewModels

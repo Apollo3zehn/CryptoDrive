@@ -1,6 +1,4 @@
-﻿using System.Collections.Generic;
-
-namespace CryptoDrive.Core
+﻿namespace CryptoDrive.Core
 {
     public class SyncFolderPair
     {

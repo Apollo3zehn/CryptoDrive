@@ -1,10 +1,10 @@
 ﻿using CryptoDrive.Core;
 using Microsoft.Extensions.Options;
 using Microsoft.Graph;
-using Microsoft.Graph.Auth;
 using Microsoft.Identity.Client;
 using System;
 using System.Linq;
+using System.Net.Http.Headers;
 using System.Threading.Tasks;
 
 namespace CryptoDrive.Graph
@@ -15,6 +15,8 @@ namespace CryptoDrive.Graph
 
         private string[] _scopes;
         private GraphOptions _options;
+
+        private IAccount _account;
         private IPublicClientApplication _app;
         private IWebWindowManager _webWindowManager;
 
@@ -22,10 +24,10 @@ namespace CryptoDrive.Graph
 
         #region Constructors
 
-        public GraphService(IWebWindowManager webWindowManager, IOptions<GraphOptions> options)
+        public GraphService(IOptions<GraphOptions> options, IWebWindowManager webWindowManager = null)
         {
-            _webWindowManager = webWindowManager;
             _options = options.Value;
+            _webWindowManager = webWindowManager;
             _scopes = _options.Scopes.Split(' ', StringSplitOptions.RemoveEmptyEntries);
 
             _app = PublicClientApplicationBuilder.Create(_options.ClientId)
@@ -34,7 +36,17 @@ namespace CryptoDrive.Graph
 
             TokenCacheHelper.EnableSerialization(_app.UserTokenCache);
 
-            var authProvider = new InteractiveAuthenticationProvider(_app, _scopes);
+            _account = _app.GetAccountsAsync().Result.FirstOrDefault();
+
+            var authProvider = new DelegateAuthenticationProvider(
+                async requestMessage =>
+                {
+                    if (_account == null)
+                        throw new Exception("The user must be signed in before any requests to the graph API can be issued.");
+
+                    var accessToken = (await _app.AcquireTokenSilent(_scopes, _account).ExecuteAsync()).AccessToken;
+                    requestMessage.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+                });
 
             this.GraphClient = new GraphServiceClient(authProvider);
         }
@@ -45,7 +57,7 @@ namespace CryptoDrive.Graph
 
         public IGraphServiceClient GraphClient { get; }
 
-        public bool IsSignedIn => _app.GetAccountsAsync().Result.Any();
+        public bool IsSignedIn => _account != null;
 
         #endregion
 
@@ -53,16 +65,24 @@ namespace CryptoDrive.Graph
 
         public async Task SignInAsync()
         {
-            var webViewOptions = new SystemWebViewOptions()
-            {
-                BrowserRedirectSuccess = new Uri(Program.BaseUrl),
-                BrowserRedirectError = new Uri(Program.BaseUrl),
-                OpenBrowserAsync = uri => this.NavigateToAsync(uri)
-            };
+            SystemWebViewOptions webViewOptions;
 
-            await _app.AcquireTokenInteractive(_scopes)
-                    .WithSystemWebViewOptions(webViewOptions)
-                    .ExecuteAsync();
+            if (_webWindowManager == null)
+                webViewOptions = new SystemWebViewOptions();
+            else
+                webViewOptions = new SystemWebViewOptions()
+                {
+                    BrowserRedirectSuccess = new Uri(Program.BaseUrl),
+                    BrowserRedirectError = new Uri(Program.BaseUrl),
+                    OpenBrowserAsync = uri => this.NavigateToAsync(uri)
+                };
+
+            await _app
+                .AcquireTokenInteractive(_scopes)
+                .WithSystemWebViewOptions(webViewOptions)
+                .ExecuteAsync();
+
+            _account = _app.GetAccountsAsync().Result.First();
 
             // delete not yet working:
             // https://docs.microsoft.com/en-us/graph/api/application-delete?view=graph-rest-1.0&tabs=http
@@ -76,6 +96,8 @@ namespace CryptoDrive.Graph
             {
                 await _app.RemoveAsync(account);
             }
+
+            _account = null;
 
             // How to remove the app in the online profile, too?
         }

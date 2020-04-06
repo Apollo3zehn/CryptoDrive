@@ -28,7 +28,7 @@ namespace CryptoDrive.Core
 
         #region Fields
 
-        IDriveItemDeltaCollectionPage _lastDeltaPage;
+        private IDriveItemDeltaCollectionPage _lastDeltaPage;
 
         #endregion
 
@@ -113,7 +113,7 @@ namespace CryptoDrive.Core
 
             using (var stream = File.OpenRead(sourceFilePath))
             {
-                if (false) //(driveItem.Size <= 4 * 1024 * 1024) // file.Length <= 4 MB
+                if (driveItem.Size <= 4 * 1024 * 1024) // file.Length <= 4 MB
                 {
                     newDriveItem = await this.UploadSmallFileAsync(driveItem, stream);
                 }
@@ -182,53 +182,49 @@ namespace CryptoDrive.Core
 
         #region Private
 
+        // https://github.com/microsoftgraph/msgraph-sdk-dotnet/issues/558
+        public async Task<DriveItem> UploadSmallFileAsync(DriveItem driveItem, Stream stream)
+        {
+            // Create http PUT request.
+            var blobRequest = this.GraphClient.Me.Drive.Root.ItemWithPath(driveItem.GetItemPath()).Content.Request();
 
-        //public async Task<DriveItem> UploadSmallFileAsync(DriveItem driveItem, Stream stream)
-        //{
-        //    // Create http PUT request.
-        //    var blobRequest = this.GraphClient.Me.Drive.Root.ItemWithPath(driveItem.GetItemPath()).Content.Request();
+            var blob = new HttpRequestMessage(HttpMethod.Put, blobRequest.RequestUrl)
+            {
+                Content = new StringContent(stream.ToBase64(), Encoding.UTF8, "application/octet-stream")
+            };
 
-        //    var blob = new HttpRequestMessage(HttpMethod.Put, blobRequest.RequestUrl)
-        //    {
-        //        Content = new StreamContent(stream)
-        //    };
+            // Create http PATCH request.
+            var metadataRequest = this.GraphClient.Me.Drive.Root.ItemWithPath(driveItem.GetItemPath()).Request();
+            var jsonContent = this.GraphClient.HttpProvider.Serializer.SerializeObject(driveItem);
 
-        //    // Create http PATCH request.
-        //    var metadataRequest = this.GraphClient.Me.Drive.Root.ItemWithPath(driveItem.GetItemPath()).Request();
-        //    var jsonContent = this.GraphClient.HttpProvider.Serializer.SerializeObject(driveItem);
+            var metadata = new HttpRequestMessage(HttpMethod.Patch, metadataRequest.RequestUrl)
+            {
+                Content = new StringContent(jsonContent, Encoding.UTF8, "application/json")
+            };
 
-        //    var metadata = new HttpRequestMessage(HttpMethod.Patch, metadataRequest.RequestUrl)
-        //    {
-        //        Content = new StringContent(jsonContent, Encoding.UTF8, "application/json")
-        //    };
+            // Create batch request steps with request ids.
+            var requestStep1 = new BatchRequestStep("1", blob);
+            var requestStep2 = new BatchRequestStep("2", metadata, new List<string> { "1" });
 
-        //    // Create batch request steps with request ids.
-        //    var requestStep1 = new BatchRequestStep("1", blob, null);
-        //    var requestStep2 = new BatchRequestStep("2", metadata, new List<string> { "1" });
+            // Create batch request content.
+            BatchRequestContentPatch.ApplyPatch();
 
-        //    // Add batch request steps to BatchRequestContent.
-        //    var batch = new BatchRequestContent();
-        //    batch.AddBatchRequestStep(requestStep1);
-        //    batch.AddBatchRequestStep(requestStep2);
+            var batch = new BatchRequestContent();
+            batch.AddBatchRequestStep(requestStep1);
+            batch.AddBatchRequestStep(requestStep2);
 
-        //    // Create the top-level HttpRequestMessage.
-        //    var message = new HttpRequestMessage(HttpMethod.Put, "https://graph.microsoft.com/v1.0/$batch")
-        //    {
-        //        Content = batch
-        //    };
+            var response = await this.GraphClient.Batch.Request().PostAsync(batch);
 
-        //    var response = await this.GraphClient.HttpProvider.SendAsync(message);
+            // Handle http responses using BatchResponseContent.
+            //var batchResponseContent = new BatchResponseContent(response);
+            //var responses = await batchResponseContent.GetResponsesAsync();
+            //var httpResponse = await batchResponseContent.GetResponseByIdAsync("1");
+            //string nextLink = await batchResponseContent.GetNextLinkAsync();
 
-        //    // Handle http responses using BatchResponseContent.
-        //    var batchResponseContent = new BatchResponseContent(response);
-        //    var responses = await batchResponseContent.GetResponsesAsync();
-        //    var httpResponse = await batchResponseContent.GetResponseByIdAsync("1");
-        //    string nextLink = await batchResponseContent.GetNextLinkAsync();
+            return driveItem;
+        }
 
-        //    return driveItem;
-        //}
-
-        private async Task<DriveItem> UploadSmallFileAsync(DriveItem driveItem, Stream stream)
+        private async Task<DriveItem> UploadSmallFileAsync2(DriveItem driveItem, Stream stream)
         {
             var blobRequest = this.GraphClient.Me.Drive.Root.ItemWithPath(driveItem.Name).Content.Request();
             var metadataRequest = this.GraphClient.Me.Drive.Root.ItemWithPath(driveItem.Name).Request();
@@ -267,71 +263,30 @@ namespace CryptoDrive.Core
 
         private async Task<DriveItem> UploadLargeFileAsync(Stream stream, DriveItemUploadableProperties properties, string filePath)
         {
-            //var uploadSession = await this.GraphClient.Drive.Root.ItemWithPath(filePath).CreateUploadSession(properties).Request().PostAsync();
-            //var maxChunkSize = 1280 * 1024; // 1280 KB - Change this to your chunk size. 5MB is the default.
-            //var provider = new ChunkedUploadProvider(uploadSession, this.GraphClient, stream, maxChunkSize);
-            //var chunkRequests = provider.GetUploadChunkRequests();
-            //var trackedExceptions = new List<Exception>();
+            var uploadSession = await this.GraphClient.Drive.Root.ItemWithPath(filePath).CreateUploadSession(properties).Request().PostAsync();
+            var maxChunkSize = 1280 * 1024; // 1280 KB - Change this to your chunk size. 5MB is the default.
+            var provider = new ChunkedUploadProvider(uploadSession, this.GraphClient, stream, maxChunkSize);
 
-            //DriveItem driveItem = null;
+            // Setup the chunk request necessities
+            var chunkRequests = provider.GetUploadChunkRequests();
+            var trackedExceptions = new List<Exception>();
+            DriveItem itemResult = null;
 
-            //// upload the chunks
-            //foreach (var request in chunkRequests)
-            //{
-            //    // Do your updates here: update progress bar, etc.
-            //    // ...
-            //    // Send chunk request
-            //    var result = await provider.GetChunkRequestResponseAsync(request, trackedExceptions);
-
-            //    if (result.UploadSucceeded)
-            //    {
-            //        driveItem = result.ItemResponse;
-            //    }
-            //}
-
-            //// check that upload succeeded
-            //if (driveItem == null)
-            //{
-            //    throw new Exception();
-            //}
-
-            //return driveItem;
-
-            try
+            //upload the chunks
+            foreach (var request in chunkRequests)
             {
-                var uploadSession = await this.GraphClient.Drive.Root.ItemWithPath(filePath).CreateUploadSession(properties).Request().PostAsync();
-                //var uploadSession = await graphClient.Drive.Items["01KGPRHTV6Y2GOVW7725BZO354PWSELRRZ"].ItemWithPath("_hamilton.png").CreateUploadSession().Request().PostAsync();
+                // Do your updates here: update progress bar, etc.
+                // ...
+                // Send chunk request
+                var result = await provider.GetChunkRequestResponseAsync(request, trackedExceptions);
 
-                var maxChunkSize = 320 * 1024; // 320 KB - Change this to your chunk size. 5MB is the default.
-                var provider = new ChunkedUploadProvider(uploadSession, this.GraphClient, stream, maxChunkSize);
-
-                // Setup the chunk request necessities
-                var chunkRequests = provider.GetUploadChunkRequests();
-                var trackedExceptions = new List<Exception>();
-                DriveItem itemResult = null;
-
-                //upload the chunks
-                foreach (var request in chunkRequests)
+                if (result.UploadSucceeded)
                 {
-                    // Do your updates here: update progress bar, etc.
-                    // ...
-                    // Send chunk request
-                    var result = await provider.GetChunkRequestResponseAsync(request, trackedExceptions);
-
-                    if (result.UploadSucceeded)
-                    {
-                        itemResult = result.ItemResponse;
-                    }
+                    itemResult = result.ItemResponse;
                 }
-
-                return itemResult;
-
             }
-            catch (Exception ex)
-            {
 
-                throw;
-            }
+            return itemResult;
         }
 
         #endregion

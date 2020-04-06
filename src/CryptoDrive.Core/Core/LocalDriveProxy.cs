@@ -316,20 +316,20 @@ namespace CryptoDrive.Core
                     .SelectMany(current =>
                     {
                         RemoteState oldRemoteState = null;
-                        var driveInfo = new DirectoryInfo(current).ToDriveItem(this.BasePath);
-                        var folderPath2 = current.Substring(this.BasePath.Length).NormalizeSlashes();
+                        var driveItems = new DirectoryInfo(current).ToDriveItem(this.BasePath);
+                        var folderPath = current.Substring(this.BasePath.Length).NormalizeSlashes();
 
                         if (!forceNew)
-                            oldRemoteState = context.RemoteStates.FirstOrDefault(remoteState => remoteState.GetItemPath() == folderPath2
+                            oldRemoteState = context.RemoteStates.FirstOrDefault(remoteState => remoteState.GetItemPath() == folderPath
                                                                                              && remoteState.Type == DriveItemType.Folder);
 
                         // When we know that the parent folder is not in the database (oldRemoteState == null),
                         // the children aren't there neither (forceNew = true).
                         if (forceNew || oldRemoteState == null)
-                            return this.SafelyEnumerateDriveItems(folderPath2, context)
-                                       .Concat(new DriveItem[] { driveInfo });
+                            return this.SafelyEnumerateDriveItems(folderPath, context)
+                                       .Concat(new DriveItem[] { driveItems });
                         else
-                            return new List<DriveItem> { driveInfo };
+                            return new List<DriveItem> { driveItems };
                     }));
 
                 // get all files in current folder

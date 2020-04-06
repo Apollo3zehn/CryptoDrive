@@ -18,7 +18,9 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{18ACA352
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CryptoDrive.Core.Tests", "tests\CryptoDrive.Core.Tests\CryptoDrive.Core.Tests.csproj", "{CAE3313C-3F97-4F40-8D1B-F85DB975A98A}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CryptoDrive.Core", "src\CryptoDrive.Core\CryptoDrive.Core.csproj", "{ECC1AA79-AFDA-4F16-8345-DFCCAF83EA85}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CryptoDrive.Core", "src\CryptoDrive.Core\CryptoDrive.Core.csproj", "{ECC1AA79-AFDA-4F16-8345-DFCCAF83EA85}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CryptoDrive.Tests", "tests\CryptoDrive.Tests\CryptoDrive.Tests.csproj", "{E78C6C62-E511-4418-A433-DCC673778D2A}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -38,6 +40,10 @@ Global
 		{ECC1AA79-AFDA-4F16-8345-DFCCAF83EA85}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{ECC1AA79-AFDA-4F16-8345-DFCCAF83EA85}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{ECC1AA79-AFDA-4F16-8345-DFCCAF83EA85}.Release|Any CPU.Build.0 = Release|Any CPU
+		{E78C6C62-E511-4418-A433-DCC673778D2A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E78C6C62-E511-4418-A433-DCC673778D2A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E78C6C62-E511-4418-A433-DCC673778D2A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E78C6C62-E511-4418-A433-DCC673778D2A}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -46,6 +52,7 @@ Global
 		{05EECE29-EEE9-4F06-A90C-B2BC3B8496C6} = {E6B06AFB-F7EB-4F26-96D3-BAE8D3B119D9}
 		{CAE3313C-3F97-4F40-8D1B-F85DB975A98A} = {18ACA352-66AA-425D-A06C-DD720F4F52CC}
 		{ECC1AA79-AFDA-4F16-8345-DFCCAF83EA85} = {E6B06AFB-F7EB-4F26-96D3-BAE8D3B119D9}
+		{E78C6C62-E511-4418-A433-DCC673778D2A} = {18ACA352-66AA-425D-A06C-DD720F4F52CC}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {6B31BA0D-D1D7-41A6-844A-D7830DFFCFB8}
