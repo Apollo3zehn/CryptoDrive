@@ -8,7 +8,6 @@ using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Net.Mime;
-using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -23,18 +22,8 @@ namespace CryptoDrive
         // https://stackoverflow.com/questions/7299097/dynamically-replace-the-contents-of-a-c-sharp-method
         public static void ApplyPatch()
         {
-            if (BatchRequestContentPatch._isApplied)
-                return;
-
             var harmony = new Harmony("cryptodrive");
-            var original = typeof(BatchRequestContent).GetMethod("GetBatchRequestContentFromStepAsync", BindingFlags.Instance | BindingFlags.NonPublic);
-            var prefix = typeof(BatchRequestContentPatch).GetMethod("Prefix", BindingFlags.Static | BindingFlags.NonPublic);
-
-            var a = new BatchRequestContent();
-            harmony.Patch(original, new HarmonyMethod(prefix));
-
-            // 
-            //harmony.PatchAll();
+            harmony.PatchAll();
 
             BatchRequestContentPatch._isApplied = true;
         }

@@ -1,7 +1,6 @@
 ﻿using CryptoDrive.Extensions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Graph;
-using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -35,8 +34,10 @@ namespace CryptoDrive.Core
 
         #region Constructors
 
-        public OneDriveProxy(IGraphServiceClient graphServiceClient, ILogger logger, Action patch)
+        public OneDriveProxy(IGraphServiceClient graphServiceClient, ILogger logger, Action patch = null)
         {
+            _patch = null;
+
             this.GraphClient = graphServiceClient;
             this.Name = "OneDrive";
             this.Logger = logger;
