@@ -8,6 +8,7 @@ using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Net.Mime;
+using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -15,7 +16,7 @@ namespace CryptoDrive
 {
     [HarmonyPatch(typeof(BatchRequestContent))]
     [HarmonyPatch("GetBatchRequestContentFromStepAsync")]
-    public class BatchRequestContentPatch
+    public static class BatchRequestContentPatch
     {
         private static bool _isApplied;
 
@@ -26,7 +27,14 @@ namespace CryptoDrive
                 return;
 
             var harmony = new Harmony("cryptodrive");
-            harmony.PatchAll();
+            var original = typeof(BatchRequestContent).GetMethod("GetBatchRequestContentFromStepAsync", BindingFlags.Instance | BindingFlags.NonPublic);
+            var prefix = typeof(BatchRequestContentPatch).GetMethod("Prefix", BindingFlags.Static | BindingFlags.NonPublic);
+
+            var a = new BatchRequestContent();
+            harmony.Patch(original, new HarmonyMethod(prefix));
+
+            // 
+            //harmony.PatchAll();
 
             BatchRequestContentPatch._isApplied = true;
         }

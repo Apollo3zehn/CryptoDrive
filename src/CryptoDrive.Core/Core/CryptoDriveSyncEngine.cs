@@ -205,6 +205,7 @@ namespace CryptoDrive.Core
             // remote drive
             if (_syncMode == SyncMode.TwoWay)
             {
+#warning Currently not working, and maybe never will. Two-way asynchronous sync is extremly complicated.
                 _logger.LogInformation($"Search for changes on remote drive '{_remoteDrive.Name}'.");
 
                 await _remoteDrive.ProcessDelta(async deltaPage => await this.InternalSynchronize(_remoteDrive, _localDrive, deltaPage),
@@ -220,14 +221,8 @@ namespace CryptoDrive.Core
                     {
                         foreach (var driveItem in deltaPage)
                         {
-                            try
-                            {
+                            if (!string.IsNullOrWhiteSpace(driveItem.Name)) // MS account "apollo3zehndev" gives a nameless drive-item (deleted folder)
                                 this.UpdateContext(null, newRemoteState: driveItem.ToRemoteState(), WatcherChangeTypes.Created);
-                            }
-                            catch (Exception)
-                            {
-                                _logger.LogError($"Could not update item index of remote drive '{_remoteDrive.Name}'.");
-                            }
                         }
 
                         return Task.CompletedTask;
@@ -285,6 +280,12 @@ namespace CryptoDrive.Core
 
                         var oldDriveItem = oldRemoteState?.ToDriveItem();
 
+#warning Check this.
+                        // This prevents that a file rename can be tracked but it is unclear how to determine a local ID instead?
+                        // Maybe the change tracking algorithm can find the ID of a renamed file using the context's remote state list?
+                        if (isLocal && oldDriveItem != null)
+                            newDriveItem.Id = oldDriveItem.Id;
+
                         // file is tracked as conflict
                         // action: do nothing, it will be handled by "CheckConflicts" later
                         if (isLocal && _context.Conflicts.Any(conflict => conflict.OriginalFilePath == newDriveItem.GetItemPath()))
@@ -309,7 +310,7 @@ namespace CryptoDrive.Core
                             newRemoteState = newDriveItem.ToRemoteState();
                         }
 
-                        this.UpdateContext(oldRemoteState, newRemoteState: newRemoteState, changeType);
+                        this.UpdateContext(oldRemoteState, newRemoteState, changeType);
                     }
                 }
             }

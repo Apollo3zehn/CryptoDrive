@@ -28,13 +28,14 @@ namespace CryptoDrive.Core
 
         #region Fields
 
+        private Action _patch;
         private IDriveItemDeltaCollectionPage _lastDeltaPage;
 
         #endregion
 
         #region Constructors
 
-        public OneDriveProxy(IGraphServiceClient graphServiceClient, ILogger logger)
+        public OneDriveProxy(IGraphServiceClient graphServiceClient, ILogger logger, Action patch)
         {
             this.GraphClient = graphServiceClient;
             this.Name = "OneDrive";
@@ -207,6 +208,7 @@ namespace CryptoDrive.Core
             var requestStep2 = new BatchRequestStep("2", metadata, new List<string> { "1" });
 
             // Create batch request content.
+            _patch?.Invoke();
             var batch = new BatchRequestContent();
             batch.AddBatchRequestStep(requestStep1);
             batch.AddBatchRequestStep(requestStep2);

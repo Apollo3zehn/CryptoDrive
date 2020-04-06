@@ -20,7 +20,7 @@ namespace CryptoDrive.Core.Tests
             (_logger, _loggerProviders) = Utils.GetLogger(xunitLogger);
         }
 
-        [Fact(Skip = "Only for manual execution.")]
+        [Fact]
         public async void CanUploadSmallFileTest()
         {
             // Arrange
@@ -33,7 +33,7 @@ namespace CryptoDrive.Core.Tests
 
             var options = Options.Create(graphOptions);
             var graphService = new GraphService(options);
-            var proxy = new OneDriveProxy(graphService.GraphClient, _logger);
+            var proxy = new OneDriveProxy(graphService.GraphClient, _logger, BatchRequestContentPatch.ApplyPatch);
 
             var tempPath = Path.GetTempPath();
             var filePath = Path.Combine(tempPath, $"small.txt");
@@ -65,7 +65,7 @@ namespace CryptoDrive.Core.Tests
 
             var options = Options.Create(graphOptions);
             var graphService = new GraphService(options);
-            var proxy = new OneDriveProxy(graphService.GraphClient, _logger);
+            var proxy = new OneDriveProxy(graphService.GraphClient, _logger, BatchRequestContentPatch.ApplyPatch);
 
             var tempPath = Path.GetTempPath();
             var filePath = Path.Combine(tempPath, $"large.txt");

@@ -69,7 +69,7 @@ namespace CryptoDrive.ViewModels
             foreach (var syncFolderPair in this.Config.SyncFolderPairs)
             {
                 var localDrive = new LocalDriveProxy(syncFolderPair.Local, "Local Drive", _logger);
-                var remoteDrive = new OneDriveProxy(_graphService.GraphClient, _logger);
+                var remoteDrive = new OneDriveProxy(_graphService.GraphClient, _logger, BatchRequestContentPatch.ApplyPatch);
                 var syncEngine = new CryptoDriveSyncEngine(remoteDrive, localDrive, SyncMode.Echo, _logger);
 
                 syncEngine.Start(syncFolderPair.Remote);

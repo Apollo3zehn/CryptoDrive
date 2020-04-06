@@ -26,9 +26,6 @@ namespace CryptoDrive.Graph
 
         public GraphService(IOptions<GraphOptions> options, IWebWindowManager webWindowManager = null)
         {
-            // apply batch request patch
-            BatchRequestContentPatch.ApplyPatch();
-
             _options = options.Value;
             _webWindowManager = webWindowManager;
             _scopes = _options.Scopes.Split(' ', StringSplitOptions.RemoveEmptyEntries);
