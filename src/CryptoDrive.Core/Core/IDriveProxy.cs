@@ -33,7 +33,7 @@ namespace CryptoDrive.Core
 
         Task<DriveItem> CreateOrUpdateAsync(DriveItem driveItem);
         Task<DriveItem> MoveAsync(DriveItem oldDriveItem, DriveItem newDriveItem);
-        Task<DriveItem> DeleteAsync(DriveItem driveItem);
+        Task DeleteAsync(DriveItem driveItem);
 
         #endregion
 

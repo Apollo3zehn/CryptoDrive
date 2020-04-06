@@ -17,15 +17,12 @@ namespace CryptoDrive
     [HarmonyPatch("GetBatchRequestContentFromStepAsync")]
     public static class BatchRequestContentPatch
     {
-        private static bool _isApplied;
-
         // https://stackoverflow.com/questions/7299097/dynamically-replace-the-contents-of-a-c-sharp-method
         public static void ApplyPatch()
         {
+            // needs to be applied before each instantiation of BatchRequestContent
             var harmony = new Harmony("cryptodrive");
             harmony.PatchAll();
-
-            BatchRequestContentPatch._isApplied = true;
         }
 
         internal static bool Prefix(ref Task<JObject> __result, BatchRequestStep batchRequestStep)

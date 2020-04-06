@@ -36,7 +36,7 @@ namespace CryptoDrive.Core
 
         public OneDriveProxy(IGraphServiceClient graphServiceClient, ILogger logger, Action patch = null)
         {
-            _patch = null;
+            _patch = patch;
 
             this.GraphClient = graphServiceClient;
             this.Name = "OneDrive";
@@ -138,9 +138,11 @@ namespace CryptoDrive.Core
             throw new NotImplementedException();
         }
 
-        public Task<DriveItem> DeleteAsync(DriveItem driveItem)
+        public async Task DeleteAsync(DriveItem driveItem)
         {
-            return Task.FromResult(driveItem);
+            await this.GraphClient.Me.Drive.Items[driveItem.Id]
+                .Request()
+                .DeleteAsync();
         }
 
         #endregion
@@ -156,7 +158,7 @@ namespace CryptoDrive.Core
 
         public Task<bool> ExistsAsync(DriveItem driveItem)
         {
-            throw new NotImplementedException();
+            return Task.FromResult(true);
         }
 
         public Task<DateTime> GetLastWriteTimeUtcAsync(DriveItem driveItem)

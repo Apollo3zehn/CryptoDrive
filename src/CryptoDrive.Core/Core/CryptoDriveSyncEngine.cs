@@ -297,20 +297,27 @@ namespace CryptoDrive.Core
                         (var updatedDriveItem, var changeType) = await this.SyncDriveItem(sourceDrive, targetDrive, oldDriveItem, newDriveItem.MemberwiseClone());
 
                         // update database
-                        if (isLocal)
+                        if (changeType == WatcherChangeTypes.Deleted)
                         {
-                            newRemoteState = updatedDriveItem.ToRemoteState();
-                            newRemoteState.IsLocal = true;
+                            this.UpdateContext(oldRemoteState, null, changeType);
                         }
                         else
                         {
-                            if (updatedDriveItem.GetItemPath() == "root")
-                                continue;
+                            if (isLocal)
+                            {
+                                newRemoteState = updatedDriveItem.ToRemoteState();
+                                newRemoteState.IsLocal = true;
+                            }
+                            else
+                            {
+                                if (updatedDriveItem.GetItemPath() == "root")
+                                    continue;
 
-                            newRemoteState = newDriveItem.ToRemoteState();
+                                newRemoteState = newDriveItem.ToRemoteState();
+                            }
+
+                            this.UpdateContext(oldRemoteState, newRemoteState, changeType);
                         }
-
-                        this.UpdateContext(oldRemoteState, newRemoteState, changeType);
                     }
                 }
             }
@@ -322,7 +329,7 @@ namespace CryptoDrive.Core
             DriveItem oldDriveItem,
             DriveItem newDriveItem)
         {
-            DriveItem updatedDriveItem;
+            DriveItem updatedDriveItem = null;
 
             (var itemName1, var itemName2) = this.GetItemNames(newDriveItem);
             var changeType = newDriveItem.GetChangeType(oldDriveItem);
@@ -347,7 +354,7 @@ namespace CryptoDrive.Core
 
                     if (await targetDrive.ExistsAsync(newDriveItem))
                     {
-                        updatedDriveItem = await targetDrive.DeleteAsync(newDriveItem);
+                        await targetDrive.DeleteAsync(newDriveItem);
                     }
                     else
                     {

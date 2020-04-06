@@ -189,7 +189,7 @@ namespace CryptoDrive.Core
             return Task.FromResult(newDriveItem);
         }
 
-        public Task<DriveItem> DeleteAsync(DriveItem driveItem)
+        public Task DeleteAsync(DriveItem driveItem)
         {
             string fullPath = driveItem.GetAbsolutePath(this.BasePath);
 
@@ -208,7 +208,7 @@ namespace CryptoDrive.Core
                     throw new NotSupportedException();
             }
 
-            return Task.FromResult(driveItem);
+            return Task.CompletedTask;
         }
 
         #endregion
