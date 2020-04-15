@@ -25,6 +25,14 @@ namespace CryptoDrive.Extensions
             };
         }
 
+        public static DriveItemUploadableProperties ToUploadableProperties(this DriveItem driveItem)
+        {
+            return new DriveItemUploadableProperties()
+            {
+                FileSystemInfo = driveItem.FileSystemInfo
+            };
+        }
+
         public static DriveItem ToDriveItem(this RemoteState remoteState, bool deleted = false)
         {
             return new DriveItem()
@@ -138,6 +146,16 @@ namespace CryptoDrive.Extensions
             var fileName = fileInfo.Name;
             var folderPath = fileInfo.DirectoryName.Substring(basePath.Length).NormalizeSlashes();
 
+            var lastModified = fileInfo.LastWriteTimeUtc;
+
+            // remove millisecond part
+            lastModified = new DateTime(lastModified.Year,
+                                        lastModified.Month,
+                                        lastModified.Day,
+                                        lastModified.Hour,
+                                        lastModified.Minute,
+                                        lastModified.Second);
+
             var driveItem = new DriveItem()
             {
                 AdditionalData = new Dictionary<string, object>()
@@ -147,7 +165,7 @@ namespace CryptoDrive.Extensions
                 File = new Microsoft.Graph.File(),
                 FileSystemInfo = new Microsoft.Graph.FileSystemInfo()
                 {
-                    LastModifiedDateTime = fileInfo.LastWriteTimeUtc
+                    LastModifiedDateTime = lastModified
                 },
                 Name = fileName,
                 ParentReference = new ItemReference()

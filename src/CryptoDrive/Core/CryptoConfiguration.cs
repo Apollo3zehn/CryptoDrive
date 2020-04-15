@@ -18,6 +18,8 @@ namespace CryptoDrive.Core
 
         #region Properties
 
+        public bool IsSyncEnabled { get; set; }
+
         public string SymmetricKey { get; set; }
 
         public List<SyncFolderPair> SyncFolderPairs { get; set; }

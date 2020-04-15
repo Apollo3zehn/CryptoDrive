@@ -111,23 +111,32 @@ namespace CryptoDrive.Core
         public async Task<DriveItem> CreateOrUpdateAsync(DriveItem driveItem)
         {
             DriveItem newDriveItem = null;
-            var sourceFilePath = HttpUtility.UrlDecode(driveItem.Uri().AbsolutePath);
 
-            using (var stream = File.OpenRead(sourceFilePath))
+            switch (driveItem.Type())
             {
-                if (driveItem.Size <= 4 * 1024 * 1024) // file.Length <= 4 MB
-                {
-                    newDriveItem = await this.UploadSmallFileAsync(driveItem, stream);
-                }
-                else
-                {
-                    var properties = new DriveItemUploadableProperties()
-                    {
-                        FileSystemInfo = driveItem.FileSystemInfo
-                    };
+                case DriveItemType.Folder:
+                    // do nothing, folders are created automatically when a file is uploaded to a specific path
+                    break;
 
-                    newDriveItem = await this.UploadLargeFileAsync(stream, properties, driveItem.GetItemPath());
-                }
+                case DriveItemType.File:
+
+                    var sourceFilePath = HttpUtility.UrlDecode(driveItem.Uri().AbsolutePath);
+
+                    using (var stream = File.OpenRead(sourceFilePath))
+                    {
+                        var properties = driveItem.ToUploadableProperties();
+
+                        if (driveItem.Size <= 4 * 1024 * 1024) // file.Length <= 4 MB
+                            newDriveItem = await this.UploadSmallFileAsync(driveItem.GetItemPath(), stream, properties);
+                        else
+                            newDriveItem = await this.UploadLargeFileAsync(driveItem.GetItemPath(), stream, properties);
+                    }
+
+                    break;
+
+                case DriveItemType.RemoteItem:
+                default:
+                    throw new NotSupportedException();
             }
 
             return newDriveItem;
@@ -187,10 +196,12 @@ namespace CryptoDrive.Core
         #region Private
 
         // https://github.com/microsoftgraph/msgraph-sdk-dotnet/issues/558
-        public async Task<DriveItem> UploadSmallFileAsync(DriveItem driveItem, Stream stream)
+        public async Task<DriveItem> UploadSmallFileAsync(string itemPath, Stream stream, DriveItemUploadableProperties properties)
         {
+            properties.ODataType = "microsoft.graph.driveItem";
+
             // Create http PUT request.
-            var blobRequest = this.GraphClient.Me.Drive.Root.ItemWithPath(driveItem.GetItemPath()).Content.Request();
+            var blobRequest = this.GraphClient.Me.Drive.Root.ItemWithPath(itemPath).Content.Request();
 
             var blob = new HttpRequestMessage(HttpMethod.Put, blobRequest.RequestUrl)
             {
@@ -198,12 +209,12 @@ namespace CryptoDrive.Core
             };
 
             // Create http PATCH request.
-            var metadataRequest = this.GraphClient.Me.Drive.Root.ItemWithPath(driveItem.GetItemPath()).Request();
-            var jsonContent = this.GraphClient.HttpProvider.Serializer.SerializeObject(driveItem);
+            var metadataRequest = this.GraphClient.Me.Drive.Root.ItemWithPath(itemPath).Request();
+            var jsonString1 = this.GraphClient.HttpProvider.Serializer.SerializeObject(properties);
 
             var metadata = new HttpRequestMessage(HttpMethod.Patch, metadataRequest.RequestUrl)
             {
-                Content = new StringContent(jsonContent, Encoding.UTF8, "application/json")
+                Content = new StringContent(jsonString1, Encoding.UTF8, "application/json")
             };
 
             // Create batch request steps with request ids.
@@ -219,23 +230,24 @@ namespace CryptoDrive.Core
             var response = await this.GraphClient.Batch.Request().PostAsync(batch);
 
             // Handle http responses using BatchResponseContent.
-            //var responses = await response.GetResponsesAsync();
-            //var httpResponse = await response.GetResponseByIdAsync("1");
-            //string nextLink = await response.GetNextLinkAsync();
+            var httpResponse = await response.GetResponseByIdAsync("2");
+            var jsonString2 = await httpResponse.Content.ReadAsStringAsync();
+
+            var driveItem = this.GraphClient.HttpProvider.Serializer.DeserializeObject<DriveItem>(jsonString2);
 
             return driveItem;
         }
 
-        private async Task<DriveItem> UploadLargeFileAsync(Stream stream, DriveItemUploadableProperties properties, string filePath)
+        private async Task<DriveItem> UploadLargeFileAsync(string itemPath, Stream stream, DriveItemUploadableProperties properties)
         {
-            var uploadSession = await this.GraphClient.Drive.Root.ItemWithPath(filePath).CreateUploadSession(properties).Request().PostAsync();
+            var uploadSession = await this.GraphClient.Drive.Root.ItemWithPath(itemPath).CreateUploadSession(properties).Request().PostAsync();
             var maxChunkSize = 1280 * 1024; // 1280 KB - Change this to your chunk size. 5MB is the default.
             var provider = new ChunkedUploadProvider(uploadSession, this.GraphClient, stream, maxChunkSize);
 
             // Setup the chunk request necessities
             var chunkRequests = provider.GetUploadChunkRequests();
             var trackedExceptions = new List<Exception>();
-            DriveItem itemResult = null;
+            DriveItem driveItem = null;
 
             //upload the chunks
             foreach (var request in chunkRequests)
@@ -246,12 +258,10 @@ namespace CryptoDrive.Core
                 var result = await provider.GetChunkRequestResponseAsync(request, trackedExceptions);
 
                 if (result.UploadSucceeded)
-                {
-                    itemResult = result.ItemResponse;
-                }
+                    driveItem = result.ItemResponse;
             }
 
-            return itemResult;
+            return driveItem;
         }
 
         #endregion

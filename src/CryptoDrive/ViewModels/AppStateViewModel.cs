@@ -3,19 +3,26 @@ using CryptoDrive.Graph;
 using Microsoft.Extensions.Logging;
 using Prism.Mvvm;
 using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
 
 namespace CryptoDrive.ViewModels
 {
-    public class AppStateViewModel : BindableBase
+    public class AppStateViewModel : BindableBase, IDisposable
     {
         #region Fields
 
+        private object _messageLoglock;
+
         private string _configFilePath;
         private string _userName;
+
         private IGraphService _graphService;
-        private ILogger<AppStateViewModel> _logger;
+        private LoggerSniffer<AppStateViewModel> _logger;
+
+        private List<CryptoDriveSyncEngine> _syncEngines;
 
         #endregion
 
@@ -23,7 +30,13 @@ namespace CryptoDrive.ViewModels
 
         public AppStateViewModel(IGraphService graphService, ILogger<AppStateViewModel> logger)
         {
-            _logger = logger;
+            _logger = new LoggerSniffer<AppStateViewModel>(logger);
+            _syncEngines = new List<CryptoDriveSyncEngine>();
+            _messageLoglock = new object();
+
+            // logging
+            this.MessageLog = new List<string>();
+            _logger.OnMessageLogged += this.OnMessageLogged;
 
             // graph service
             _graphService = graphService;
@@ -44,11 +57,17 @@ namespace CryptoDrive.ViewModels
                 Directory.CreateDirectory(Path.GetDirectoryName(_configFilePath));
                 this.Config.Save(_configFilePath);
             }
+
+            // start
+            if (this.Config.IsSyncEnabled)
+                this.InternalStartSync(force: true);
         }
 
         #endregion
 
         #region Properties
+
+        public List<string> MessageLog { get; }
 
         public CryptoConfiguration Config { get; }
 
@@ -64,16 +83,22 @@ namespace CryptoDrive.ViewModels
 
         #region Methods
 
-        public void Synchronize()
+        public void StartSync()
         {
-            foreach (var syncFolderPair in this.Config.SyncFolderPairs)
-            {
-                var localDrive = new LocalDriveProxy(syncFolderPair.Local, "Local Drive", _logger);
-                var remoteDrive = new OneDriveProxy(_graphService.GraphClient, _logger, BatchRequestContentPatch.ApplyPatch);
-                var syncEngine = new CryptoDriveSyncEngine(remoteDrive, localDrive, SyncMode.Echo, _logger);
+            this.InternalStartSync();
+        }
 
-                syncEngine.Start(syncFolderPair.Remote);
+        public async Task StopSyncAsync()
+        {
+            foreach (var syncEngine in _syncEngines)
+            {
+                await syncEngine.StopAsync();
             }
+
+            _syncEngines.Clear();
+
+            this.Config.IsSyncEnabled = false;
+            this.Config.Save(_configFilePath);
         }
 
         public void SaveConfig()
@@ -107,10 +132,49 @@ namespace CryptoDrive.ViewModels
             this.RaisePropertyChanged(nameof(AppStateViewModel.IsSignedIn));
         }
 
+        public void Dispose()
+        {
+            _logger.OnMessageLogged -= this.OnMessageLogged;
+        }
+
         private async Task UpdateUserNameAsync()
         {
             var user = await _graphService.GraphClient.Me.Request().GetAsync();
             this.UserName = user.GivenName;
+        }
+
+        private void InternalStartSync(bool force = false)
+        {
+            if (!force && this.Config.IsSyncEnabled)
+            {
+                throw new Exception("I am already synchronizing.");
+            }
+
+            foreach (var syncFolderPair in this.Config.SyncFolderPairs)
+            {
+                var localDrive = new LocalDriveProxy(syncFolderPair.Local, "Local Drive", _logger);
+                var remoteDrive = new OneDriveProxy(_graphService.GraphClient, _logger, BatchRequestContentPatch.ApplyPatch);
+                var syncEngine = new CryptoDriveSyncEngine(remoteDrive, localDrive, SyncMode.Echo, _logger);
+
+                _syncEngines.Add(syncEngine);
+                syncEngine.Start(syncFolderPair.Remote);
+            }
+
+            this.Config.IsSyncEnabled = true;
+            this.Config.Save(_configFilePath);
+        }
+
+        private void OnMessageLogged(object sender, string e)
+        {
+            lock (_messageLoglock)
+            {
+                this.MessageLog.Add(e);
+
+                if (this.MessageLog.Count > 10)
+                    this.MessageLog.RemoveAt(0);
+
+                this.RaisePropertyChanged(nameof(this.MessageLog));
+            }
         }
 
         #endregion

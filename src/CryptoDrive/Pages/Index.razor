@@ -2,7 +2,7 @@
 
 @inherits AppStateComponentBase
 
-    <div class="login-display">
+    <div>
         @if (this.AppState.IsSignedIn)
         {
             <h3>Sync Folders</h3>
@@ -56,17 +56,36 @@
                 </div>
             }
 
-            <button type="button" 
-                    class="btn btn-outline-info" 
+            <button type="button"
+                    class="btn btn-outline-info"
                     @onclick="this.AppState.AddSyncFolderPair">
                 <i class="fas fa-folder-plus"></i>
             </button>
 
-            <button type="button" 
-                    class="btn btn-outline-info" 
-                    @onclick="this.AppState.Synchronize">
-                <i class="fas fa-sync"></i>&nbsp; Synchronize!
-            </button>
+
+            @if (!this.AppState.Config.IsSyncEnabled)
+            {
+                <button type="button"
+                        class="btn btn-outline-info"
+                        @onclick="this.AppState.StartSync">
+                    <i class="fas fa-sync"></i>&nbsp; Start
+                </button>
+            }
+            else
+            {
+                <button type="button"
+                        class="btn btn-outline-info"
+                        @onclick="async () => await this.AppState.StopSyncAsync()">
+                    <i class="fas fa-sync"></i>&nbsp; Stop
+                </button>
+            }
+
+            <div class="message-log">
+                @foreach (var message in this.AppState.MessageLog)
+                {
+                    <span>@message</span>
+                }
+            </div>
         }
         else
         {

@@ -156,3 +156,9 @@ app {
 .navbar > img {
     width: 7rem;
 }
+
+.message-log {
+    display: flex;
+    flex-direction: column;
+    margin: 3px 0px 3px 0px;
+}
