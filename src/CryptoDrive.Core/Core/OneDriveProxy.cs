@@ -1,4 +1,5 @@
-﻿using CryptoDrive.Extensions;
+﻿using CryptoDrive.Core.Core;
+using CryptoDrive.Extensions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Graph;
 using System;
