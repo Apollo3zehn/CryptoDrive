@@ -115,7 +115,12 @@ namespace CryptoDrive.Core
             switch (driveItem.Type())
             {
                 case DriveItemType.Folder:
-                    // do nothing, folders are created automatically when a file is uploaded to a specific path
+
+                    newDriveItem = await this.GraphClient.Me.Drive.Root
+                        .ItemWithPath(driveItem.GetParentPath()).Children
+                        .Request()
+                        .AddAsync(driveItem.ToCreateFolderDriveItem());
+
                     break;
 
                 case DriveItemType.File:

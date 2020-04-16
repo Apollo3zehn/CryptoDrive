@@ -41,7 +41,9 @@ namespace CryptoDrive.Core
         public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception exception, Func<TState, Exception, string> formatter)
         {
             _logger.Log(logLevel, eventId, state, exception, formatter);
-            this.OnMessageLogged?.Invoke(this, formatter(state, exception));
+
+            if (logLevel >= LogLevel.Warning)
+                this.OnMessageLogged?.Invoke(this, formatter(state, exception));
         }
 
         #endregion

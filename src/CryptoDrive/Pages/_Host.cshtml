@@ -9,6 +9,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>CryptoDrive</title>
     <base href="~/" />
+    <link rel="stylesheet" href="_content/MatBlazor/dist/matBlazor.css"/>
     <link rel="stylesheet" href="css/bootstrap/bootstrap.min.css" />
     <link rel="stylesheet" href="~/lib/font-awesome/css/fontawesome.min.css" />
     <link rel="stylesheet" href="~/lib/font-awesome/css/solid.min.css" />
@@ -19,8 +20,8 @@
     <app>
         @(await Html.RenderComponentAsync<App>(RenderMode.ServerPrerendered))
     </app>
-
     <script src="_framework/blazor.server.js"></script>
+    <script src="_content/MatBlazor/dist/matBlazor.js"></script>
     <script src="~/lib/font-awesome/js/fontawesome.min.js"></script>
     <script src="~/lib/font-awesome/js/solid.min.js"></script>
     <script src="~/lib/font-awesome/js/regular.min.js"></script>

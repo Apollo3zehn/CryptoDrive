@@ -19,6 +19,7 @@ namespace CryptoDrive.ViewModels
         private string _configFilePath;
         private string _userName;
 
+        private SyncFolderPair _selectedSyncFolderPair;
         private IGraphService _graphService;
         private LoggerSniffer<AppStateViewModel> _logger;
 
@@ -67,6 +68,8 @@ namespace CryptoDrive.ViewModels
 
         #region Properties
 
+        public bool ShowSyncFolderDeleteDialog { get; set; }
+
         public List<string> MessageLog { get; }
 
         public CryptoConfiguration Config { get; }
@@ -81,7 +84,7 @@ namespace CryptoDrive.ViewModels
 
         #endregion
 
-        #region Methods
+        #region Commands
 
         public void StartSync()
         {
@@ -112,10 +115,17 @@ namespace CryptoDrive.ViewModels
             this.SaveConfig();
         }
 
-        public void RemoveSyncFolderPair(SyncFolderPair syncFolderPair)
+        public void RemoveSyncFolderPair()
         {
-            this.Config.SyncFolderPairs.Remove(syncFolderPair);
+            this.Config.SyncFolderPairs.Remove(_selectedSyncFolderPair);
             this.SaveConfig();
+            this.ShowSyncFolderDeleteDialog = false;
+        }
+
+        public void InitializeRemoveSyncFolderDialog(SyncFolderPair syncFolderPair)
+        {
+            _selectedSyncFolderPair = syncFolderPair;
+            this.ShowSyncFolderDeleteDialog = true;
         }
 
         public async Task SignInAsync()
@@ -131,6 +141,10 @@ namespace CryptoDrive.ViewModels
             await _graphService.SignOutAsync();
             this.RaisePropertyChanged(nameof(AppStateViewModel.IsSignedIn));
         }
+
+        #endregion
+
+        #region Methods
 
         public void Dispose()
         {

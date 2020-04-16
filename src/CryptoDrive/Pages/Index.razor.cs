@@ -2,7 +2,7 @@
 
 namespace CryptoDrive.Pages
 {
-    public partial class Index
+	public partial class Index
     {
 		#region Constructors
 

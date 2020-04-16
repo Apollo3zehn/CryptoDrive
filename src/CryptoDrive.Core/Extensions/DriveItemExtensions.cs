@@ -55,6 +55,20 @@ namespace CryptoDrive.Extensions
             };
         }
 
+        // from drive item to drive item
+        public static DriveItem ToCreateFolderDriveItem(this DriveItem driveItem)
+        {
+            return new DriveItem
+            {
+                Name = driveItem.Name,
+                Folder = new Folder(),
+                AdditionalData = new Dictionary<string, object>()
+                {
+                    {"@microsoft.graph.conflictBehavior", "rename"}
+                }
+            };
+        }
+
         // from x to drive item
         public static DriveItem ToDriveItem(this FileSystemEventArgs fileSystemEventArgs, string basePath)
         {
@@ -195,11 +209,14 @@ namespace CryptoDrive.Extensions
                 driveItem.AdditionalData[CryptoDriveConstants.DownloadUrl] = newUri;
         }
 
+        public static string GetParentPath(this DriveItem driveItem)
+        {
+            return driveItem.ParentReference.Path.Substring(CryptoDriveConstants.PathPrefix.Length);
+        }
+
         public static string GetItemPath(this DriveItem driveItem)
         {
-            var folderPath = $"{driveItem.ParentReference.Path.Substring(CryptoDriveConstants.PathPrefix.Length)}";
-
-            return PathHelper.Combine(folderPath, driveItem.Name);
+            return PathHelper.Combine(driveItem.GetParentPath(), driveItem.Name);
         }
 
         public static string GetAbsolutePath(this DriveItem driveItem, string basePath)

@@ -37,7 +37,7 @@ namespace CryptoDrive.Core
             this.Name = name;
             this.Logger = logger;
 
-            logger.LogInformation($"Drive '{name}' is tracking folder '{basePath}'.");
+            logger.LogDebug($"Drive '{name}' is tracking folder '{basePath}'.");
             Directory.CreateDirectory(basePath);
 
             // polling watcher
@@ -303,9 +303,9 @@ namespace CryptoDrive.Core
             }
         }
 
-        private IEnumerable<DriveItem> SafelyEnumerateDriveItems(string folderPath, CryptoDriveContext context, [CallerMemberName] string callerName = "")
+        private IEnumerable<DriveItem> SafelyEnumerateDriveItems(string folderPath, CryptoDriveContext context)
         {
-            var forceNew = callerName == nameof(this.SafelyEnumerateDriveItems);
+            var recursive = context.IsInitialized;
             var driveItems = Enumerable.Empty<DriveItem>();
             var absoluteFolderPath = folderPath.ToAbsolutePath(this.BasePath);
 
@@ -315,17 +315,10 @@ namespace CryptoDrive.Core
                 driveItems = driveItems.Concat(Directory.EnumerateDirectories(absoluteFolderPath, "*", SearchOption.TopDirectoryOnly)
                     .SelectMany(current =>
                     {
-                        RemoteState oldRemoteState = null;
                         var driveItems = new DirectoryInfo(current).ToDriveItem(this.BasePath);
                         var folderPath = current.Substring(this.BasePath.Length).NormalizeSlashes();
 
-                        if (!forceNew)
-                            oldRemoteState = context.RemoteStates.FirstOrDefault(remoteState => remoteState.GetItemPath() == folderPath
-                                                                                             && remoteState.Type == DriveItemType.Folder);
-
-                        // When we know that the parent folder is not in the database (oldRemoteState == null),
-                        // the children aren't there neither (forceNew = true).
-                        if (forceNew || oldRemoteState == null)
+                        if (recursive)
                             return this.SafelyEnumerateDriveItems(folderPath, context)
                                        .Concat(new DriveItem[] { driveItems });
                         else

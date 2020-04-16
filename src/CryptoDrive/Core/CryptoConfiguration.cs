@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using Microsoft.Extensions.Logging;
+using System.Collections.Generic;
 using System.IO;
 using System.Text.Json;
 
@@ -17,6 +18,8 @@ namespace CryptoDrive.Core
         #endregion
 
         #region Properties
+
+        public LogLevel LogLevel { get; set; }
 
         public bool IsSyncEnabled { get; set; }
 

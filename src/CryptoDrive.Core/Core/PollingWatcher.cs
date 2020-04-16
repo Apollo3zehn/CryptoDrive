@@ -81,8 +81,19 @@ namespace CryptoDrive.Core
         {
             lock (_changesLock)
             {
+                // Whenever the content of a directory changes, there will be two events:
+                //
+                // 1. Exact change (create file, delete folder, ...)
+                //
+                // 2. Change event for parent folder, which is useless here since we are not 
+                //    syncing the 'last modified date' of folders
+                //
+                // => skip these events
+                if (Directory.Exists(_fileWatcher.Path) && e.ChangeType == WatcherChangeTypes.Changed)
+                    return;
+
                 var relativePath = e.FullPath.Substring(_fileWatcher.Path.Length + 1);
-                var folderPath = Path.GetDirectoryName(e.FullPath.Substring(_fileWatcher.Path.Length + 1)).NormalizeSlashes();
+                var folderPath = Path.GetDirectoryName(relativePath).NormalizeSlashes();
 
                 _changesHashSet.Add(folderPath);
 
