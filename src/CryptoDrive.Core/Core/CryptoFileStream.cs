@@ -10,6 +10,11 @@
 //        public CryptoFileStream(Stream inputStream)
 //        {
 //            _inputStream = inputStream;
+
+//            // calculate crypto stream length 
+//            var a = inputStream.Length;
+//            var b1 = ((a + 16) / 16);
+//            var b3 = (b1 + 1) * 16;
 //        }
 
 //        public override bool CanRead => true;
