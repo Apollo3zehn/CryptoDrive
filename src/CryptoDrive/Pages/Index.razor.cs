@@ -1,4 +1,8 @@
-﻿using CryptoDrive.ViewModels;
+﻿using CryptoDrive.Core;
+using CryptoDrive.ViewModels;
+using Microsoft.Extensions.Logging;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace CryptoDrive.Pages
 {
@@ -8,6 +12,11 @@ namespace CryptoDrive.Pages
 
 		public Index()
 		{
+			this.LogLevelValues = Utilities
+				.GetEnumValues<LogLevel>()
+				.Where(logLevel => logLevel < LogLevel.None)
+				.ToList();
+
 			this.PropertyChanged = async (sender, e) =>
 			{
 				if (e.PropertyName == nameof(AppStateViewModel.IsSignedIn))
@@ -17,6 +26,12 @@ namespace CryptoDrive.Pages
 					await this.InvokeAsync(this.StateHasChanged);
 			};
 		}
+
+		#endregion
+
+		#region Properties
+
+		public List<LogLevel> LogLevelValues { get; }
 
 		#endregion
 	}

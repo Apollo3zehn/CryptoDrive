@@ -60,6 +60,13 @@
             </MatButton>
         }
 
+        <MatSelectItem @bind-Value="@this.AppState.LogLevel" 
+                       Items="@this.LogLevelValues">
+            <ItemTemplate Context="value">
+                @Utilities.GetEnumLocalization(@value)
+            </ItemTemplate>
+        </MatSelectItem>
+
         <div class="message-log">
             @foreach (var message in this.AppState.MessageLog)
             {

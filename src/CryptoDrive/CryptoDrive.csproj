@@ -19,4 +19,19 @@
     <ProjectReference Include="..\CryptoDrive.Core\CryptoDrive.Core.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Compile Update="Resources\EnumerationDescription.Designer.cs">
+      <DesignTime>True</DesignTime>
+      <AutoGen>True</AutoGen>
+      <DependentUpon>EnumerationDescription.resx</DependentUpon>
+    </Compile>
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Update="Resources\EnumerationDescription.resx">
+      <Generator>ResXFileCodeGenerator</Generator>
+      <LastGenOutput>EnumerationDescription.Designer.cs</LastGenOutput>
+    </EmbeddedResource>
+  </ItemGroup>
+
 </Project>

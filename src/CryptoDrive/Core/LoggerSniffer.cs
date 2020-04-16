@@ -7,7 +7,7 @@ namespace CryptoDrive.Core
     {
         #region Events
 
-        public event EventHandler<string> OnMessageLogged;
+        public event EventHandler<LogMessageEventArgs> OnMessageLogged;
 
         #endregion
 
@@ -41,9 +41,7 @@ namespace CryptoDrive.Core
         public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception exception, Func<TState, Exception, string> formatter)
         {
             _logger.Log(logLevel, eventId, state, exception, formatter);
-
-            if (logLevel >= LogLevel.Warning)
-                this.OnMessageLogged?.Invoke(this, formatter(state, exception));
+            this.OnMessageLogged?.Invoke(this, new LogMessageEventArgs(logLevel, formatter(state, exception)));
         }
 
         #endregion

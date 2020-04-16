@@ -199,6 +199,26 @@ hr {
         color: var(--font-color) !important;
     }
 
+.mdc-select__anchor {
+    background-color: transparent !important;
+}
+
+.mdc-select__menu {
+    background-color: rgba(0, 0, 0, 0.7) !important;
+}
+
+.mdc-select__selected-text {
+    color: var(--font-color) !important;
+}
+
+.mdc-list-item--selected {
+    color: var(--primary-color) !important;
+}
+
+.mdc-menu .mdc-list {
+    color: var(--font-color) !important;
+}
+
 .no-sync-folder-pairs {
     display: flex;
     flex-direction: row;

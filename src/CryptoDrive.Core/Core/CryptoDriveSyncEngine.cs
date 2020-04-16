@@ -160,7 +160,7 @@ namespace CryptoDrive.Core
         /* high level */
         private async Task WatchForChanges(string folderPath)
         {
-            await this.TrySynchronize(folderPath);
+            await this.TrySynchronize(folderPath, SyncScope.Full);
 
             while (this.IsEnabled)
             {
@@ -170,21 +170,17 @@ namespace CryptoDrive.Core
                     break;
 
                 if (_changesQueue.TryDequeue(out var currentFolderPath))
-                {
-                    await this.TrySynchronize(currentFolderPath);
-                }
+                    await this.TrySynchronize(currentFolderPath, SyncScope.Light);
                 else
-                {
                     _manualReset.Reset();
-                }
             }
         }
 
-        private async Task TrySynchronize(string folderPath)
+        private async Task TrySynchronize(string folderPath, SyncScope syncScope)
         {
             try
             {
-                await this.Synchronize(folderPath);
+                await this.Synchronize(folderPath, syncScope);
                 this.SyncCompleted?.Invoke(this, new SyncCompletedEventArgs(_syncId, null));
             }
             catch (Exception ex)
@@ -198,7 +194,7 @@ namespace CryptoDrive.Core
             }
         }
 
-        private async Task Synchronize(string folderPath = "/")
+        private async Task Synchronize(string folderPath, SyncScope syncScope)
         {
             _logger.LogInformation($"Syncing folder '{folderPath}'.");
 
@@ -209,7 +205,7 @@ namespace CryptoDrive.Core
                 _logger.LogInformation($"Search for changes on remote drive '{_remoteDrive.Name}'.");
 
                 await _remoteDrive.ProcessDelta(async deltaPage => await this.InternalSynchronize(_remoteDrive, _localDrive, deltaPage),
-                                                folderPath, _context, _cts.Token);
+                                                folderPath, _context, syncScope, _cts.Token);
             }
             else
             {
@@ -226,7 +222,7 @@ namespace CryptoDrive.Core
                         }
 
                         return Task.CompletedTask;
-                    }, folderPath, _context, _cts.Token);
+                    }, folderPath, _context, SyncScope.Full, _cts.Token);
 
                     _context.IsInitialized = true;
                 }
@@ -235,7 +231,7 @@ namespace CryptoDrive.Core
             // local drive
             _logger.LogInformation($"Search for changes on local drive '{_localDrive.Name}'.");
             await _localDrive.ProcessDelta(async deltaPage => await this.InternalSynchronize(_localDrive, _remoteDrive, deltaPage),
-                                           folderPath, _context, _cts.Token);
+                                           folderPath, _context, syncScope, _cts.Token);
 
             //// conflicts
             //await this.CheckConflicts();

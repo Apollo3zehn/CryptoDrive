@@ -48,7 +48,9 @@ namespace CryptoDrive.Core
         #region Properties
 
         public IGraphServiceClient GraphClient { get; }
+
         public string Name { get; }
+
         private ILogger Logger { get; }
 
         #endregion
@@ -58,9 +60,14 @@ namespace CryptoDrive.Core
         public async Task ProcessDelta(Func<List<DriveItem>, Task> action,
                                        string folderPath,
                                        CryptoDriveContext context,
+                                       SyncScope syncScope,
                                        CancellationToken cancellationToken)
         {
             var pageCounter = 0;
+
+#warning check if folderPath != "/" would be also required
+            if (syncScope != SyncScope.Full)
+                throw new NotSupportedException("OneDriveProxy always provides delta pages for all drive items.");
 
             while (true)
             {

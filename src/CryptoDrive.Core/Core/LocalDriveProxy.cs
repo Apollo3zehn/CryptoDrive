@@ -6,7 +6,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net;
-using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Directory = System.IO.Directory;
@@ -54,6 +53,7 @@ namespace CryptoDrive.Core
         #region Properties
 
         public string Name { get; }
+
         public string BasePath { get; }
 
         public bool EnableChangeTracking
@@ -71,6 +71,7 @@ namespace CryptoDrive.Core
         public async Task ProcessDelta(Func<List<DriveItem>, Task> action,
                                        string folderPath,
                                        CryptoDriveContext context,
+                                       SyncScope syncScope,
                                        CancellationToken cancellationToken)
         {
             var pageCounter = 0;
@@ -82,7 +83,7 @@ namespace CryptoDrive.Core
                     [$"DeltaPage ({this.Name})"] = pageCounter
                 }))
                 {
-                    (var deltaPage, var isLast) = await this.GetDeltaPageAsync(folderPath, context, cancellationToken);
+                    (var deltaPage, var isLast) = await this.GetDeltaPageAsync(folderPath, context, syncScope, cancellationToken);
 
                     if (cancellationToken.IsCancellationRequested)
                         break;
@@ -99,13 +100,14 @@ namespace CryptoDrive.Core
 
         private Task<(List<DriveItem> DeltaPage, bool IsLast)> GetDeltaPageAsync(string folderPath,
                                                                                  CryptoDriveContext context,
+                                                                                 SyncScope syncScope,
                                                                                  CancellationToken cancellationToken)
         {
             var pageSize = 10;
             var deltaPage = new List<DriveItem>();
 
             if (_fileEnumerator is null)
-                _fileEnumerator = this.SafelyEnumerateDriveItems(folderPath, context)
+                _fileEnumerator = this.SafelyEnumerateDriveItems(folderPath, context, syncScope)
                     .Where(current => this.CheckPathAllowed(current.GetItemPath()))
                     .GetEnumerator();
 
@@ -303,9 +305,8 @@ namespace CryptoDrive.Core
             }
         }
 
-        private IEnumerable<DriveItem> SafelyEnumerateDriveItems(string folderPath, CryptoDriveContext context)
+        private IEnumerable<DriveItem> SafelyEnumerateDriveItems(string folderPath, CryptoDriveContext context, SyncScope syncScope)
         {
-            var recursive = context.IsInitialized;
             var driveItems = Enumerable.Empty<DriveItem>();
             var absoluteFolderPath = folderPath.ToAbsolutePath(this.BasePath);
 
@@ -318,8 +319,8 @@ namespace CryptoDrive.Core
                         var driveItems = new DirectoryInfo(current).ToDriveItem(this.BasePath);
                         var folderPath = current.Substring(this.BasePath.Length).NormalizeSlashes();
 
-                        if (recursive)
-                            return this.SafelyEnumerateDriveItems(folderPath, context)
+                        if (syncScope == SyncScope.Full)
+                            return this.SafelyEnumerateDriveItems(folderPath, context, syncScope)
                                        .Concat(new DriveItem[] { driveItems });
                         else
                             return new List<DriveItem> { driveItems };

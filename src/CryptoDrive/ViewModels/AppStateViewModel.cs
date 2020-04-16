@@ -3,7 +3,6 @@ using CryptoDrive.Graph;
 using Microsoft.Extensions.Logging;
 using Prism.Mvvm;
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
@@ -15,7 +14,6 @@ namespace CryptoDrive.ViewModels
         #region Fields
 
         private object _messageLoglock;
-
         private string _configFilePath;
         private string _userName;
 
@@ -80,6 +78,23 @@ namespace CryptoDrive.ViewModels
         {
             get { return _userName; }
             set { this.SetProperty(ref _userName, value); }
+        }
+
+        #endregion
+
+        #region Relay Properties
+
+        public LogLevel LogLevel
+        {
+            get 
+            { 
+                return this.Config.LogLevel;
+            }
+            set 
+            {
+                this.Config.LogLevel = value;
+                this.Config.Save(_configFilePath);
+            }
         }
 
         #endregion
@@ -178,16 +193,19 @@ namespace CryptoDrive.ViewModels
             this.Config.Save(_configFilePath);
         }
 
-        private void OnMessageLogged(object sender, string e)
+        private void OnMessageLogged(object sender, LogMessageEventArgs e)
         {
-            lock (_messageLoglock)
+            if (e.LogLevel >= this.LogLevel)
             {
-                this.MessageLog.Add(e);
+                lock (_messageLoglock)
+                {
+                    this.MessageLog.Add(e.Message);
 
-                if (this.MessageLog.Count > 10)
-                    this.MessageLog.RemoveAt(0);
+                    if (this.MessageLog.Count > 10)
+                        this.MessageLog.RemoveAt(0);
 
-                this.RaisePropertyChanged(nameof(this.MessageLog));
+                    this.RaisePropertyChanged(nameof(this.MessageLog));
+                }
             }
         }
 
