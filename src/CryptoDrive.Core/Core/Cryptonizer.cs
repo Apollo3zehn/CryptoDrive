@@ -2,18 +2,27 @@
 using System.IO;
 using System.Security.Cryptography;
 
-namespace CryptoDrive.Core.Core
+namespace CryptoDrive.Core
 {
     public class Cryptonizer
     {
         #region Fields
 
+        private object _lock;
         private AesCryptoServiceProvider _cryptoServiceProvider;
 
         #endregion
 
+        public static string GenerateKey()
+        {
+            return Convert.ToBase64String(new AesCryptoServiceProvider().Key);
+        }
+
         public Cryptonizer(string base64Key)
         {
+            _lock = new object();
+
+            // default key size is 256
             _cryptoServiceProvider = new AesCryptoServiceProvider()
             {
                 Key = Convert.FromBase64String(base64Key),
@@ -22,48 +31,26 @@ namespace CryptoDrive.Core.Core
             };
         }
 
-        public void Encrypt(Stream inputStream, string targetFilePath)
+        public CryptoIVStream CreateEncryptStream(Stream sourceStream)
         {
-            var buffer = new byte[1 * 1024 * 1024 * 25];
-            var consumedLength = 0L;
-
-            using var encryptedStream = new FileStream(targetFilePath, FileMode.Create, FileAccess.Write);
-
-            var totalLength = inputStream.Length;
-            _cryptoServiceProvider.GenerateIV();
-            encryptedStream.Write(_cryptoServiceProvider.IV, 0, _cryptoServiceProvider.IV.Length);
-
-            using var cryptoStream = new CryptoStream(encryptedStream, _cryptoServiceProvider.CreateEncryptor(), CryptoStreamMode.Write);
-
-            while (consumedLength < totalLength)
+            lock (_lock)
             {
-                var currentLength = (int)Math.Min(buffer.Length, totalLength - consumedLength);
-                inputStream.Read(buffer, 0, currentLength);
-                cryptoStream.Write(buffer, 0, currentLength);
-                consumedLength += currentLength;
+                _cryptoServiceProvider.GenerateIV(); 
+                var cryptoStream = new CryptoStream(sourceStream, _cryptoServiceProvider.CreateEncryptor(), CryptoStreamMode.Read);
+                return new CryptoIVStream(cryptoStream, _cryptoServiceProvider.IV);
             }
         }
 
-        public void Decrypt(Stream inputStream, string targetFilePath)
+        public CryptoStream CreateDecryptStream(Stream sourceStream)
         {
-            var buffer = new byte[1 * 1024 * 1024 * 25];
-            var consumedLength = 0L;
-            var IvBuffer = new byte[16];
-
-            using var decryptedStream = new FileStream(targetFilePath, FileMode.Create, FileAccess.Write);
-
-            var totalLength = inputStream.Length - _cryptoServiceProvider.IV.Length;
-            inputStream.Read(IvBuffer, 0, _cryptoServiceProvider.IV.Length);
-            _cryptoServiceProvider.IV = IvBuffer;
-
-            var cryptoStream = new CryptoStream(inputStream, _cryptoServiceProvider.CreateDecryptor(), CryptoStreamMode.Read);
-
-            while (consumedLength < totalLength)
+            lock (_lock)
             {
-                var currentLength = (int)Math.Min(buffer.Length, totalLength - consumedLength);
-                var decryptedLength = cryptoStream.Read(buffer, 0, currentLength);
-                decryptedStream.Write(buffer, 0, decryptedLength);
-                consumedLength += currentLength; // important to use currentLength instead of decryptedLength because totalLength is based on that
+                var ivBuffer = new byte[16];
+
+                sourceStream.Read(ivBuffer);
+                _cryptoServiceProvider.IV = ivBuffer;
+
+                return new CryptoStream(sourceStream, _cryptoServiceProvider.CreateDecryptor(), CryptoStreamMode.Read);
             }
         }
     }

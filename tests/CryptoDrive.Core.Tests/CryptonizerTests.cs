@@ -1,6 +1,6 @@
-﻿using CryptoDrive.Core.Core;
-using System.IO;
-using System.Runtime.InteropServices.ComTypes;
+﻿using System.IO;
+using System.Text;
+using System.Threading.Tasks;
 using Xunit;
 
 namespace CryptoDrive.Core.Tests
@@ -8,32 +8,28 @@ namespace CryptoDrive.Core.Tests
     public class CryptonizerTests
     {
         [Fact]
-        public void CanEncryptFile()
+        public async Task CanEncryptFile()
         {
             // Arrange
+            var expected = "Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam.";
             var key = "c0PN6MxITtN/vp1BLLFwGGJJ6idexDAbCVob6llHdo0=";
             var cryptonizer = new Cryptonizer(key);
-            var originalFilePath = Path.Combine(Path.GetTempPath(), "original_file.txt");
-            var encryptedFilePath = Path.Combine(Path.GetTempPath(), "encrypted_file.txt");
-            var decryptedFilePath = Path.Combine(Path.GetTempPath(), "decrypted_file.txt");
-            //var expected = "Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam.";
-            var expected = "00000000010000000001000000000100000000010000001";
 
-            File.WriteAllText(originalFilePath, expected);
+            using var originalStream = new MemoryStream(Encoding.UTF8.GetBytes(expected));
+            using var encryptedStream = new MemoryStream();
+            using var decryptedStream = new MemoryStream();
 
             // Act
-            using (var fileStream = File.Open(originalFilePath, FileMode.Open, FileAccess.Read))
-            {
-                cryptonizer.Encrypt(fileStream, encryptedFilePath);
-            }
+            using var encryptStream = cryptonizer.CreateEncryptStream(originalStream);
+            await encryptStream.CopyToAsync(encryptedStream);
 
             // Assert
-            using (var fileStream = File.Open(encryptedFilePath, FileMode.Open, FileAccess.Read))
-            {
-                cryptonizer.Decrypt(fileStream, decryptedFilePath);
-            }
+            encryptedStream.Seek(0, SeekOrigin.Begin);
 
-            var actual = File.ReadAllText(decryptedFilePath);
+            using var decryptStream = cryptonizer.CreateDecryptStream(encryptedStream);
+            await decryptStream.CopyToAsync(decryptedStream);
+
+            var actual = Encoding.UTF8.GetString(decryptedStream.ToArray());
 
             Assert.Equal(expected, actual);
         }

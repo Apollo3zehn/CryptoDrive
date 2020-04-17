@@ -57,6 +57,16 @@ namespace CryptoDrive.ViewModels
                 this.Config.Save(_configFilePath);
             }
 
+            // key
+            if (string.IsNullOrWhiteSpace(this.Config.SymmetricKey))
+            {
+                this.Config.SymmetricKey = Cryptonizer.GenerateKey();
+                this.Config.Save(_configFilePath);
+            }
+
+            if (this.IsSignedIn && !this.Config.KeyIsSecured)
+                this.ShowKeyDialog = true;
+
             // start
             if (this.Config.IsSyncEnabled)
                 this.InternalStartSync(force: true);
@@ -65,6 +75,8 @@ namespace CryptoDrive.ViewModels
         #endregion
 
         #region Properties
+
+        public bool ShowKeyDialog { get; set; }
 
         public bool ShowSyncFolderDeleteDialog { get; set; }
 
@@ -141,6 +153,14 @@ namespace CryptoDrive.ViewModels
         {
             _selectedSyncFolderPair = syncFolderPair;
             this.ShowSyncFolderDeleteDialog = true;
+        }
+
+        public void ConfirmKeyIsSecured()
+        {
+            this.Config.KeyIsSecured = true;
+            this.Config.Save(_configFilePath);
+
+            this.ShowKeyDialog = false;
         }
 
         public async Task SignInAsync()

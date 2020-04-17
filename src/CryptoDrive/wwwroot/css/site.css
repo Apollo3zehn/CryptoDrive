@@ -1,6 +1,7 @@
 :root {
     --primary-color: #20bccc;
     --font-color: #cecece;
+    --dialog-color: #272727;
 }
 
 html, body {
@@ -36,8 +37,7 @@ app {
 }
 
     .main .top-row {
-        background-color: #f7f7f714;
-        border-bottom: 1px solid #d6d5d5;
+        background-color: var(--dialog-color);
         justify-content: flex-end;
     }
 
@@ -183,21 +183,21 @@ hr {
     flex-direction: column;
 }
 
-    .sync-folder-pair .mdc-text-field {
-        background-color: transparent;
-    }
+.mdc-text-field {
+    background-color: transparent !important;
+}
 
-    .sync-folder-pair .mdc-text-field__icon {
-        color: var(--font-color) !important;
-    }
+.mdc-text-field__icon {
+    color: var(--font-color) !important;
+}
 
-    .sync-folder-pair .mdc-floating-label {
-        color: var(--font-color) !important;
-    }
+.mdc-floating-label {
+    color: var(--font-color) !important;
+}
 
-    .sync-folder-pair .mat-text-field-input {
-        color: var(--font-color) !important;
-    }
+.mat-text-field-input {
+    color: var(--font-color) !important;
+}
 
 .mdc-select__anchor {
     background-color: transparent !important;
@@ -216,6 +216,18 @@ hr {
 }
 
 .mdc-menu .mdc-list {
+    color: var(--font-color) !important;
+}
+
+.mdc-dialog__surface {
+    background-color: var(--dialog-color) !important;
+}
+
+.mdc-dialog__title {
+    color: var(--font-color) !important;
+}
+
+.mdc-dialog__content {
     color: var(--font-color) !important;
 }
 

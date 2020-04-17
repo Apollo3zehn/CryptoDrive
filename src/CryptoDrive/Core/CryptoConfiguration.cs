@@ -21,6 +21,8 @@ namespace CryptoDrive.Core
 
         public LogLevel LogLevel { get; set; }
 
+        public bool KeyIsSecured { get; set; }
+
         public bool IsSyncEnabled { get; set; }
 
         public string SymmetricKey { get; set; }
@@ -39,7 +41,7 @@ namespace CryptoDrive.Core
 
         public void Save(string filePath)
         {
-            var jsonString = JsonSerializer.Serialize(this);
+            var jsonString = JsonSerializer.Serialize(this, new JsonSerializerOptions() { WriteIndented = true });
             File.WriteAllText(filePath, jsonString);
         }
 

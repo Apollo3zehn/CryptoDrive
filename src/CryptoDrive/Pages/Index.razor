@@ -1,5 +1,6 @@
 ﻿@page "/"
 
+@inject IJSRuntime JsRuntime
 @inherits AppStateComponentBase
 
 <div>
@@ -97,7 +98,25 @@
         <p>Do you want me to stop syncing this folder pair?</p>
     </MatDialogContent>
     <MatDialogActions>
-        <MatButton OnClick="@(e => { this.AppState.ShowSyncFolderDeleteDialog = false; })">No Thanks</MatButton>
-        <MatButton OnClick="@this.AppState.RemoveSyncFolderPair">Do as I command!</MatButton>
+        <MatButton OnClick="() => this.AppState.ShowSyncFolderDeleteDialog = false">No Thanks</MatButton>
+        <MatButton OnClick="this.AppState.RemoveSyncFolderPair">Do as I command!</MatButton>
+    </MatDialogActions>
+</MatDialog>
+
+<MatDialog @bind-IsOpen="this.AppState.ShowKeyDialog" 
+           CanBeClosed="false">
+    <MatDialogTitle>Hello, Human!</MatDialogTitle>
+    <MatDialogContent>
+        <p>This is your super-secret secret-key to encryp and decrypt your data. You must promise me to print or make a photo of it and then store it safely.</p>
+        <MatStringField Id="SuperSecretKey"
+                        ReadOnly="true"
+                        Icon="file_copy"
+                        IconOnClick="() => JsInterop.CopyToClipboard(this.JsRuntime, this.AppState.Config.SymmetricKey)"
+                        @bind-Value="this.AppState.Config.SymmetricKey"
+                        Label="Super-secret secret key">
+        </MatStringField>
+    </MatDialogContent>
+    <MatDialogActions>
+        <MatButton OnClick="this.AppState.ConfirmKeyIsSecured">I hereby promise high and holy that I copied the key.</MatButton>
     </MatDialogActions>
 </MatDialog>

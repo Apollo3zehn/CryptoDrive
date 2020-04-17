@@ -8,6 +8,8 @@
                 <span>Hi, @this.AppState.UserName!</span>
             }
 
-            <button type="button" class="btn btn-link" @onclick="this.AppState.SignOutAsync">Sign-Out</button>
+            <MatButton @onclick="this.AppState.SignOutAsync">
+                Sign-Out
+            </MatButton>
         }
     </div>
