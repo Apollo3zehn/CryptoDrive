@@ -22,22 +22,23 @@ namespace CryptoDrive.Core
 
         #region Fields
 
-        private CryptoDriveContext _context;
         private Regex _regex_conflict;
         private Regex _regex_replace;
 
-        private ILogger _logger;
+        private SyncMode _syncMode;
         private IDriveProxy _remoteDrive;
         private IDriveProxy _localDrive;
+        private ILogger _logger;
 
-        private SyncMode _syncMode;
 
+        private Task _watchTask;
+        private Cryptonizer _cryptonizer;
+        private CryptoDriveContext _context;
         private CancellationTokenSource _cts;
         private ManualResetEventSlim _manualReset;
-        private ConcurrentQueue<string> _changesQueue;
-        private Task _watchTask;
 
         private EventHandler<string> _handler;
+        private ConcurrentQueue<string> _changesQueue;
 
         private int _syncId;
 
@@ -49,10 +50,21 @@ namespace CryptoDrive.Core
                                      IDriveProxy localDrive,
                                      SyncMode syncMode,
                                      ILogger logger)
+            : this(remoteDrive, localDrive, syncMode, null, logger)
+        {
+           //
+        }
+
+        public CryptoDriveSyncEngine(IDriveProxy remoteDrive,
+                                     IDriveProxy localDrive,
+                                     SyncMode syncMode,
+                                     Cryptonizer cryptonizer,
+                                     ILogger logger)
         {
             _remoteDrive = remoteDrive;
             _localDrive = localDrive;
             _syncMode = syncMode;
+            _cryptonizer = cryptonizer;
             _logger = logger;
 
             _context = new CryptoDriveContext();
@@ -586,23 +598,38 @@ namespace CryptoDrive.Core
 
         private async Task<DriveItem> InternalTransferDriveItem(IDriveProxy sourceDrive, IDriveProxy targetDrive, DriveItem driveItem)
         {
-            DriveItem newDriveItem;
+            var isLocal = sourceDrive == _localDrive;
+
+            if (driveItem.Type() == DriveItemType.File)
+            {
+                var originalStream = await sourceDrive.GetContentAsync(driveItem);
+                var stream = this.GetStream(originalStream, isLocal);
+                driveItem.Content = stream;
+            }
 
             try
             {
-                newDriveItem = await targetDrive.CreateOrUpdateAsync(driveItem);
+                var newDriveItem = await targetDrive.CreateOrUpdateAsync(driveItem);
+                return newDriveItem;
             }
-#warning catch more specific error message
-            // retry if download link has expired
-            catch (Exception)
+            finally
             {
-                _logger.LogWarning($"Download URI is null or has expired, requesting new one.");
-                driveItem.SetUri(await sourceDrive.GetDownloadUriAsync(driveItem));
-                newDriveItem = await targetDrive.CreateOrUpdateAsync(driveItem);
+                if (driveItem.Content != null)
+                    await driveItem.Content.DisposeAsync();
+            }
+        }
+
+        private Stream GetStream(Stream stream, bool isLocal)
+        {
+            if (_cryptonizer != null)
+            {
+                if (isLocal)
+                    stream = _cryptonizer.CreateEncryptStream(stream);
+                else
+                    stream = _cryptonizer.CreateDecryptStream(stream);
             }
 
-            await targetDrive.SetLastWriteTimeUtcAsync(driveItem);
-            return newDriveItem;
+            return stream;
         }
 
         private async Task EnsureLocalConflict(DriveItem driveItem)

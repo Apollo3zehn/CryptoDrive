@@ -57,6 +57,10 @@ namespace CryptoDrive.ViewModels
                 this.Config.Save(_configFilePath);
             }
 
+            // disable sync when conditions are not satisfied
+            if (!this.IsSignedIn || !this.Config.KeyIsSecured)
+                this.Config.IsSyncEnabled = false;
+
             // key
             if (string.IsNullOrWhiteSpace(this.Config.SymmetricKey))
             {
@@ -203,7 +207,8 @@ namespace CryptoDrive.ViewModels
             {
                 var localDrive = new LocalDriveProxy(syncFolderPair.Local, "Local Drive", _logger);
                 var remoteDrive = new OneDriveProxy(_graphService.GraphClient, _logger, BatchRequestContentPatch.ApplyPatch);
-                var syncEngine = new CryptoDriveSyncEngine(remoteDrive, localDrive, SyncMode.Echo, _logger);
+                var cryptonizer = new Cryptonizer(this.Config.SymmetricKey);
+                var syncEngine = new CryptoDriveSyncEngine(remoteDrive, localDrive, SyncMode.Echo, cryptonizer, _logger);
 
                 _syncEngines.Add(syncEngine);
                 syncEngine.Start(syncFolderPair.Remote);

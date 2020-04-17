@@ -1,6 +1,7 @@
 ﻿using Microsoft.Graph;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -40,10 +41,9 @@ namespace CryptoDrive.Core
 
         #region File Info
 
-        Task<Uri> GetDownloadUriAsync(DriveItem driveItem);
+        Task<Stream> GetContentAsync(DriveItem driveItem);
         Task<bool> ExistsAsync(DriveItem driveItem);
         Task<DateTime> GetLastWriteTimeUtcAsync(DriveItem driveItem);
-        Task SetLastWriteTimeUtcAsync(DriveItem driveItem);
         Task<string> GetHashAsync(DriveItem driveItem);
         Task<DriveItem> ToFullDriveItem(DriveItem driveItem);
 

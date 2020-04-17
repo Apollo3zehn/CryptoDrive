@@ -5,7 +5,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
 using Directory = System.IO.Directory;
@@ -142,17 +141,9 @@ namespace CryptoDrive.Core
 
                     Directory.CreateDirectory(Path.GetDirectoryName(fullPath));
 
-                    if (driveItem.Content != null)
+                    using (var stream = File.OpenWrite(fullPath))
                     {
-                        using (var stream = File.OpenWrite(fullPath))
-                        {
-                            driveItem.Content.Seek(0, SeekOrigin.Begin);
-                            driveItem.Content.CopyTo(stream);
-                        }
-                    }
-                    else
-                    {
-                        await new WebClient().DownloadFileTaskAsync(driveItem.Uri(), fullPath);
+                        await driveItem.Content.CopyToAsync(stream);
                     }
 
                     File.SetLastWriteTimeUtc(fullPath, driveItem.FileSystemInfo.LastModifiedDateTime.Value.DateTime);
@@ -217,9 +208,12 @@ namespace CryptoDrive.Core
 
         #region File Info
 
-        public Task<Uri> GetDownloadUriAsync(DriveItem driveItem)
+        public Task<Stream> GetContentAsync(DriveItem driveItem)
         {
-            return Task.FromResult(new Uri(driveItem.GetAbsolutePath(this.BasePath)));
+            var filePath = driveItem.GetAbsolutePath(this.BasePath);
+            var stream = File.OpenRead(filePath);
+
+            return Task.FromResult((Stream)stream);
         }
 
         public Task<bool> ExistsAsync(DriveItem driveItem)
@@ -248,28 +242,6 @@ namespace CryptoDrive.Core
         public Task<DateTime> GetLastWriteTimeUtcAsync(DriveItem driveItem)
         {
             return Task.FromResult(File.GetLastWriteTimeUtc(driveItem.GetAbsolutePath(this.BasePath)));
-        }
-
-        public Task SetLastWriteTimeUtcAsync(DriveItem driveItem)
-        {
-            var driveItemPath = driveItem.GetAbsolutePath(this.BasePath);
-
-            switch (driveItem.Type())
-            {
-                case DriveItemType.Folder:
-                    Directory.SetLastWriteTimeUtc(driveItemPath, driveItem.LastModified());
-                    break;
-
-                case DriveItemType.File:
-                    File.SetLastWriteTimeUtc(driveItemPath, driveItem.LastModified());
-                    break;
-
-                case DriveItemType.RemoteItem:
-                default:
-                    throw new NotSupportedException();
-            }
-
-            return Task.CompletedTask;
         }
 
         public Task<string> GetHashAsync(DriveItem driveItem)

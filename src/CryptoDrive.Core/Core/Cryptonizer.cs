@@ -31,26 +31,26 @@ namespace CryptoDrive.Core
             };
         }
 
-        public CryptoIVStream CreateEncryptStream(Stream sourceStream)
+        public CryptoIVStream CreateEncryptStream(Stream source)
         {
             lock (_lock)
             {
                 _cryptoServiceProvider.GenerateIV(); 
-                var cryptoStream = new CryptoStream(sourceStream, _cryptoServiceProvider.CreateEncryptor(), CryptoStreamMode.Read);
+                var cryptoStream = new CryptoStream(source, _cryptoServiceProvider.CreateEncryptor(), CryptoStreamMode.Read);
                 return new CryptoIVStream(cryptoStream, _cryptoServiceProvider.IV);
             }
         }
 
-        public CryptoStream CreateDecryptStream(Stream sourceStream)
+        public CryptoStream CreateDecryptStream(Stream source)
         {
             lock (_lock)
             {
                 var ivBuffer = new byte[16];
 
-                sourceStream.Read(ivBuffer);
+                source.Read(ivBuffer);
                 _cryptoServiceProvider.IV = ivBuffer;
 
-                return new CryptoStream(sourceStream, _cryptoServiceProvider.CreateDecryptor(), CryptoStreamMode.Read);
+                return new CryptoStream(source, _cryptoServiceProvider.CreateDecryptor(), CryptoStreamMode.Read);
             }
         }
     }

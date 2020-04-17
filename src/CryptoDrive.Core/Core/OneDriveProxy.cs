@@ -5,12 +5,11 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net;
 using System.Net.Http;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Web;
-using File = System.IO.File;
 
 namespace CryptoDrive.Core
 {
@@ -36,7 +35,7 @@ namespace CryptoDrive.Core
 
         public OneDriveProxy(IGraphServiceClient graphServiceClient, ILogger logger, Action patch = null)
         {
-            _patch = patch;
+             _patch = patch;
 
             this.GraphClient = graphServiceClient;
             this.Name = "OneDrive";
@@ -117,7 +116,7 @@ namespace CryptoDrive.Core
 
         public async Task<DriveItem> CreateOrUpdateAsync(DriveItem driveItem)
         {
-            DriveItem newDriveItem = null;
+            DriveItem newDriveItem;
 
             switch (driveItem.Type())
             {
@@ -132,17 +131,13 @@ namespace CryptoDrive.Core
 
                 case DriveItemType.File:
 
-                    var sourceFilePath = HttpUtility.UrlDecode(driveItem.Uri().AbsolutePath);
+                    var properties = driveItem.ToUploadableProperties();
+                    var stream = driveItem.Content;
 
-                    using (var stream = File.OpenRead(sourceFilePath))
-                    {
-                        var properties = driveItem.ToUploadableProperties();
-
-                        if (driveItem.Size <= 4 * 1024 * 1024) // file.Length <= 4 MB
-                            newDriveItem = await this.UploadSmallFileAsync(driveItem.GetItemPath(), stream, properties);
-                        else
-                            newDriveItem = await this.UploadLargeFileAsync(driveItem.GetItemPath(), stream, properties);
-                    }
+                    if (driveItem.Size <= 4 * 1024 * 1024) // file.Length <= 4 MB
+                        newDriveItem = await this.UploadSmallFileAsync(driveItem.GetItemPath(), stream, properties);
+                    else
+                        newDriveItem = await this.UploadLargeFileAsync(driveItem.GetItemPath(), stream, properties);
 
                     break;
 
@@ -170,11 +165,27 @@ namespace CryptoDrive.Core
 
         #region File Info
 
-        public async Task<Uri> GetDownloadUriAsync(DriveItem driveItem)
+        public async Task<Stream> GetContentAsync(DriveItem driveItem)
         {
-            var url = (await this.GraphClient.Me.Drive.Items[driveItem.Id].Request().Select(value => CryptoDriveConstants.DownloadUrl).GetAsync()).ToString();
+            WebResponse response;
 
-            return new Uri(url);
+            var request = this.GraphClient.Me.Drive.Items[driveItem.Id].Request();
+            var uri = driveItem.Uri();
+
+            try
+            {
+                response = await WebRequest.Create(uri).GetResponseAsync();
+            }
+            // if download url required
+            catch (Exception)
+            {
+#warning catch more specific error message
+                this.Logger.LogWarning($"Download URI is null or has expired, requesting new one.");
+                var url = (await request.Select(value => CryptoDriveConstants.DownloadUrl).GetAsync()).ToString();
+                response = await WebRequest.Create(new Uri(url)).GetResponseAsync();
+            }
+
+            return response.GetResponseStream();
         }
 
         public Task<bool> ExistsAsync(DriveItem driveItem)
@@ -185,12 +196,6 @@ namespace CryptoDrive.Core
         public Task<DateTime> GetLastWriteTimeUtcAsync(DriveItem driveItem)
         {
             throw new NotImplementedException();
-        }
-
-        public Task SetLastWriteTimeUtcAsync(DriveItem driveItem)
-        {
-            //throw new NotImplementedException();
-            return Task.CompletedTask;
         }
 
         public Task<string> GetHashAsync(DriveItem driveItem)

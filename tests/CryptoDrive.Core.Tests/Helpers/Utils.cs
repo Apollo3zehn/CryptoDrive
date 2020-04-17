@@ -185,6 +185,7 @@ namespace CryptoDrive.Core.Tests
             var lastModified = new DateTime(2019, 01, 01, version, 00, 00, DateTimeKind.Utc);
             var content = $"{itemPath} v{version}".ToMemorySteam();
             var hash = Convert.ToBase64String(hashAlgorithm.ComputeHash(content));
+            content.Position = 0;
 
             return new DriveItem
             {

@@ -43,6 +43,9 @@ namespace CryptoDrive.Core.Tests
 
             var driveItem = fileInfo.ToDriveItem(tempPath.TrimEnd('\\'));
 
+            using var stream = File.OpenRead(filePath);
+            driveItem.Content = stream;
+
             // Act
             if (!graphService.IsSignedIn)
                 await graphService.SignInAsync();
@@ -77,6 +80,9 @@ namespace CryptoDrive.Core.Tests
 
             var fileInfo = new FileInfo(filePath);
             var driveItem = fileInfo.ToDriveItem(tempPath.TrimEnd('\\'));
+
+            using var stream = File.OpenRead(filePath);
+            driveItem.Content = stream;
 
             // Act
             if (!graphService.IsSignedIn)
