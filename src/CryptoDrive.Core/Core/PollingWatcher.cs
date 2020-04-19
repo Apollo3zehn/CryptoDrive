@@ -1,8 +1,11 @@
 ﻿using CryptoDrive.Extensions;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Net.NetworkInformation;
+using System.Net.WebSockets;
 using System.Timers;
 
 namespace CryptoDrive.Core
@@ -18,7 +21,7 @@ namespace CryptoDrive.Core
         #region Fields
 
         private FileSystemWatcher _fileWatcher;
-        private HashSet<string> _changesHashSet;
+        private Dictionary<string, SyncScope> _changesToScopeMap;
         private object _changesLock;
         private Timer _timer;
         private TimeSpan _pollInterval;
@@ -30,7 +33,7 @@ namespace CryptoDrive.Core
         public PollingWatcher(string basePath, TimeSpan pollInterval = default)
         {
             _changesLock = new object();
-            _changesHashSet = new HashSet<string>();
+            _changesToScopeMap = new Dictionary<string, SyncScope>();
 
             if (pollInterval == TimeSpan.MinValue)
                 pollInterval = TimeSpan.FromSeconds(5);
@@ -79,23 +82,48 @@ namespace CryptoDrive.Core
 
         private void OnItemChanged(object source, FileSystemEventArgs e)
         {
+            var syncScope = SyncScope.Light;
+
             lock (_changesLock)
             {
-                // Whenever the content of a directory changes, there will be two events:
-                //
-                // 1. Exact change (create file, delete folder, ...)
-                //
-                // 2. Change event for parent folder, which is useless here since we are not 
-                //    syncing the 'last modified date' of folders
-                //
-                // => skip these events
-                if (Directory.Exists(_fileWatcher.Path) && e.ChangeType == WatcherChangeTypes.Changed)
-                    return;
+                if (Directory.Exists(e.FullPath))
+                {
+                    switch (e.ChangeType)
+                    {
+                        // Whenever the content of a directory changes, there will be two events:
+                        //
+                        // 1. Exact change (create file, delete folder, ...)
+                        //
+                        // 2. Change event for parent folder, which is useless here since we are not 
+                        //    syncing the 'last modified date' of folders
+                        //
+                        // => skip these events
+                        case WatcherChangeTypes.Changed:
+                            return;
+
+                        // If a folder was simply created manually, then a light scope would be sufficient.
+                        // However, if the folder was moved from another location it could contain files,
+                        // thus full sync scope is required.
+                        case WatcherChangeTypes.Created:
+                            syncScope = SyncScope.Full;
+                            break;
+
+                        default:
+                            // do nothing
+                            break;
+                    }
+                }
 
                 var relativePath = e.FullPath.Substring(_fileWatcher.Path.Length + 1);
                 var folderPath = Path.GetDirectoryName(relativePath).NormalizeSlashes();
 
-                _changesHashSet.Add(folderPath);
+                // add new change with full scope, overwrite any existing entries
+                if (syncScope == SyncScope.Full)
+                    _changesToScopeMap[folderPath] = SyncScope.Full;
+
+                // add new change with light scope only if key does not already exists
+                else if (!_changesToScopeMap.ContainsKey(folderPath))
+                    _changesToScopeMap[folderPath] = SyncScope.Light;
 
                 // reset timer
                 _timer.Interval = _pollInterval.TotalMilliseconds;
@@ -106,10 +134,16 @@ namespace CryptoDrive.Core
         {
             lock (_changesLock)
             {
-                if (_changesHashSet.Any())
-                    this.DriveChanged?.Invoke(this, new DriveChangedEventArgs(_changesHashSet.ToList()));
+                if (_changesToScopeMap.Any())
+                {
+                    var driveChangedNotifications = _changesToScopeMap
+                        .Select(entry => new DriveChangedNotification(entry.Key, entry.Value))
+                        .ToList();
 
-                _changesHashSet.Clear();
+                    this.DriveChanged?.Invoke(this, new DriveChangedEventArgs(driveChangedNotifications));
+                }
+
+                _changesToScopeMap.Clear();
             }
         }
 

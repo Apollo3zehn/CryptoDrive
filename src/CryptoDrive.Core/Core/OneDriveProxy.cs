@@ -20,7 +20,7 @@ namespace CryptoDrive.Core
     {
         #region Events
 
-        public event EventHandler<string> FolderChanged;
+        public event EventHandler<DriveChangedNotification> FolderChanged;
 
         #endregion
 

@@ -16,7 +16,7 @@ namespace CryptoDrive.Core
     {
         #region Events
 
-        public event EventHandler<string> FolderChanged;
+        public event EventHandler<DriveChangedNotification> FolderChanged;
 
         #endregion
 
@@ -271,9 +271,9 @@ namespace CryptoDrive.Core
 
         private void OnDriveChanged(object source, DriveChangedEventArgs e)
         {
-            foreach (var folderPath in e.FolderPaths)
+            foreach (var driveChangedNotification in e.DriveChangedNotifications)
             {
-                this.FolderChanged?.Invoke(this, folderPath);
+                this.FolderChanged?.Invoke(this, driveChangedNotification);
             }
         }
 

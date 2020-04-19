@@ -37,8 +37,8 @@ namespace CryptoDrive.Core
         private CancellationTokenSource _cts;
         private ManualResetEventSlim _manualReset;
 
-        private EventHandler<string> _handler;
-        private ConcurrentQueue<string> _changesQueue;
+        private EventHandler<DriveChangedNotification> _handler;
+        private ConcurrentQueue<DriveChangedNotification> _changesQueue;
 
         private int _syncId;
 
@@ -76,7 +76,7 @@ namespace CryptoDrive.Core
             // changes
             _cts = new CancellationTokenSource();
             _manualReset = new ManualResetEventSlim();
-            _changesQueue = new ConcurrentQueue<string>();
+            _changesQueue = new ConcurrentQueue<DriveChangedNotification>();
 
             // handler
             _handler = (sender, e) =>
@@ -181,8 +181,8 @@ namespace CryptoDrive.Core
                 if (_cts.IsCancellationRequested)
                     break;
 
-                if (_changesQueue.TryDequeue(out var currentFolderPath))
-                    await this.TrySynchronize(currentFolderPath, SyncScope.Light);
+                if (_changesQueue.TryDequeue(out var driveChangedNotification))
+                    await this.TrySynchronize(driveChangedNotification.FolderPath, driveChangedNotification.SyncScope);
                 else
                     _manualReset.Reset();
             }

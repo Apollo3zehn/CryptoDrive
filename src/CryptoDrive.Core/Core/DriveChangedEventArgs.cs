@@ -5,11 +5,11 @@ namespace CryptoDrive.Core
 {
     public class DriveChangedEventArgs : EventArgs
     {
-        public DriveChangedEventArgs(List<string> folderPaths)
+        public DriveChangedEventArgs(List<DriveChangedNotification> driveChangedNotifications)
         {
-            this.FolderPaths = folderPaths;
+            this.DriveChangedNotifications = driveChangedNotifications;
         }
 
-        public List<string> FolderPaths { get; }
+        public List<DriveChangedNotification> DriveChangedNotifications { get; }
     }
 }
