@@ -13,9 +13,6 @@ using System.Threading.Tasks;
 
 namespace CryptoDrive.Core
 {
-    // https://docs.microsoft.com/en-us/onedrive/developer/rest-api/api/driveitem_post_content?view=odsp-graph-online
-    // https://github.com/microsoftgraph/msgraph-sdk-dotnet/issues/218
-    // https://github.com/microsoftgraph/msgraph-sdk-dotnet/blob/dev/tests/Microsoft.Graph.DotnetCore.Test/Requests/Functional/OneDriveTests.cs#L57
     public class OneDriveProxy : IDriveProxy
     {
         #region Events
@@ -33,12 +30,13 @@ namespace CryptoDrive.Core
 
         #region Constructors
 
-        public OneDriveProxy(IGraphServiceClient graphServiceClient, ILogger logger, Action patch = null)
+        public OneDriveProxy(string basePath, IGraphServiceClient graphServiceClient, ILogger logger, Action patch = null)
         {
              _patch = patch;
 
-            this.GraphClient = graphServiceClient;
             this.Name = "OneDrive";
+            this.BasePath = basePath;
+            this.GraphClient = graphServiceClient;
             this.Logger = logger;
         }
 
@@ -50,6 +48,8 @@ namespace CryptoDrive.Core
 
         public string Name { get; }
 
+        public string BasePath { get; }
+
         private ILogger Logger { get; }
 
         #endregion
@@ -59,13 +59,13 @@ namespace CryptoDrive.Core
         public async Task ProcessDelta(Func<List<DriveItem>, Task> action,
                                        string folderPath,
                                        CryptoDriveContext context,
-                                       SyncScope syncScope,
+                                       DriveChangedType changeType,
                                        CancellationToken cancellationToken)
         {
             var pageCounter = 0;
 
 #warning check if folderPath != "/" would be also required
-            if (syncScope != SyncScope.Full)
+            if (changeType != DriveChangedType.Descendants)
                 throw new NotSupportedException("OneDriveProxy always provides delta pages for all drive items.");
 
             while (true)
@@ -213,7 +213,7 @@ namespace CryptoDrive.Core
         #region Private
 
         // https://github.com/microsoftgraph/msgraph-sdk-dotnet/issues/558
-        public async Task<DriveItem> UploadSmallFileAsync(string itemPath, Stream stream, DriveItemUploadableProperties properties)
+        private async Task<DriveItem> UploadSmallFileAsync(string itemPath, Stream stream, DriveItemUploadableProperties properties)
         {
             properties.ODataType = "microsoft.graph.driveItem";
 

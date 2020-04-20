@@ -1,15 +1,23 @@
 ﻿namespace CryptoDrive.Core
 {
-    public class DriveChangedNotification
+    public struct DriveChangedNotification
     {
-        public DriveChangedNotification(string folderPath, SyncScope syncScope)
+        #region Constructors
+
+        public DriveChangedNotification(string folderPath, DriveChangedType changeType)
         {
             this.FolderPath = folderPath;
-            this.SyncScope = syncScope;
+            this.ChangeType = changeType;
         }
+
+        #endregion
+
+        #region Properties
 
         public string FolderPath { get; }
 
-        public SyncScope SyncScope { get; }
+        public DriveChangedType ChangeType { get; }
+
+        #endregion
     }
 }

@@ -216,7 +216,7 @@ namespace CryptoDrive.Extensions
 
         public static string GetItemPath(this DriveItem driveItem)
         {
-            return PathHelper.Combine(driveItem.GetParentPath(), driveItem.Name);
+            return Utilities.PathCombine(driveItem.GetParentPath(), driveItem.Name);
         }
 
         public static string GetAbsolutePath(this DriveItem driveItem, string basePath)

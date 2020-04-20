@@ -17,7 +17,7 @@ namespace CryptoDrive.Extensions
             var conflictFileName = filePath.ToConflictFileName(lastModified);
             var folderPath = Path.GetDirectoryName(filePath).NormalizeSlashes();
 
-            return PathHelper.Combine(folderPath, conflictFileName);
+            return Utilities.PathCombine(folderPath, conflictFileName);
         }
 
         public static string ToConflictFileName(this string fileName, DateTimeOffset lastModified)

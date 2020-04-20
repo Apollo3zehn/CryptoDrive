@@ -26,7 +26,7 @@ namespace CryptoDrive.Core
         Task ProcessDelta(Func<List<DriveItem>, Task> action,
                           string folderPath,
                           CryptoDriveContext context,
-                          SyncScope syncScope,
+                          DriveChangedType changeType,
                           CancellationToken cancellationToken);
 
         #endregion

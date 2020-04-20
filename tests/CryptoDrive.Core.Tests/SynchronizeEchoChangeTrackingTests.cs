@@ -226,7 +226,7 @@ namespace CryptoDrive.Core.Tests
             {
                 Assert.True(Directory.Exists("/sub".ToAbsolutePath(_driveHive.RemoteDrivePath)), "Folder does not exist.");
                 Assert.True(File.Exists("/sub/a".ToAbsolutePath(_driveHive.RemoteDrivePath)), "File does not exist.");
-            }, syncId: 1);
+            }, syncId: 2);
 
             Directory.Delete(externalDrivePath, true);
         }
