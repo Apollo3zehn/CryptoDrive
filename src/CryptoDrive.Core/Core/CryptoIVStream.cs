@@ -11,21 +11,32 @@ namespace CryptoDrive.Core
 
         private CryptoStream _cryptoStream;
 
-        public CryptoIVStream(CryptoStream cryptoStream, byte[] rgbIV)
+        public CryptoIVStream(CryptoStream cryptoStream, byte[] rgbIV, long cryptoLength)
         {
+            // CanSeek = true is required for OneDrive`s large file upload process
+            // Side effects with CanSeek = true:
+            //      1. large file upload wants to seek (with SeekOrigin.Begin) 
+            //      2. Stream.CopyTo() wants the stream length
+            //      3. Stream.CopyTo() wants the stream position
             _rgbIV = rgbIV;
             _cryptoStream = cryptoStream;
+
+            this.Length = cryptoLength;
         }
 
         public override bool CanRead => true;
 
-        public override bool CanSeek => false;
+        public override bool CanSeek => true;
 
         public override bool CanWrite => false;
 
-        public override long Length => throw new NotImplementedException();
+        public override long Length { get; }
 
-        public override long Position { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
+        public override long Position
+        {
+            get { return _position; }
+            set { throw new NotImplementedException(); }
+        }
 
         public override void Flush()
         {
@@ -51,7 +62,10 @@ namespace CryptoDrive.Core
 
         public override long Seek(long offset, SeekOrigin origin)
         {
-            throw new NotImplementedException();
+            if (origin == SeekOrigin.Begin)
+                return offset;
+            else
+                throw new NotImplementedException();
         }
 
         public override void SetLength(long value)

@@ -255,18 +255,6 @@ namespace CryptoDrive.Core
             }
         }
 
-        public Task<DriveItem> ToFullDriveItem(DriveItem driveItem)
-        {
-            if (driveItem.Type() == DriveItemType.File)
-            {
-                var fullPath = driveItem.GetAbsolutePath(this.BasePath);
-                var fileInfo = new FileInfo(fullPath);
-                return Task.FromResult(fileInfo.ToDriveItem(this.BasePath));
-            }
-            else
-                throw new ArgumentException();
-        }
-
         #endregion
 
         #region Private

@@ -229,8 +229,7 @@ namespace CryptoDrive.Core
                     {
                         foreach (var driveItem in deltaPage)
                         {
-                            if (!string.IsNullOrWhiteSpace(driveItem.Name)) // MS account "apollo3zehndev" gives a nameless drive-item (deleted folder)
-                                this.UpdateContext(null, newRemoteState: driveItem.ToRemoteState(), WatcherChangeTypes.Created);
+                            this.UpdateContext(null, newRemoteState: driveItem.ToRemoteState(), WatcherChangeTypes.Created);
                         }
 
                         return Task.CompletedTask;
@@ -322,9 +321,6 @@ namespace CryptoDrive.Core
                                 }
                                 else
                                 {
-                                    if (updatedDriveItem.GetItemPath() == "root")
-                                        continue;
-
                                     newRemoteState = newDriveItem.ToRemoteState();
                                 }
 
@@ -349,7 +345,12 @@ namespace CryptoDrive.Core
             DriveItem updatedDriveItem = null;
 
             (var itemName1, var itemName2) = this.GetItemNames(newDriveItem);
-            var changeType = newDriveItem.GetChangeType(oldDriveItem);
+
+            // With encryption enabled, the encrypted and decrypted file sizes are not equal anymore. 
+            // The encrypted file can be calculated, but is not unique. So, currently, rely only
+            // on modified date.
+            var compareSize = _cryptonizer == null;
+            var changeType = newDriveItem.GetChangeType(oldDriveItem, compareSize: compareSize);
 
             switch (changeType)
             {
@@ -510,7 +511,7 @@ namespace CryptoDrive.Core
                         {
                             _logger.LogDebug($"File was modified. Action(s): upload and replace file.");
 
-                            originalDriveItem = await _localDrive.ToFullDriveItem(originalDriveItem);
+                            //originalDriveItem = await _localDrive.ToFullDriveItem(originalDriveItem);
                             var driveItem = await _remoteDrive.CreateOrUpdateAsync(originalDriveItem);
                             _context.RemoteStates.Add(driveItem.ToRemoteState());
                         }
@@ -522,7 +523,7 @@ namespace CryptoDrive.Core
                     {
                         _logger.LogDebug($"Remote file is not tracked in database. Action(s): upload file.");
 
-                        originalDriveItem = await _localDrive.ToFullDriveItem(originalDriveItem);
+                        //originalDriveItem = await _localDrive.ToFullDriveItem(originalDriveItem);
                         var driveItem = await _remoteDrive.CreateOrUpdateAsync(originalDriveItem);
                         _context.RemoteStates.Add(driveItem.ToRemoteState());
                     }

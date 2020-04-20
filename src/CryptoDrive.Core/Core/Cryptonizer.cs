@@ -18,6 +18,14 @@ namespace CryptoDrive.Core
             return Convert.ToBase64String(new AesCryptoServiceProvider().Key);
         }
 
+        public static long CalculateCryptoLength(long originalStreamLength, int rgbIVLength)
+        {
+            var tmp = (originalStreamLength + rgbIVLength) / rgbIVLength;
+            var cryptoLength = (tmp + 1) * rgbIVLength;
+
+            return cryptoLength;
+        }
+
         public Cryptonizer(string base64Key)
         {
             _lock = new object();
@@ -37,7 +45,8 @@ namespace CryptoDrive.Core
             {
                 _cryptoServiceProvider.GenerateIV(); 
                 var cryptoStream = new CryptoStream(source, _cryptoServiceProvider.CreateEncryptor(), CryptoStreamMode.Read);
-                return new CryptoIVStream(cryptoStream, _cryptoServiceProvider.IV);
+                var cryptoLength = Cryptonizer.CalculateCryptoLength(source.Length, _cryptoServiceProvider.IV.Length);
+                return new CryptoIVStream(cryptoStream, _cryptoServiceProvider.IV, cryptoLength);
             }
         }
 

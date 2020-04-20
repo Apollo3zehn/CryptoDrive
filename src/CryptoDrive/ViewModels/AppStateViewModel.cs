@@ -211,7 +211,7 @@ namespace CryptoDrive.ViewModels
                 var syncEngine = new CryptoDriveSyncEngine(remoteDrive, localDrive, SyncMode.Echo, cryptonizer, _logger);
 
                 _syncEngines.Add(syncEngine);
-                syncEngine.Start(syncFolderPair.Remote);
+                syncEngine.Start();
             }
 
             this.Config.IsSyncEnabled = true;

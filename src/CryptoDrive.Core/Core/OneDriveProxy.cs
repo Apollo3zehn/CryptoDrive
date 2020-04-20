@@ -23,6 +23,7 @@ namespace CryptoDrive.Core
 
         #region Fields
 
+        private readonly string _basePrefix;
         private Action _patch;
         private IDriveItemDeltaCollectionPage _lastDeltaPage;
 
@@ -32,7 +33,8 @@ namespace CryptoDrive.Core
 
         public OneDriveProxy(string basePath, IGraphServiceClient graphServiceClient, ILogger logger, Action patch = null)
         {
-             _patch = patch;
+            _basePrefix = $"{OneDriveProxyConstants.RootPrefix}{basePath}";
+            _patch = patch;
 
             this.Name = "OneDrive";
             this.BasePath = basePath;
@@ -62,9 +64,14 @@ namespace CryptoDrive.Core
                                        DriveChangedType changeType,
                                        CancellationToken cancellationToken)
         {
+            // ensure base folder exists
+            var driveItem = this.BasePath.ToDriveItem(DriveItemType.Folder);
+            await this.CreateOrUpdateAsync(driveItem);
+
+            // go
             var pageCounter = 0;
 
-#warning check if folderPath != "/" would be also required
+#warning check if folderPath != "/" is also required
             if (changeType != DriveChangedType.Descendants)
                 throw new NotSupportedException("OneDriveProxy always provides delta pages for all drive items.");
 
@@ -92,11 +99,26 @@ namespace CryptoDrive.Core
             IDriveItemDeltaCollectionPage _currentDeltaPage;
 
             if (_lastDeltaPage == null)
-                _currentDeltaPage = await this.GraphClient.Me.Drive.Root.Delta().Request().GetAsync();
+                // according to MS (https://docs.microsoft.com/en-us/graph/api/driveitem-delta?view=graph-rest-1.0&tabs=csharp#remarks)
+                // ...Root.ItemWithPath() only works with personal accounts
+                _currentDeltaPage = await this.GetDriveItemRequestBuilder(this.BasePath).Delta().Request().GetAsync();
             else
                 _currentDeltaPage = await _lastDeltaPage.NextPageRequest.GetAsync();
 
             _lastDeltaPage = _currentDeltaPage;
+
+            var deltaPage = _currentDeltaPage.Where(driveItem =>
+            {
+                // exclude nameless items
+                if (string.IsNullOrWhiteSpace(driveItem.Name))
+                    return false;
+
+                // exclude base items
+                var itemPath = driveItem.GetItemPath();
+                return itemPath != "/root" && itemPath != _basePrefix;
+            }).ToList();
+
+            deltaPage.ForEach(driveItem => this.ToCryptoDriveItem(driveItem));
 
             // if the last page was received
             if (_currentDeltaPage.NextPageRequest == null)
@@ -104,10 +126,10 @@ namespace CryptoDrive.Core
                 var deltaLink = _currentDeltaPage.AdditionalData[Constants.OdataInstanceAnnotations.DeltaLink].ToString();
                 _lastDeltaPage.InitializeNextPageRequest(this.GraphClient, deltaLink);
 
-                return (_currentDeltaPage.ToList(), true);
+                return (deltaPage, true);
             }
 
-            return (_currentDeltaPage.ToList(), false);
+            return (deltaPage, false);
         }
 
         #endregion
@@ -122,8 +144,9 @@ namespace CryptoDrive.Core
             {
                 case DriveItemType.Folder:
 
-                    newDriveItem = await this.GraphClient.Me.Drive.Root
-                        .ItemWithPath(driveItem.GetParentPath()).Children
+                    var absoluteParentPath = driveItem.ParentReference.Path.ToAbsolutePath(this.BasePath);
+                    newDriveItem = await this.GetDriveItemRequestBuilder(absoluteParentPath)
+                        .Children
                         .Request()
                         .AddAsync(driveItem.ToCreateFolderDriveItem());
 
@@ -133,11 +156,12 @@ namespace CryptoDrive.Core
 
                     var properties = driveItem.ToUploadableProperties();
                     var stream = driveItem.Content;
+                    var absoluteItemPath = driveItem.GetAbsolutePath(this.BasePath);
 
                     if (driveItem.Size <= 4 * 1024 * 1024) // file.Length <= 4 MB
-                        newDriveItem = await this.UploadSmallFileAsync(driveItem.GetItemPath(), stream, properties);
+                        newDriveItem = await this.UploadSmallFileAsync(absoluteItemPath, stream, properties);
                     else
-                        newDriveItem = await this.UploadLargeFileAsync(driveItem.GetItemPath(), stream, properties);
+                        newDriveItem = await this.UploadLargeFileAsync(absoluteItemPath, stream, properties);
 
                     break;
 
@@ -146,7 +170,7 @@ namespace CryptoDrive.Core
                     throw new NotSupportedException();
             }
 
-            return newDriveItem;
+            return this.ToCryptoDriveItem(newDriveItem);
         }
 
         public Task<DriveItem> MoveAsync(DriveItem oldDriveItem, DriveItem newDriveItem)
@@ -181,7 +205,7 @@ namespace CryptoDrive.Core
             {
 #warning catch more specific error message
                 this.Logger.LogWarning($"Download URI is null or has expired, requesting new one.");
-                var url = (await request.Select(value => CryptoDriveConstants.DownloadUrl).GetAsync()).ToString();
+                var url = (await request.Select(value => OneDriveProxyConstants.DownloadUrl).GetAsync()).ToString();
                 response = await WebRequest.Create(new Uri(url)).GetResponseAsync();
             }
 
@@ -199,11 +223,6 @@ namespace CryptoDrive.Core
         }
 
         public Task<string> GetHashAsync(DriveItem driveItem)
-        {
-            throw new NotImplementedException();
-        }
-
-        public Task<DriveItem> ToFullDriveItem(DriveItem driveItem)
         {
             throw new NotImplementedException();
         }
@@ -245,12 +264,7 @@ namespace CryptoDrive.Core
             batch.AddBatchRequestStep(requestStep2);
 
             var response = await this.GraphClient.Batch.Request().PostAsync(batch);
-
-            // Handle http responses using BatchResponseContent.
-            var httpResponse = await response.GetResponseByIdAsync("2");
-            var jsonString2 = await httpResponse.Content.ReadAsStringAsync();
-
-            var driveItem = this.GraphClient.HttpProvider.Serializer.DeserializeObject<DriveItem>(jsonString2);
+            var driveItem = await response.GetResponseByIdAsync<DriveItem>("2");
 
             return driveItem;
         }
@@ -277,6 +291,27 @@ namespace CryptoDrive.Core
                 if (result.UploadSucceeded)
                     driveItem = result.ItemResponse;
             }
+
+            return driveItem;
+        }
+
+        private IDriveItemRequestBuilder GetDriveItemRequestBuilder(string itemPath)
+        {
+            // In principle, ...Root.ItemWithPath("/") should work like 
+            // every other path, but with msgraph it doesn't.
+            // https://docs.microsoft.com/en-us/onedrive/developer/rest-api/api/driveitem_list_children?view=odsp-graph-online#list-children-of-a-driveitem-with-a-known-path
+            if (itemPath == "/")
+                return this.GraphClient.Me.Drive.Root;
+            else
+                return this.GraphClient.Me.Drive.Root.ItemWithPath(itemPath);
+        }
+
+        private DriveItem ToCryptoDriveItem(DriveItem driveItem)
+        {
+            if (driveItem.ParentReference.Path.Length == _basePrefix.Length)
+                driveItem.ParentReference.Path = "/";
+            else
+                driveItem.ParentReference.Path = driveItem.ParentReference.Path.Substring(_basePrefix.Length);
 
             return driveItem;
         }

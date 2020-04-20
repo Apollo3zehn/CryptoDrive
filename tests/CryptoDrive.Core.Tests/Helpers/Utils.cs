@@ -193,10 +193,7 @@ namespace CryptoDrive.Core.Tests
                 Name = name,
                 Content = content,
                 FileSystemInfo = new Microsoft.Graph.FileSystemInfo { LastModifiedDateTime = lastModified },
-                ParentReference = new ItemReference() 
-                {
-                    Path = $"{CryptoDriveConstants.PathPrefix}{folderPath}"
-                }
+                ParentReference = new ItemReference() { Path = folderPath }
             };
         }
     }
