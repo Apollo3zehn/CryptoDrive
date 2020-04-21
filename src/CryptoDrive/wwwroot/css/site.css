@@ -265,3 +265,38 @@ hr {
 .validation-message {
     color: var(--error-color);
 }
+
+.file-explorer-address-bar {
+    display: flex;
+    flex-direction: row;
+}
+
+.file-explorer-address-bar-item {
+    margin: 0px 5px 0px 5px;
+    border: 0px 0px 1px 0px solid var(--primary-color);
+    cursor: pointer;
+}
+
+.file-explorer-folder-content {
+    display: flex;
+    flex-direction: column;
+}
+
+.file-explorer-folder-content-file {
+    margin: 5px 0px 5px 0px;
+    padding: 3px;
+}
+
+.file-explorer-folder-content-folder:hover {
+    background-color: rgba(0, 0, 0, 0.20)
+}
+
+.file-explorer-folder-content-folder {
+    cursor: pointer;
+    padding: 3px;
+    margin: 5px 0px 5px 0px;
+}
+
+.file-explorer-folder-content-folder:hover {
+    background-color: rgba(0, 0, 0, 0.20)
+}

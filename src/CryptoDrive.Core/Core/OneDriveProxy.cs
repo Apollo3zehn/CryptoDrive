@@ -107,7 +107,10 @@ namespace CryptoDrive.Core
             if (_lastDeltaPage == null)
                 // according to MS (https://docs.microsoft.com/en-us/graph/api/driveitem-delta?view=graph-rest-1.0&tabs=csharp#remarks)
                 // ...Root.ItemWithPath() only works with personal accounts
-                _currentDeltaPage = await this.GetDriveItemRequestBuilder(this.BasePath).Delta().Request().GetAsync();
+                _currentDeltaPage = await this.GraphClient.GetDriveItemRequestBuilder(this.BasePath)
+                    .Delta()
+                    .Request()
+                    .GetAsync();
             else
                 _currentDeltaPage = await _lastDeltaPage.NextPageRequest.GetAsync();
 
@@ -151,8 +154,7 @@ namespace CryptoDrive.Core
                 case DriveItemType.Folder:
 
                     var absoluteParentPath = driveItem.ParentReference.Path.ToAbsolutePath(this.BasePath);
-                    newDriveItem = await this.GetDriveItemRequestBuilder(absoluteParentPath)
-                        .Children
+                    newDriveItem = await this.GraphClient.GetDriveItemRequestBuilder(absoluteParentPath).Children
                         .Request()
                         .AddAsync(driveItem.ToCreateFolderDriveItem());
 
@@ -289,17 +291,6 @@ namespace CryptoDrive.Core
             }
 
             return driveItem;
-        }
-
-        private IDriveItemRequestBuilder GetDriveItemRequestBuilder(string itemPath)
-        {
-            // In principle, ...Root.ItemWithPath("/") should work like 
-            // every other path, but with msgraph it doesn't.
-            // https://docs.microsoft.com/en-us/onedrive/developer/rest-api/api/driveitem_list_children?view=odsp-graph-online#list-children-of-a-driveitem-with-a-known-path
-            if (itemPath == "/")
-                return this.GraphClient.Me.Drive.Root;
-            else
-                return this.GraphClient.Me.Drive.Root.ItemWithPath(itemPath);
         }
 
         private DriveItem ToCryptoDriveItem(DriveItem driveItem)

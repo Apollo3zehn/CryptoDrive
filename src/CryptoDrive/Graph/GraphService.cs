@@ -5,7 +5,6 @@ using Microsoft.Identity.Client;
 using System;
 using System.Linq;
 using System.Net.Http.Headers;
-using System.Reflection.Metadata.Ecma335;
 using System.Threading.Tasks;
 
 namespace CryptoDrive.Graph

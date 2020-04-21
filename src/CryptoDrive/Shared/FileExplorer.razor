@@ -1,0 +1,31 @@
+﻿@inherits AppStateComponentBase
+
+<div class="file-explorer">
+    <div class="file-explorer-address-bar">
+        @foreach ((var item, var position) in this.NavigationHierarchy.Select((item, position) => (item, position)))
+        {
+            <span class="file-explorer-address-bar-item"
+                  @onclick="async () => await this.NavigateToAsync(position)">
+                @item
+            </span>
+        }
+    </div>
+    <div class="file-explorer-folder-content">
+        @foreach (var driveItem in this.FolderContent)
+        {
+            if (driveItem.File != null)
+            {
+                <span class="file-explorer-folder-content-file">
+                    @driveItem.Name
+                </span>
+            }
+            else if (driveItem.Folder != null)
+            {
+                <span class="file-explorer-folder-content-folder"
+                      @onclick="async () => await this.NavigateDownAsync(driveItem.Name)">
+                    @driveItem.Name
+                </span>
+            }
+        }
+    </div>
+</div>

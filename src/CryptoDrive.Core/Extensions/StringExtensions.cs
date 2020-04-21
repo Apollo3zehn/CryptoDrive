@@ -1,6 +1,4 @@
-﻿using CryptoDrive.Core;
-using System;
-using System.IO;
+﻿using System.IO;
 using System.Text;
 
 namespace CryptoDrive.Extensions
