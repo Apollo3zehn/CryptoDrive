@@ -17,7 +17,9 @@ namespace CryptoDrive.ViewModels
         private string _configFilePath;
         private string _userName;
 
-        private SyncFolderPair _selectedSyncFolderPair;
+        private bool _showSyncFolderAddEditDialog;
+        private bool _showSyncFolderRemoveDialog;
+
         private IGraphService _graphService;
         private LoggerSniffer<AppStateViewModel> _logger;
 
@@ -82,7 +84,21 @@ namespace CryptoDrive.ViewModels
 
         public bool ShowKeyDialog { get; set; }
 
-        public bool ShowSyncFolderDeleteDialog { get; set; }
+        public bool ShowSyncFolderAddEditDialog
+        {
+            get { return _showSyncFolderAddEditDialog; }
+            set { this.SetProperty(ref _showSyncFolderAddEditDialog, value); }
+        }
+
+        public bool ShowSyncFolderRemoveDialog
+        {
+            get { return _showSyncFolderRemoveDialog; }
+            set { this.SetProperty(ref _showSyncFolderRemoveDialog, value); }
+        }
+
+        public SyncFolderPair SelectedSyncFolderPair { get; private set; }
+
+        public SyncFolderPair SelectedSyncFolderPairEdit { get; private set; }
 
         public List<string> MessageLog { get; }
 
@@ -119,6 +135,7 @@ namespace CryptoDrive.ViewModels
 
         public void StartSync()
         {
+            this.SaveConfig();
             this.InternalStartSync();
         }
 
@@ -140,25 +157,52 @@ namespace CryptoDrive.ViewModels
             this.Config.Save(_configFilePath);
         }
 
-        public void AddSyncFolderPair()
+        public void InitializeAddEditSyncFolderDialog()
         {
-            this.Config.SyncFolderPairs.Add(new SyncFolderPair());
-            this.SaveConfig();
+            this.SelectedSyncFolderPair = new SyncFolderPair();
+            this.SelectedSyncFolderPairEdit = this.SelectedSyncFolderPair;
+
+            this.ShowSyncFolderAddEditDialog = true;
         }
 
-        public void RemoveSyncFolderPair()
+        public void InitializeAddEditSyncFolderDialog(SyncFolderPair syncFolderPair)
         {
-            this.Config.SyncFolderPairs.Remove(_selectedSyncFolderPair);
-            this.SaveConfig();
-            this.ShowSyncFolderDeleteDialog = false;
+            this.SelectedSyncFolderPair = syncFolderPair;
+            this.SelectedSyncFolderPairEdit = new SyncFolderPair()
+            {
+                Local = syncFolderPair.Local,
+                Remote = syncFolderPair.Remote
+            };
+
+            this.ShowSyncFolderAddEditDialog = true;
         }
 
         public void InitializeRemoveSyncFolderDialog(SyncFolderPair syncFolderPair)
         {
-            _selectedSyncFolderPair = syncFolderPair;
-            this.ShowSyncFolderDeleteDialog = true;
+            this.SelectedSyncFolderPair = syncFolderPair;
+            this.ShowSyncFolderRemoveDialog = true;
         }
 
+        public void AddOrUpdateSyncFolderPair()
+        {
+            var index = this.Config.SyncFolderPairs.IndexOf(this.SelectedSyncFolderPair);
+
+            if (index > -1)
+                this.Config.SyncFolderPairs[index] = this.SelectedSyncFolderPairEdit;
+            else
+                this.Config.SyncFolderPairs.Add(this.SelectedSyncFolderPair);
+
+            this.Config.Save(_configFilePath);
+            this.ShowSyncFolderAddEditDialog = false;
+        }
+
+        public void RemoveSyncFolderPair()
+        {
+            this.Config.SyncFolderPairs.Remove(this.SelectedSyncFolderPair);
+            this.Config.Save(_configFilePath);
+
+            this.ShowSyncFolderRemoveDialog = false;
+        }
         public void ConfirmKeyIsSecured()
         {
             this.Config.KeyIsSecured = true;
@@ -199,9 +243,7 @@ namespace CryptoDrive.ViewModels
         private void InternalStartSync(bool force = false)
         {
             if (!force && this.Config.IsSyncEnabled)
-            {
                 throw new Exception("I am already synchronizing.");
-            }
 
             foreach (var syncFolderPair in this.Config.SyncFolderPairs)
             {

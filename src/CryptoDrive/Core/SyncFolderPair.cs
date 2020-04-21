@@ -1,14 +1,10 @@
-﻿namespace CryptoDrive.Core
+﻿using System.ComponentModel.DataAnnotations;
+
+namespace CryptoDrive.Core
 {
     public class SyncFolderPair
     {
         #region Constructors
-
-        //public SyncFolderPair(string local, string remote)
-        //{
-        //    this.Local = local;
-        //    this.Remote = remote;
-        //}
 
         public SyncFolderPair()
         {
@@ -19,8 +15,12 @@
 
         #region Properties
 
+        [Required]
+        [SyncFolderValidation(DriveLocation = CryptoDriveLocation.Local)]
         public string Local { get; set; }
 
+        [Required]
+        [SyncFolderValidation(DriveLocation = CryptoDriveLocation.Remote)]
         public string Remote { get; set; }
 
         #endregion

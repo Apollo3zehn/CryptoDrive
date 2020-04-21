@@ -1,0 +1,25 @@
+﻿@inherits AppStateComponentBase
+
+@if (this.DataContext != null)
+{
+    <div class="sync-folder-pair">
+        <MatTextField Label="Local Drive"
+                      PlaceHolder="e.g. C:\Users\CryptoBot\Documents"
+                      Icon="folder_shared"
+                      Class="sync-folder-pair-item"
+                      @bind-Value="this.DataContext.Local"
+                      @onchange="this.AppState.SaveConfig">
+        </MatTextField>
+        <ValidationMessage For="@(() => this.DataContext.Local)" />
+
+        <MatTextField Label="Cloud Drive"
+                      PlaceHolder="e.g. /backup"
+                      Icon="cloud"
+                      Class="sync-folder-pair-item"
+                      @bind-Value="this.DataContext.Remote"
+                      @onchange="this.AppState.SaveConfig">
+        </MatTextField>
+        <ValidationMessage For="@(() => this.DataContext.Remote)" />
+
+    </div>
+}

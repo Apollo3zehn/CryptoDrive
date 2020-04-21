@@ -2,6 +2,7 @@
     --primary-color: #20bccc;
     --font-color: #cecece;
     --dialog-color: #272727;
+    --error-color: #e2481a;
 }
 
 html, body {
@@ -178,11 +179,6 @@ hr {
     border-top: 1px solid rgb(197, 197, 197)
 }
 
-.sync-folder-pair {
-    display: flex;
-    flex-direction: column;
-}
-
 .mdc-text-field {
     background-color: transparent !important;
 }
@@ -198,6 +194,18 @@ hr {
 .mat-text-field-input {
     color: var(--font-color) !important;
 }
+
+    .mat-text-field-input.invalid {
+        border-bottom: 1px solid var(--error-color) !important;
+    }
+
+    .mat-text-field-input.valid.modified {
+        border-bottom: 1px solid var(--primary-color) !important;
+    }
+
+    .mat-text-field-input.valid.modified:not([type=checkbox]) {
+        outline: none;
+    }
 
 .mdc-select__anchor {
     background-color: transparent !important;
@@ -237,10 +245,23 @@ hr {
     justify-content: center;
     margin-top: 5em;
     margin-bottom: 5em;
-    width: 100%
+    width: 100%;
+}
+
+.sync-folder-pair {
+    display: flex;
+    flex-direction: column;
+}
+
+.sync-folder-pair-item {
+    margin: 5px 0px 5px 0px;
 }
 
 .list-group-item {
     background-color: transparent;
     border: 1px solid var(--primary-color);
+}
+
+.validation-message {
+    color: var(--error-color);
 }

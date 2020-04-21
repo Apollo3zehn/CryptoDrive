@@ -6,7 +6,7 @@
 <div>
     @if (this.AppState.IsSignedIn)
     {
-        <h3>Sync Folders</h3>
+        <MatHeadline4>Sync Folders</MatHeadline4>
 
         @if (this.AppState.Config.SyncFolderPairs.Any())
         {
@@ -14,25 +14,7 @@
                 @foreach (var syncFolderPair in this.AppState.Config.SyncFolderPairs)
                 {
                     <li class="list-group-item mb-4">
-                        <div class="sync-folder-pair">
-                            <MatTextField Label="Local Drive"
-                                          PlaceHolder="e.g. C:\Users\CryptoBot\Documents"
-                                          Icon="folder_shared"
-                                          @bind-Value="syncFolderPair.Local"
-                                          @onchange="this.AppState.SaveConfig">
-                            </MatTextField>
-
-                            <MatTextField Label="Cloud Drive"
-                                          PlaceHolder="e.g. /documents"
-                                          Icon="cloud"
-                                          @bind-Value="syncFolderPair.Remote"
-                                          @onchange="this.AppState.SaveConfig">
-                            </MatTextField>
-                        </div>
-
-                        <MatIconButton Icon="delete"
-                                   @onclick="() => this.AppState.InitializeRemoveSyncFolderDialog(syncFolderPair)">
-                        </MatIconButton>
+                        <SyncFolderPairView DataContext="syncFolderPair" />
                     </li>
                 }
             </ul>
@@ -44,44 +26,36 @@
             </div>
         }
 
-        <MatButton Icon="create_new_folder" 
-                   @onclick="this.AppState.AddSyncFolderPair">
-        </MatButton>
-
         @if (!this.AppState.Config.IsSyncEnabled)
         {
-            <MatButton @onclick="this.AppState.StartSync">
-                <i class="fas fa-sync"></i>&nbsp; Start
+            <MatButton Icon="create_new_folder"
+                       @onclick="this.AppState.InitializeAddEditSyncFolderDialog">
             </MatButton>
         }
-        else
+
+        @if (this.AppState.Config.SyncFolderPairs.Any())
         {
-            <MatButton @onclick="async () => await this.AppState.StopSyncAsync()">
-                <i class="fas fa-sync"></i>&nbsp; Stop
-            </MatButton>
-        }
-
-        <MatSelectItem @bind-Value="@this.AppState.LogLevel" 
-                       Items="@this.LogLevelValues">
-            <ItemTemplate Context="value">
-                @Utilities.GetEnumLocalization(@value)
-            </ItemTemplate>
-        </MatSelectItem>
-
-        <div class="message-log">
-            @foreach (var message in this.AppState.MessageLog)
+            @if (!this.AppState.Config.IsSyncEnabled)
             {
-                <span>@message</span>
+                <MatButton @onclick="this.AppState.StartSync">
+                    <i class="fas fa-sync"></i>&nbsp; Start
+                </MatButton>
             }
-        </div>
+            else
+            {
+                <MatButton @onclick="async () => await this.AppState.StopSyncAsync()">
+                    <i class="fas fa-sync"></i>&nbsp; Stop
+                </MatButton>
+            }
+        }
     }
     else
     {
         <div class="jumbotron">
             <h1 class="display-4">Hello, Human!</h1>
-            <p class="lead">Here is your Crypto Drive speaking. Together we are able to safely backup your data without the need to trust anyone but you (and me)!</p>
+            <p class="lead">Here is your Crypto Drive speaking. Together we will safely backup your data without the need to trust anyone but you (and me)!</p>
             <hr class="my-4">
-            <p>Sign-in to your Microsoft account to start your encrypted backup. You will get asked for some permissions to allow me to up- and download your files automagically.</p>
+            <p>Sign-in to your Microsoft account to start your encrypted backup. You will get asked for some permissions that allow me to sync your files automagically.</p>
 
             <div class="sign-in">
                 <MatButton @onclick="this.AppState.SignInAsync">
@@ -92,18 +66,49 @@
     }
 </div>
 
-<MatDialog @bind-IsOpen="@this.AppState.ShowSyncFolderDeleteDialog">
+@if (this.AppState.SelectedSyncFolderPair != null)
+{
+    <EditForm Model="this.AppState.SelectedSyncFolderPairEdit" OnValidSubmit="this.AppState.AddOrUpdateSyncFolderPair">
+        <DataAnnotationsValidator />
+
+        <MatDialog @bind-IsOpen="this.AppState.ShowSyncFolderAddEditDialog"
+                   CanBeClosed="false">
+            <MatDialogTitle>Hello, Human!</MatDialogTitle>
+            <MatDialogContent>
+                <p>Where should I look for your data to be synced?</p>
+
+                @if (this.AppState.ShowSyncFolderAddEditDialog)
+                {
+                    <SyncFolderPairEditView DataContext="this.AppState.SelectedSyncFolderPairEdit" />
+                }
+            </MatDialogContent>
+            <MatDialogActions>
+                <MatButton OnClick="() => this.AppState.ShowSyncFolderAddEditDialog = false">
+                    Cancel
+                </MatButton>
+                <MatButton Type="submit">
+                    Apply
+                </MatButton>
+            </MatDialogActions>
+        </MatDialog>
+
+    </EditForm>
+}
+
+
+<MatDialog @bind-IsOpen="this.AppState.ShowSyncFolderRemoveDialog"
+           CanBeClosed="false">
     <MatDialogTitle>Hello, Human!</MatDialogTitle>
     <MatDialogContent>
         <p>Do you want me to stop syncing this folder pair?</p>
     </MatDialogContent>
     <MatDialogActions>
-        <MatButton OnClick="() => this.AppState.ShowSyncFolderDeleteDialog = false">No Thanks</MatButton>
-        <MatButton OnClick="this.AppState.RemoveSyncFolderPair">Do as I command!</MatButton>
+        <MatButton OnClick="() => this.AppState.ShowSyncFolderRemoveDialog = false">No Thanks</MatButton>
+        <MatButton OnClick="this.AppState.RemoveSyncFolderPair">Yes!</MatButton>
     </MatDialogActions>
 </MatDialog>
 
-<MatDialog @bind-IsOpen="this.AppState.ShowKeyDialog" 
+<MatDialog @bind-IsOpen="this.AppState.ShowKeyDialog"
            CanBeClosed="false">
     <MatDialogTitle>Hello, Human!</MatDialogTitle>
     <MatDialogContent>
