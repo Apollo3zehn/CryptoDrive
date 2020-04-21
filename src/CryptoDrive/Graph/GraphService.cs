@@ -5,6 +5,7 @@ using Microsoft.Identity.Client;
 using System;
 using System.Linq;
 using System.Net.Http.Headers;
+using System.Reflection.Metadata.Ecma335;
 using System.Threading.Tasks;
 
 namespace CryptoDrive.Graph
@@ -62,6 +63,17 @@ namespace CryptoDrive.Graph
         #endregion
 
         #region Methods
+
+        public OneDriveAccountType GetAccountType()
+        {
+            if (this.IsSignedIn)
+                return _account.HomeAccountId.TenantId == OneDriveConstants.PersonalAccountTenantId
+                    ? OneDriveAccountType.Personal
+                    : OneDriveAccountType.WorkOrSchool;
+
+            else
+                throw new Exception("The user is not signed in.");
+        }
 
         public async Task SignInAsync()
         {

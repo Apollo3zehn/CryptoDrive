@@ -129,7 +129,7 @@ namespace CryptoDrive.Extensions
             {
                 AdditionalData = new Dictionary<string, object>()
                 {
-                    [OneDriveProxyConstants.DownloadUrl] = new Uri(fileInfo.FullName),
+                    [OneDriveConstants.DownloadUrl] = new Uri(fileInfo.FullName),
                 },
                 File = new Microsoft.Graph.File(),
                 FileSystemInfo = new Microsoft.Graph.FileSystemInfo()
@@ -150,7 +150,7 @@ namespace CryptoDrive.Extensions
         public static Uri Uri(this DriveItem driveItem)
         {
             if (driveItem.Type() == DriveItemType.File)
-                return driveItem.AdditionalData[OneDriveProxyConstants.DownloadUrl] as Uri;
+                return driveItem.AdditionalData[OneDriveConstants.DownloadUrl] as Uri;
 
             return null;
         }
@@ -173,7 +173,7 @@ namespace CryptoDrive.Extensions
             Hashes hashes = null;
 
             if (driveItem.AdditionalData != null)
-                additionalData = new Dictionary<string, object>() { [OneDriveProxyConstants.DownloadUrl] = driveItem.AdditionalData[OneDriveProxyConstants.DownloadUrl] };
+                additionalData = new Dictionary<string, object>() { [OneDriveConstants.DownloadUrl] = driveItem.AdditionalData[OneDriveConstants.DownloadUrl] };
 
             if (driveItem.ParentReference != null)
                 parentReference = new ItemReference() { Path = driveItem.ParentReference.Path };

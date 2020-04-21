@@ -39,7 +39,7 @@ namespace CryptoDrive.Core
 
         public OneDriveProxy(string basePath, IGraphServiceClient graphServiceClient, ILogger logger, Action patch = null)
         {
-            _basePrefix = $"{OneDriveProxyConstants.RootPrefix}{basePath}";
+            _basePrefix = $"{OneDriveConstants.RootPrefix}{basePath}";
             _patch = patch;
 
             this.Name = "OneDrive";
@@ -211,7 +211,7 @@ namespace CryptoDrive.Core
             {
 #warning catch more specific error message
                 this.Logger.LogWarning($"Download URI is null or has expired, requesting new one.");
-                var url = (await request.Select(value => OneDriveProxyConstants.DownloadUrl).GetAsync()).ToString();
+                var url = (await request.Select(value => OneDriveConstants.DownloadUrl).GetAsync()).ToString();
                 response = await WebRequest.Create(new Uri(url)).GetResponseAsync();
             }
 
