@@ -93,41 +93,34 @@ namespace CryptoDrive.Core.Tests
                     break;
 
                 case "/e":
-                    await localDrive.CreateOrUpdateAsync(Utils.DriveItemPool["/e1"]().ToConflict());
                     await localDrive.CreateOrUpdateAsync(Utils.DriveItemPool["/e2"]());
                     await remoteDrive.CreateOrUpdateAsync(Utils.DriveItemPool["/e1"]());
                     break;
 
                 case "/f":
-                    await localDrive.CreateOrUpdateAsync(Utils.DriveItemPool["/f1"]().ToConflict());
                     await localDrive.CreateOrUpdateAsync(Utils.DriveItemPool["/f2"]());
                     break;
 
                 case "/g":
                     await localDrive.CreateOrUpdateAsync(Utils.DriveItemPool["/g1"]());
-                    await localDrive.CreateOrUpdateAsync(Utils.DriveItemPool["/g1"]().ToConflict());
                     await remoteDrive.CreateOrUpdateAsync(Utils.DriveItemPool["/g1"]());
                     break;
 
                 case "/h":
-                    await localDrive.CreateOrUpdateAsync(Utils.DriveItemPool["/h1"]().ToConflict());
                     await remoteDrive.CreateOrUpdateAsync(Utils.DriveItemPool["/h1"]());
                     break;
 
                 case "/i":
-                    await localDrive.CreateOrUpdateAsync(Utils.DriveItemPool["/i1"]().ToConflict());
                     await remoteDrive.CreateOrUpdateAsync(Utils.DriveItemPool["/i2"]());
                     break;
 
                 case "/j":
-                    await localDrive.CreateOrUpdateAsync(Utils.DriveItemPool["/j1"]().ToConflict());
                     await localDrive.CreateOrUpdateAsync(Utils.DriveItemPool["/j2"]());
                     await remoteDrive.CreateOrUpdateAsync(Utils.DriveItemPool["/j3"]());
                     break;
 
                 case "/k":
                     await localDrive.CreateOrUpdateAsync(Utils.DriveItemPool["/k1"]());
-                    await localDrive.CreateOrUpdateAsync(Utils.DriveItemPool["/k1"]().ToConflict());
                     break;
 
                 default:

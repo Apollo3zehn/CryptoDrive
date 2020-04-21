@@ -32,7 +32,7 @@ namespace CryptoDrive.Core.Tests
         {
             Exception ex = null;
             _driveHive = await Utils.PrepareDrives(fileId, _logger);
-            var syncEngine = new CryptoDriveSyncEngine(_driveHive.RemoteDrive, _driveHive.LocalDrive, SyncMode.Echo, _logger);
+            var syncEngine = new CryptoDriveSyncEngine(_driveHive.RemoteDrive, _driveHive.LocalDrive, _logger);
 
             syncEngine.SyncCompleted += (sender, e) =>
             {

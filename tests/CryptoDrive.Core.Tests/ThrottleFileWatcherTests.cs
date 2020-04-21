@@ -16,7 +16,7 @@ namespace CryptoDrive.Core.Tests
             DriveChangedEventArgs actual = default;
 
             var folderPath = this.PrepareFolder();
-            var fileWatcher = new ThrottleFileWatcher(folderPath);
+            var fileWatcher = new ThrottleFileWatcher(folderPath, TimeSpan.FromMilliseconds(500));
             var manualResetEvent = new ManualResetEvent(initialState: false);
 
             fileWatcher.DriveChanged += (sender, e) =>
@@ -50,7 +50,7 @@ namespace CryptoDrive.Core.Tests
             DriveChangedEventArgs actual = default;
 
             var folderPath = this.PrepareFolder();
-            var fileWatcher = new ThrottleFileWatcher(folderPath);
+            var fileWatcher = new ThrottleFileWatcher(folderPath, TimeSpan.FromMilliseconds(500));
             var manualResetEvent = new ManualResetEvent(initialState: false);
 
             fileWatcher.DriveChanged += (sender, e) =>
@@ -86,7 +86,7 @@ namespace CryptoDrive.Core.Tests
             var folderPathSource = this.PrepareFolder();
             var folderPathTarget = this.PrepareFolder();
 
-            var fileWatcher = new ThrottleFileWatcher(folderPathSource);
+            var fileWatcher = new ThrottleFileWatcher(folderPathSource, TimeSpan.FromMilliseconds(500));
             var manualResetEvent = new ManualResetEvent(initialState: false);
 
             fileWatcher.DriveChanged += (sender, e) =>
@@ -122,7 +122,7 @@ namespace CryptoDrive.Core.Tests
             var folderPathSource = this.PrepareFolder();
             var folderPathTarget = this.PrepareFolder();
 
-            var fileWatcher = new ThrottleFileWatcher(folderPathTarget);
+            var fileWatcher = new ThrottleFileWatcher(folderPathTarget, TimeSpan.FromMilliseconds(500));
             var manualResetEvent = new ManualResetEvent(initialState: false);
 
             fileWatcher.DriveChanged += (sender, e) =>
@@ -156,7 +156,7 @@ namespace CryptoDrive.Core.Tests
             DriveChangedEventArgs actual = default;
 
             var folderPath = this.PrepareFolder();
-            var fileWatcher = new ThrottleFileWatcher(folderPath);
+            var fileWatcher = new ThrottleFileWatcher(folderPath, TimeSpan.FromMilliseconds(500));
             var manualResetEvent = new ManualResetEvent(initialState: false);
 
             fileWatcher.DriveChanged += (sender, e) =>
@@ -193,7 +193,7 @@ namespace CryptoDrive.Core.Tests
             DriveChangedEventArgs actual = default;
 
             var folderPath = this.PrepareFolder();
-            var fileWatcher = new ThrottleFileWatcher(folderPath);
+            var fileWatcher = new ThrottleFileWatcher(folderPath, TimeSpan.FromMilliseconds(500));
             var manualResetEvent = new ManualResetEvent(initialState: false);
 
             fileWatcher.DriveChanged += (sender, e) =>
@@ -229,7 +229,7 @@ namespace CryptoDrive.Core.Tests
             DriveChangedEventArgs actual = default;
 
             var folderPath = this.PrepareFolder();
-            var fileWatcher = new ThrottleFileWatcher(folderPath);
+            var fileWatcher = new ThrottleFileWatcher(folderPath, TimeSpan.FromMilliseconds(500));
             var manualResetEvent = new ManualResetEvent(initialState: false);
 
             fileWatcher.DriveChanged += (sender, e) =>
@@ -262,7 +262,7 @@ namespace CryptoDrive.Core.Tests
             DriveChangedEventArgs actual = default;
 
             var folderPath = this.PrepareFolder();
-            var fileWatcher = new ThrottleFileWatcher(folderPath);
+            var fileWatcher = new ThrottleFileWatcher(folderPath, TimeSpan.FromMilliseconds(500));
             var manualResetEvent = new ManualResetEvent(initialState: false);
 
             fileWatcher.DriveChanged += (sender, e) =>
@@ -297,7 +297,7 @@ namespace CryptoDrive.Core.Tests
             var folderPathSource = this.PrepareFolder();
             var folderPathTarget = this.PrepareFolder();
 
-            var fileWatcher = new ThrottleFileWatcher(folderPathSource);
+            var fileWatcher = new ThrottleFileWatcher(folderPathSource, TimeSpan.FromMilliseconds(500));
             var manualResetEvent = new ManualResetEvent(initialState: false);
 
             fileWatcher.DriveChanged += (sender, e) =>
@@ -332,7 +332,7 @@ namespace CryptoDrive.Core.Tests
             var folderPathSource = this.PrepareFolder();
             var folderPathTarget = this.PrepareFolder();
 
-            var fileWatcher = new ThrottleFileWatcher(folderPathTarget);
+            var fileWatcher = new ThrottleFileWatcher(folderPathTarget, TimeSpan.FromMilliseconds(500));
             var manualResetEvent = new ManualResetEvent(initialState: false);
 
             fileWatcher.DriveChanged += (sender, e) =>
@@ -365,7 +365,7 @@ namespace CryptoDrive.Core.Tests
             DriveChangedEventArgs actual = default;
 
             var folderPath = this.PrepareFolder();
-            var fileWatcher = new ThrottleFileWatcher(folderPath);
+            var fileWatcher = new ThrottleFileWatcher(folderPath, TimeSpan.FromMilliseconds(500));
             var manualResetEvent = new ManualResetEvent(initialState: false);
 
             fileWatcher.DriveChanged += (sender, e) =>
@@ -400,7 +400,7 @@ namespace CryptoDrive.Core.Tests
             DriveChangedEventArgs actual = default;
 
             var folderPath = this.PrepareFolder();
-            var fileWatcher = new ThrottleFileWatcher(folderPath);
+            var fileWatcher = new ThrottleFileWatcher(folderPath, TimeSpan.FromMilliseconds(500));
             var manualResetEvent = new ManualResetEvent(initialState: false);
 
             fileWatcher.DriveChanged += (sender, e) =>
@@ -434,7 +434,7 @@ namespace CryptoDrive.Core.Tests
             DriveChangedEventArgs actual = default;
 
             var folderPath = this.PrepareFolder();
-            var fileWatcher = new ThrottleFileWatcher(folderPath);
+            var fileWatcher = new ThrottleFileWatcher(folderPath, TimeSpan.FromMilliseconds(500));
             var manualResetEvent = new ManualResetEvent(initialState: false);
 
             fileWatcher.DriveChanged += (sender, e) =>
@@ -471,7 +471,7 @@ namespace CryptoDrive.Core.Tests
             DriveChangedEventArgs actual = default;
 
             var folderPath = this.PrepareFolder();
-            var fileWatcher = new ThrottleFileWatcher(folderPath);
+            var fileWatcher = new ThrottleFileWatcher(folderPath, TimeSpan.FromMilliseconds(500));
             var manualResetEvent = new ManualResetEvent(initialState: false);
 
             fileWatcher.DriveChanged += (sender, e) =>
@@ -504,7 +504,7 @@ namespace CryptoDrive.Core.Tests
             DriveChangedEventArgs actual = default;
 
             var folderPath = this.PrepareFolder();
-            var fileWatcher = new ThrottleFileWatcher(folderPath);
+            var fileWatcher = new ThrottleFileWatcher(folderPath, TimeSpan.FromMilliseconds(500));
             var manualResetEvent = new ManualResetEvent(initialState: false);
 
             fileWatcher.DriveChanged += (sender, e) =>

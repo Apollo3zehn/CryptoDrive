@@ -31,6 +31,12 @@ namespace CryptoDrive.Core
 
         #region Constructors
 
+        public OneDriveProxy(IGraphServiceClient graphServiceClient, ILogger logger, Action patch = null)
+            : this("/", graphServiceClient, logger, patch)
+        {
+            //
+        }
+
         public OneDriveProxy(string basePath, IGraphServiceClient graphServiceClient, ILogger logger, Action patch = null)
         {
             _basePrefix = $"{OneDriveProxyConstants.RootPrefix}{basePath}";
@@ -215,16 +221,6 @@ namespace CryptoDrive.Core
         public Task<bool> ExistsAsync(DriveItem driveItem)
         {
             return Task.FromResult(true);
-        }
-
-        public Task<DateTime> GetLastWriteTimeUtcAsync(DriveItem driveItem)
-        {
-            throw new NotImplementedException();
-        }
-
-        public Task<string> GetHashAsync(DriveItem driveItem)
-        {
-            throw new NotImplementedException();
         }
 
         #endregion

@@ -43,8 +43,6 @@ namespace CryptoDrive.Core
 
         Task<Stream> GetContentAsync(DriveItem driveItem);
         Task<bool> ExistsAsync(DriveItem driveItem);
-        Task<DateTime> GetLastWriteTimeUtcAsync(DriveItem driveItem);
-        Task<string> GetHashAsync(DriveItem driveItem);
 
         #endregion
     }

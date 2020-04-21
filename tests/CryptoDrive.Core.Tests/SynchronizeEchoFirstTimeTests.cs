@@ -26,7 +26,7 @@ namespace CryptoDrive.Core.Tests
         {
             _driveHive = await Utils.PrepareDrives(fileId, _logger);
 
-            var syncEngine = new CryptoDriveSyncEngine(_driveHive.RemoteDrive, _driveHive.LocalDrive, SyncMode.Echo, _logger);
+            var syncEngine = new CryptoDriveSyncEngine(_driveHive.RemoteDrive, _driveHive.LocalDrive, _logger);
 
             // Act
             syncEngine.Start();

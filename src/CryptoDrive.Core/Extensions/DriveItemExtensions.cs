@@ -67,39 +67,6 @@ namespace CryptoDrive.Extensions
         }
 
         // from x to drive item
-        public static DriveItem ToDriveItem(this FileSystemEventArgs fileSystemEventArgs, string basePath)
-        {
-            var fileInfo = new FileInfo(fileSystemEventArgs.FullPath);
-
-            if (fileSystemEventArgs.ChangeType == WatcherChangeTypes.Deleted)
-            {
-                var relativePath = fileSystemEventArgs.FullPath.Substring(basePath.Length);
-                var fileName = Path.GetFileName(relativePath);
-                var folderPath = Path.GetDirectoryName(relativePath).NormalizeSlashes();
-
-                var driveItem = new DriveItem()
-                {
-                    Deleted = new Deleted(),
-                    File = new Microsoft.Graph.File(),
-                    FileSystemInfo = new Microsoft.Graph.FileSystemInfo()
-                    {
-                        LastModifiedDateTime = DateTime.UtcNow
-                    },
-                    Name = fileName,
-                    ParentReference = new ItemReference() { Path = folderPath },
-                    Size = 0
-                };
-
-                driveItem.Id = driveItem.GetItemPath();
-
-                return driveItem;
-            }
-            else
-            {
-                return fileInfo.ToDriveItem(basePath);
-            }
-        }
-
         public static DriveItem ToDriveItem(this string relativePath, DriveItemType driveItemType)
         {
             var itemName = Path.GetFileName(relativePath);
@@ -188,12 +155,6 @@ namespace CryptoDrive.Extensions
             return null;
         }
 
-        public static void SetUri(this DriveItem driveItem, Uri newUri)
-        {
-            if (driveItem.Type() == DriveItemType.File)
-                driveItem.AdditionalData[OneDriveProxyConstants.DownloadUrl] = newUri;
-        }
-
         public static string GetItemPath(this DriveItem driveItem)
         {
             return Utilities.PathCombine(driveItem.ParentReference.Path, driveItem.Name);
@@ -202,13 +163,6 @@ namespace CryptoDrive.Extensions
         public static string GetAbsolutePath(this DriveItem driveItem, string basePath)
         {
             return driveItem.GetItemPath().ToAbsolutePath(basePath);
-        }
-
-        public static DriveItem ToConflict(this DriveItem driveItem)
-        {
-            driveItem.Name = driveItem.Name.ToConflictFileName(driveItem.LastModified());
-
-            return driveItem;
         }
 
         public static DriveItem MemberwiseClone(this DriveItem driveItem)
@@ -282,11 +236,6 @@ namespace CryptoDrive.Extensions
             }
 
             return changeType;
-        }
-
-        public static bool IsDeleted(this DriveItem driveItem)
-        {
-            return driveItem.Deleted != null;
         }
 
         public static string QuickXorHash(this DriveItem driveItem)

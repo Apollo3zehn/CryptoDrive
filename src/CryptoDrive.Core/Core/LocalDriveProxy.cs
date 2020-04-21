@@ -239,22 +239,6 @@ namespace CryptoDrive.Core
             return Task.FromResult(result);
         }
 
-        public Task<DateTime> GetLastWriteTimeUtcAsync(DriveItem driveItem)
-        {
-            return Task.FromResult(File.GetLastWriteTimeUtc(driveItem.GetAbsolutePath(this.BasePath)));
-        }
-
-        public Task<string> GetHashAsync(DriveItem driveItem)
-        {
-            var _hashAlgorithm = new QuickXorHash();
-            var fullPath = driveItem.GetAbsolutePath(this.BasePath);
-
-            using (var stream = File.OpenRead(fullPath))
-            {
-                return Task.FromResult(Convert.ToBase64String(_hashAlgorithm.ComputeHash(stream)));
-            }
-        }
-
         #endregion
 
         #region Private
