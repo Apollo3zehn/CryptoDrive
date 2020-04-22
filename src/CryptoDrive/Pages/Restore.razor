@@ -2,6 +2,25 @@
 
 @inherits AppStateComponentBase
 
-<MatHeadline4>Restore</MatHeadline4>
-
+<MatHeadline6>Cloud Explorer</MatHeadline6>
 <FileExplorer></FileExplorer>
+
+<EditForm Model="this.AppState.RestoreSettings" OnValidSubmit="this.Start">
+    <DataAnnotationsValidator />
+    <div class="restore-settings">
+        <MatTextField Label="Restore Key"
+                      Icon="vpn_key"
+                      @bind-Value="this.AppState.RestoreSettings.RestoreKey">
+        </MatTextField>
+        <ValidationMessage For="@(() => this.AppState.RestoreSettings.RestoreKey)" />
+
+        <MatTextField Label="Restore Folder"
+                      PlaceHolder="e.g. C:\Restore"
+                      Icon="folder"
+                      @bind-Value="this.AppState.RestoreSettings.RestoreFolder">
+        </MatTextField>
+        <ValidationMessage For="@(() => this.AppState.RestoreSettings.RestoreFolder)" />
+    </div>
+
+    <MatButton Type="submit">Start!</MatButton>
+</EditForm>

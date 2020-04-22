@@ -13,9 +13,10 @@ namespace CryptoDrive.Core
 
         #endregion
 
-        public static string GenerateKey()
+        public static string GenerateKey(int keySize)
         {
-            return Convert.ToBase64String(new AesCryptoServiceProvider().Key);
+            var aes = new AesCryptoServiceProvider() { KeySize = keySize };
+            return Convert.ToBase64String(aes.Key);
         }
 
         public static long CalculateCryptoLength(long originalStreamLength, int rgbIVLength)
@@ -30,7 +31,6 @@ namespace CryptoDrive.Core
         {
             _lock = new object();
 
-            // default key size is 256
             _cryptoServiceProvider = new AesCryptoServiceProvider()
             {
                 Key = Convert.FromBase64String(base64Key),

@@ -16,11 +16,11 @@ namespace CryptoDrive.Core
         #region Properties
 
         [Required]
-        [SyncFolderValidation(DriveLocation = CryptoDriveLocation.Local)]
+        [SyncFolderValidation(CryptoDriveLocation.Local)]
         public string Local { get; set; }
 
         [Required]
-        [SyncFolderValidation(DriveLocation = CryptoDriveLocation.Remote)]
+        [SyncFolderValidation(CryptoDriveLocation.Remote)]
         public string Remote { get; set; }
 
         #endregion

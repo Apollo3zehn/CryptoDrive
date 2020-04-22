@@ -4,6 +4,7 @@ using HarmonyLib;
 using Microsoft.AspNetCore.Components;
 using Microsoft.Graph;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -67,6 +68,24 @@ namespace CryptoDrive.Shared
         #endregion
 
         #region Methods
+
+        public string GetFileIcon(DriveItem driveItem)
+        {
+            var extension = Path.GetExtension(driveItem.Name);
+
+            return extension switch
+            {
+                ".docx" => "file-word",
+                ".xlsx" => "file-excel",
+                ".pptx" => "file-powerpoint",
+                ".pdf" => "file-pdf",
+                ".jpg" => "file-image",
+                ".jpeg" => "file-image",
+                ".png" => "file-image",
+                ".tiff" => "file-image",
+                _ => "file"
+            };
+        }
 
         protected override async Task OnParametersSetAsync()
         {

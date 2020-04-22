@@ -5,19 +5,22 @@ using System.Text.Json;
 
 namespace CryptoDrive.Core
 {
-    public class CryptoConfiguration
+    public class CryptoDriveConfiguration
     {
         #region Constructors
 
-        public CryptoConfiguration()
+        public CryptoDriveConfiguration()
         {
+            this.LogLevel = LogLevel.Information;
             this.SymmetricKey = string.Empty;
-            this.SyncFolderPairs = new List<SyncFolderPair>();
+            this.SyncAccounts = new List<SyncSettings>();
         }
 
         #endregion
 
         #region Properties
+
+        public static int KeySize { get; } = 256;
 
         public LogLevel LogLevel { get; set; }
 
@@ -27,16 +30,16 @@ namespace CryptoDrive.Core
 
         public string SymmetricKey { get; set; }
 
-        public List<SyncFolderPair> SyncFolderPairs { get; set; }
+        public List<SyncSettings> SyncAccounts { get; set;}
 
         #endregion
 
         #region Methods
 
-        public static CryptoConfiguration Load(string filePath)
+        public static CryptoDriveConfiguration Load(string filePath)
         {
             var jsonString = File.ReadAllText(filePath);
-            return JsonSerializer.Deserialize<CryptoConfiguration>(jsonString);
+            return JsonSerializer.Deserialize<CryptoDriveConfiguration>(jsonString);
         }
 
         public void Save(string filePath)

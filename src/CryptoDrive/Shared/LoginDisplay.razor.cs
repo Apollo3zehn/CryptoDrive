@@ -14,7 +14,7 @@ namespace CryptoDrive.Shared
 				{
 					await this.InvokeAsync(this.StateHasChanged);
 				}
-				else if (e.PropertyName == nameof(AppStateViewModel.UserName))
+				else if (e.PropertyName == nameof(AppStateViewModel.GivenName))
 				{
 					await this.InvokeAsync(this.StateHasChanged);
 				}

@@ -6,12 +6,12 @@
 <div>
     @if (this.AppState.IsSignedIn)
     {
-        <MatHeadline4>Sync Folders</MatHeadline4>
+        <MatHeadline6>Sync Folders</MatHeadline6>
 
-        @if (this.AppState.Config.SyncFolderPairs.Any())
+        @if (this.AppState.ActiveSyncSettings.SyncFolderPairs.Any())
         {
             <ul class="list-group">
-                @foreach (var syncFolderPair in this.AppState.Config.SyncFolderPairs)
+                @foreach (var syncFolderPair in this.AppState.ActiveSyncSettings.SyncFolderPairs)
                 {
                     <li class="list-group-item mb-4">
                         <SyncFolderPairView DataContext="syncFolderPair" />
@@ -33,7 +33,7 @@
             </MatButton>
         }
 
-        @if (this.AppState.Config.SyncFolderPairs.Any())
+        @if (this.AppState.ActiveSyncSettings.SyncFolderPairs.Any())
         {
             @if (!this.AppState.Config.IsSyncEnabled)
             {
