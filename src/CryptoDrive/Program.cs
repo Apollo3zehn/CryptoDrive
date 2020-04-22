@@ -38,7 +38,6 @@ namespace CryptoDrive
                 .ConfigureLogging(logging =>
                 {
                     logging.AddConsole();
-                    logging.AddDebug();
                 });
 
         #endregion

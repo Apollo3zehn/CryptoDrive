@@ -1,7 +1,5 @@
-﻿using CryptoDrive.Extensions;
-using CryptoDrive.Graph;
-using HarmonyLib;
-using Microsoft.AspNetCore.Components;
+﻿using CryptoDrive.Core;
+using CryptoDrive.Extensions;
 using Microsoft.Graph;
 using System.Collections.Generic;
 using System.IO;
@@ -14,8 +12,7 @@ namespace CryptoDrive.Shared
     {
         #region Fields
 
-        private IGraphServiceClient _graphClient;
-        private List<string> _navigationHierarchy;
+        private List<DriveItem> _navigationHierarchy;
 
         #endregion
 
@@ -23,7 +20,7 @@ namespace CryptoDrive.Shared
 
         public FileExplorer()
         {
-            _navigationHierarchy = new List<string>();
+            _navigationHierarchy = new List<DriveItem>();
             this.FolderContent = new List<DriveItem>();
         }
 
@@ -31,10 +28,9 @@ namespace CryptoDrive.Shared
 
         #region Properties
 
-        [Inject]
-        public IGraphService GraphService { get; set; }
+        public IDriveProxy Drive { get; private set; }
 
-        public IReadOnlyList<string> NavigationHierarchy => _navigationHierarchy;
+        public IReadOnlyList<DriveItem> NavigationHierarchy => _navigationHierarchy;
 
         public List<DriveItem> FolderContent { get; set; }
 
@@ -42,27 +38,18 @@ namespace CryptoDrive.Shared
 
         #region Commands
 
-        public async Task NavigateDownAsync(string folderName)
+        public async Task NavigateDownAsync(DriveItem folder)
         {
-            var folderPath = this.GetFolderPath(_navigationHierarchy.AddItem(folderName));
-
-            this.FolderContent = (await _graphClient.GetDriveItemRequestBuilder(folderPath).Children
-               .Request()
-               .GetAsync())
-               .ToList();
-
-            _navigationHierarchy.Add(folderName);
+            this.FolderContent = await this.Drive.GetFolderContentAsync(folder);
+            _navigationHierarchy.Add(folder);
         }
 
         public async Task NavigateToAsync(int index)
         {
             _navigationHierarchy = _navigationHierarchy.Take(index + 1).ToList();
-            var folderPath = this.GetFolderPath(_navigationHierarchy);
+            var folder = _navigationHierarchy.Last();
 
-            this.FolderContent = (await _graphClient.GetDriveItemRequestBuilder(folderPath).Children
-               .Request()
-               .GetAsync())
-               .ToList();
+            this.FolderContent = await this.Drive.GetFolderContentAsync(folder);
         }
 
         #endregion
@@ -78,26 +65,21 @@ namespace CryptoDrive.Shared
                 ".docx" => "file-word",
                 ".xlsx" => "file-excel",
                 ".pptx" => "file-powerpoint",
-                ".pdf" => "file-pdf",
-                ".jpg" => "file-image",
+                ".pdf"  => "file-pdf",
+                ".jpg"  => "file-image",
                 ".jpeg" => "file-image",
-                ".png" => "file-image",
+                ".png"  => "file-image",
                 ".tiff" => "file-image",
-                _ => "file"
+                _       => "file"
             };
         }
 
         protected override async Task OnParametersSetAsync()
         {
-            _graphClient = this.GraphService.GraphClient;
-            await this.NavigateDownAsync("/");
-        }
+            this.Drive = this.AppState.GetRemoteDriveProxy();
+            var driveItem = "/".ToDriveItem(DriveItemType.Folder);
 
-        private string GetFolderPath(IEnumerable<string> navigationHierarchy)
-        {
-            return navigationHierarchy
-                .Join(delimiter: "/")
-                .Replace("//", "/");
+            await this.NavigateDownAsync(driveItem);
         }
 
         #endregion

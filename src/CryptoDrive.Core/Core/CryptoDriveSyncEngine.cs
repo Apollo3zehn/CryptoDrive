@@ -431,7 +431,7 @@ namespace CryptoDrive.Core
 
             if (driveItem.Type() == DriveItemType.File)
             {
-                var originalStream = await sourceDrive.GetContentAsync(driveItem);
+                var originalStream = await sourceDrive.GetFileContentAsync(driveItem);
                 var stream = this.GetStream(originalStream, isLocal);
                 driveItem.Content = stream;
             }

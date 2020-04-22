@@ -21,6 +21,12 @@ namespace CryptoDrive.Core
 
         #endregion
 
+        #region Navigation
+
+        Task<List<DriveItem>> GetFolderContentAsync(DriveItem driveItem);
+
+        #endregion
+
         #region Change Tracking
 
         Task ProcessDelta(Func<List<DriveItem>, Task> action,
@@ -41,7 +47,7 @@ namespace CryptoDrive.Core
 
         #region File Info
 
-        Task<Stream> GetContentAsync(DriveItem driveItem);
+        Task<Stream> GetFileContentAsync(DriveItem driveItem);
         Task<bool> ExistsAsync(DriveItem driveItem);
 
         #endregion

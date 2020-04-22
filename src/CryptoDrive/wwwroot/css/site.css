@@ -268,14 +268,11 @@ hr {
     display: flex;
     flex-direction: row;
     padding: 5px;
-    background-color: rgba(0, 0, 0, 0.20);
-    border-top: 1px solid black;
-    border-right: 1px solid black;
-    border-left: 1px solid black;
 }
 
     .file-explorer-address-bar > i {
         cursor: pointer;
+        margin-left: 0.2em;
     }
 
         .file-explorer-address-bar > i:hover {
@@ -296,7 +293,6 @@ hr {
     flex-grow: 1;
     padding: 5px;
     background-color: rgba(0, 0, 0, 0.20);
-    border: 1px solid black;
 }
 
 .file-explorer-folder-content-icon {

@@ -3,9 +3,9 @@
 @inherits AppStateComponentBase
 
 <MatHeadline6>Cloud Explorer</MatHeadline6>
-<FileExplorer></FileExplorer>
+<FileExplorer @ref="_fileExplorer"></FileExplorer>
 
-<EditForm Model="this.AppState.RestoreSettings" OnValidSubmit="this.Start">
+<EditForm Model="this.AppState.RestoreSettings" OnValidSubmit="this.StartAsync">
     <DataAnnotationsValidator />
     <div class="restore-settings">
         <MatTextField Label="Restore Key"

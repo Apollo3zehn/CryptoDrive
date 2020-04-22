@@ -1,16 +1,17 @@
-﻿@inherits AppStateComponentBase
+@inherits AppStateComponentBase
 
 <div class="file-explorer">
     <div class="file-explorer-address-bar">
         <i class="material-icons" @onclick="async () => await this.NavigateToAsync(0)">cloud</i>
-        @foreach ((var folderName, var index) in this.NavigationHierarchy.Select((folderName, position) => (folderName, position)))
+        @foreach ((var folder, var index) in this.NavigationHierarchy.Select((folder, index) => (folder, index)))
         {
+            // Do not use .Skip(1) since this will cause the index to become incorrect.
             @if (index > 0)
             {
                 <span>&nbsp;&nbsp;/&nbsp;&nbsp;</span>
                 <span class="file-explorer-address-bar-item"
                       @onclick="async () => await this.NavigateToAsync(index)">
-                    @folderName
+                    @folder.Name
                 </span>
             }
         }
@@ -28,7 +29,7 @@
             else if (driveItem.Folder != null)
             {
                 <span class="file-explorer-folder-content-folder"
-                      @onclick="async () => await this.NavigateDownAsync(driveItem.Name)">
+                      @onclick="async () => await this.NavigateDownAsync(driveItem)">
                     <i class="far fa-folder file-explorer-folder-content-icon"></i>
                     @driveItem.Name
                 </span>

@@ -11,7 +11,7 @@ namespace CryptoDrive.Core
 		#region Properties
 
 		[Inject]
-		public AppStateViewModel AppState { get; set; }
+		protected AppStateViewModel AppState { get; set; }
 
 		protected PropertyChangedEventHandler PropertyChanged { get; set; }
 

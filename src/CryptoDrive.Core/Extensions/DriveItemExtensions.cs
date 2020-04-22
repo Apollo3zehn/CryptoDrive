@@ -69,6 +69,9 @@ namespace CryptoDrive.Extensions
         // from x to drive item
         public static DriveItem ToDriveItem(this string relativePath, DriveItemType driveItemType)
         {
+            if (relativePath == "/")
+                return relativePath.ToSpecialDriveItem();
+
             var itemName = Path.GetFileName(relativePath);
             var folderPath = Path.GetDirectoryName(relativePath).NormalizeSlashes();
 
@@ -83,7 +86,20 @@ namespace CryptoDrive.Extensions
                 ParentReference = new ItemReference() { Path = folderPath }
             };
 
-            driveItem.Id = driveItem.GetItemPath();
+            return driveItem;
+        }
+
+        private static DriveItem ToSpecialDriveItem(this string relativePath)
+        {
+            var itemName = "";
+            var folderPath = relativePath;
+
+            var driveItem = new DriveItem()
+            {
+                Folder = new Folder(),
+                Name = itemName,
+                ParentReference = new ItemReference() { Path = folderPath }
+            };
 
             return driveItem;
         }
@@ -100,12 +116,9 @@ namespace CryptoDrive.Extensions
                     LastModifiedDateTime = folderInfo.LastWriteTimeUtc
                 },
                 Folder = new Folder(),
-                Id = folderInfo.Name,
                 Name = folderName,
                 ParentReference = new ItemReference() { Path = folderPath }
             };
-
-            driveItem.Id = driveItem.GetItemPath();
 
             return driveItem;
         }
@@ -141,8 +154,6 @@ namespace CryptoDrive.Extensions
                 Size = fileInfo.Length
             };
 
-            driveItem.Id = driveItem.GetItemPath();
-
             return driveItem;
         }
 
@@ -150,7 +161,7 @@ namespace CryptoDrive.Extensions
         public static Uri Uri(this DriveItem driveItem)
         {
             if (driveItem.Type() == DriveItemType.File)
-                return driveItem.AdditionalData[OneDriveConstants.DownloadUrl] as Uri;
+                return new Uri((string)driveItem.AdditionalData[OneDriveConstants.DownloadUrl]);
 
             return null;
         }

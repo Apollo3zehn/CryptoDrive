@@ -65,6 +65,15 @@ namespace CryptoDrive.Core
 
         #endregion
 
+        #region Navigation
+
+        public Task<List<DriveItem>> GetFolderContentAsync(DriveItem driveItem)
+        {
+            throw new NotImplementedException();
+        }
+
+        #endregion
+
         #region Change Tracking
 
         public async Task ProcessDelta(Func<List<DriveItem>, Task> action,
@@ -208,7 +217,7 @@ namespace CryptoDrive.Core
 
         #region File Info
 
-        public Task<Stream> GetContentAsync(DriveItem driveItem)
+        public Task<Stream> GetFileContentAsync(DriveItem driveItem)
         {
             var fullPath = driveItem.GetAbsolutePath(this.BasePath);
             var stream = File.OpenRead(fullPath);

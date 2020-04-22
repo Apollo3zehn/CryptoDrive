@@ -39,7 +39,11 @@ namespace CryptoDrive.Core
 
         public OneDriveProxy(string basePath, IGraphServiceClient graphServiceClient, ILogger logger, Action patch = null)
         {
-            _basePrefix = $"{OneDriveConstants.RootPrefix}{basePath}";
+            if (basePath == "/")
+                _basePrefix = $"{OneDriveConstants.RootPrefix}";
+            else
+                _basePrefix = $"{OneDriveConstants.RootPrefix}{basePath}";
+
             _patch = patch;
 
             this.Name = "OneDrive";
@@ -62,6 +66,28 @@ namespace CryptoDrive.Core
 
         #endregion
 
+        #region Navigation
+
+        public async Task<List<DriveItem>> GetFolderContentAsync(DriveItem driveItem)
+        {
+            if (!string.IsNullOrWhiteSpace(driveItem.Id))
+            {
+                return (await this.GraphClient.Me.Drive.Items[driveItem.Id].Children
+                    .Request()
+                    .GetAsync())
+                    .ToList();
+            }
+            else
+            {
+                return (await this.GraphClient.GetDriveItemRequestBuilder(driveItem.GetItemPath()).Children
+                    .Request()
+                    .GetAsync())
+                    .ToList();
+            }
+        }
+
+        #endregion
+
         #region Change Tracking
 
         public async Task ProcessDelta(Func<List<DriveItem>, Task> action,
@@ -71,13 +97,16 @@ namespace CryptoDrive.Core
                                        CancellationToken cancellationToken)
         {
             // ensure base folder exists
-            var driveItem = this.BasePath.ToDriveItem(DriveItemType.Folder);
-            await this.CreateOrUpdateAsync(driveItem);
+            if (folderPath != "/")
+            {
+                var driveItem = this.BasePath.ToDriveItem(DriveItemType.Folder);
+                await this.CreateOrUpdateAsync(driveItem);
+            }
 
             // go
             var pageCounter = 0;
 
-#warning check if folderPath != "/" is also required
+#warning check if condition folderPath != "/" is also required
             if (changeType != DriveChangedType.Descendants)
                 throw new NotSupportedException("OneDriveProxy always provides delta pages for all drive items.");
 
@@ -124,7 +153,7 @@ namespace CryptoDrive.Core
 
                 // exclude base items
                 var itemPath = driveItem.GetItemPath();
-                return itemPath != "/root" && itemPath != _basePrefix;
+                return driveItem.Root == null && itemPath != _basePrefix;
             }).ToList();
 
             deltaPage.ForEach(driveItem => this.ToCryptoDriveItem(driveItem));
@@ -197,7 +226,7 @@ namespace CryptoDrive.Core
 
         #region File Info
 
-        public async Task<Stream> GetContentAsync(DriveItem driveItem)
+        public async Task<Stream> GetFileContentAsync(DriveItem driveItem)
         {
             WebResponse response;
 

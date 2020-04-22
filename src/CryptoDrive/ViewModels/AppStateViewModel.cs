@@ -1,6 +1,7 @@
 ﻿using CryptoDrive.Core;
 using CryptoDrive.Graph;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Prism.Mvvm;
 using System;
 using System.Collections.Generic;
@@ -257,6 +258,11 @@ namespace CryptoDrive.ViewModels
         #endregion
 
         #region Methods
+
+        public IDriveProxy GetRemoteDriveProxy()
+        {
+            return new OneDriveProxy(_graphService.GraphClient, NullLogger.Instance);
+        }
 
         public void Dispose()
         {
