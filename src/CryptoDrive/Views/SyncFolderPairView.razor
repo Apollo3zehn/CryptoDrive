@@ -1,0 +1,31 @@
+﻿@inherits AppStateComponentBase
+
+@if (this.DataContext != null)
+{
+    <div class="sync-folder-pair">
+        <MatTextField Label="Local Drive"
+                      Icon="folder_shared"
+                      Disabled="true"
+                      @bind-Value="this.DataContext.Local"
+                      @onchange="this.AppState.SaveConfig">
+        </MatTextField>
+
+        <MatTextField Label="Cloud Drive"
+                      Icon="cloud"
+                      Disabled="true"
+                      @bind-Value="this.DataContext.Remote"
+                      @onchange="this.AppState.SaveConfig">
+        </MatTextField>
+    </div>
+
+    @if (!this.AppState.Config.IsSyncEnabled)
+    {
+        <MatIconButton Icon="create"
+                       @onclick="() => this.AppState.InitializeAddEditSyncFolderDialog(this.DataContext)">
+        </MatIconButton>
+
+        <MatIconButton Icon="delete"
+                       @onclick="() => this.AppState.InitializeRemoveSyncFolderDialog(this.DataContext)">
+        </MatIconButton>
+    }
+}

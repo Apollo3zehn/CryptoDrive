@@ -20,7 +20,7 @@ namespace CryptoDrive.Core.Tests
             (_logger, _loggerProviders) = Utils.GetLogger(xunitLogger);
         }
 
-        [Fact]
+        [Fact(Skip = "Only for manual execution.")]
         public async void CanUploadSmallFileTest()
         {
             // Arrange
@@ -42,6 +42,9 @@ namespace CryptoDrive.Core.Tests
             var fileInfo = new FileInfo(filePath);
 
             var driveItem = fileInfo.ToDriveItem(tempPath.TrimEnd('\\'));
+
+            using var stream = File.OpenRead(filePath);
+            driveItem.Content = stream;
 
             // Act
             if (!graphService.IsSignedIn)
@@ -77,6 +80,9 @@ namespace CryptoDrive.Core.Tests
 
             var fileInfo = new FileInfo(filePath);
             var driveItem = fileInfo.ToDriveItem(tempPath.TrimEnd('\\'));
+
+            using var stream = File.OpenRead(filePath);
+            driveItem.Content = stream;
 
             // Act
             if (!graphService.IsSignedIn)

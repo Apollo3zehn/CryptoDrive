@@ -2,7 +2,7 @@
 
 namespace CryptoDrive.Pages
 {
-    public partial class Index
+	public partial class Index
     {
 		#region Constructors
 
@@ -11,9 +11,13 @@ namespace CryptoDrive.Pages
 			this.PropertyChanged = async (sender, e) =>
 			{
 				if (e.PropertyName == nameof(AppStateViewModel.IsSignedIn))
-				{
 					await this.InvokeAsync(this.StateHasChanged);
-				}
+
+				else if (e.PropertyName == nameof(AppStateViewModel.ShowSyncFolderAddEditDialog))
+					await this.InvokeAsync(this.StateHasChanged);
+
+				else if (e.PropertyName == nameof(AppStateViewModel.ShowSyncFolderRemoveDialog))
+					await this.InvokeAsync(this.StateHasChanged);
 			};
 		}
 

@@ -3,11 +3,13 @@
     <div class="login-display">
         @if (this.AppState.IsSignedIn)
         {
-            @if (!string.IsNullOrWhiteSpace(this.AppState.UserName))
+            @if (!string.IsNullOrWhiteSpace(this.AppState.GivenName))
             {
-                <span>Hi, @this.AppState.UserName!</span>
+                <span>Hi, @this.AppState.GivenName!</span>
             }
 
-            <button type="button" class="btn btn-link" @onclick="this.AppState.SignOutAsync">Sign-Out</button>
+            <MatButton @onclick="this.AppState.SignOutAsync">
+                Sign-Out
+            </MatButton>
         }
     </div>

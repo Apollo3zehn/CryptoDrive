@@ -1,6 +1,7 @@
 ﻿using Microsoft.Graph;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -10,7 +11,7 @@ namespace CryptoDrive.Core
     {
         #region Events
 
-        public event EventHandler<string> FolderChanged;
+        public event EventHandler<DriveChangedNotification> FolderChanged;
 
         #endregion
 
@@ -20,11 +21,18 @@ namespace CryptoDrive.Core
 
         #endregion
 
+        #region Navigation
+
+        Task<List<DriveItem>> GetFolderContentAsync(DriveItem driveItem);
+
+        #endregion
+
         #region Change Tracking
 
         Task ProcessDelta(Func<List<DriveItem>, Task> action,
                           string folderPath,
                           CryptoDriveContext context,
+                          DriveChangedType changeType,
                           CancellationToken cancellationToken);
 
         #endregion
@@ -39,12 +47,8 @@ namespace CryptoDrive.Core
 
         #region File Info
 
-        Task<Uri> GetDownloadUriAsync(DriveItem driveItem);
+        Task<Stream> GetFileContentAsync(DriveItem driveItem);
         Task<bool> ExistsAsync(DriveItem driveItem);
-        Task<DateTime> GetLastWriteTimeUtcAsync(DriveItem driveItem);
-        Task SetLastWriteTimeUtcAsync(DriveItem driveItem);
-        Task<string> GetHashAsync(DriveItem driveItem);
-        Task<DriveItem> ToFullDriveItem(DriveItem driveItem);
 
         #endregion
     }

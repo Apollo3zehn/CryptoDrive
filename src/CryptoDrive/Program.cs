@@ -5,6 +5,13 @@ using Microsoft.Extensions.Logging;
 
 namespace CryptoDrive
 {
+    // Electron.NET works good, execpt with MS SSO because Blazor disconnects.
+    // - Frame can be hidden
+    // - Program
+    // - Tray Icon Support
+    // https://github.com/ElectronNET/Electron.NET/issues/361
+    // https://github.com/ElectronNET/Electron.NET/issues/270
+
     public class Program
     {
         #region Properties
@@ -12,7 +19,7 @@ namespace CryptoDrive
         public static string BaseUrl { get; private set; }
 
         #endregion
-
+        
         #region Methods
 
         public static void Main(string[] args)
@@ -31,7 +38,6 @@ namespace CryptoDrive
                 .ConfigureLogging(logging =>
                 {
                     logging.AddConsole();
-                    logging.AddDebug();
                 });
 
         #endregion

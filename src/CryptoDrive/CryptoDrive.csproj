@@ -7,7 +7,8 @@
 
   <ItemGroup>
     <PackageReference Include="Lib.Harmony" Version="2.0.0.9" />
-    <PackageReference Include="Microsoft.Graph" Version="3.1.0" />
+    <PackageReference Include="MatBlazor" Version="2.3.0" />
+    <PackageReference Include="Microsoft.Graph" Version="3.3.0" />
     <PackageReference Include="Microsoft.Identity.Client" Version="4.11.0" />
     <PackageReference Include="Prism.Core" Version="7.2.0.1422" />
     <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="4.7.0" />
@@ -16,6 +17,21 @@
 
   <ItemGroup>
     <ProjectReference Include="..\CryptoDrive.Core\CryptoDrive.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Update="Resources\EnumerationDescription.Designer.cs">
+      <DesignTime>True</DesignTime>
+      <AutoGen>True</AutoGen>
+      <DependentUpon>EnumerationDescription.resx</DependentUpon>
+    </Compile>
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Update="Resources\EnumerationDescription.resx">
+      <Generator>ResXFileCodeGenerator</Generator>
+      <LastGenOutput>EnumerationDescription.Designer.cs</LastGenOutput>
+    </EmbeddedResource>
   </ItemGroup>
 
 </Project>

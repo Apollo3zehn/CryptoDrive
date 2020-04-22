@@ -4,13 +4,13 @@ namespace CryptoDrive.Core
 {
     public class SyncCompletedEventArgs : EventArgs
     {
-        public SyncCompletedEventArgs(int syncId, Exception exception)
+        public SyncCompletedEventArgs(long syncId, Exception exception)
         {
             this.SyncId = syncId;
             this.Exception = exception;
         }
 
-        public int SyncId { get; }
+        public long SyncId { get; }
         public Exception Exception { get; }
     }
 }

@@ -2,6 +2,7 @@ using CryptoDrive.Extensions;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using Xunit;
 using Xunit.Abstractions;
 using Directory = System.IO.Directory;
@@ -21,11 +22,11 @@ namespace CryptoDrive.Core.Tests
             (_logger, _loggerProviders) = Utils.GetLogger(xunitLogger);
         }
 
-        private async void Execute(string fileId, Action assertAction)
+        private async Task Execute(string fileId, Action assertAction)
         {
             _driveHive = await Utils.PrepareDrives(fileId, _logger);
 
-            var syncEngine = new CryptoDriveSyncEngine(_driveHive.RemoteDrive, _driveHive.LocalDrive, SyncMode.Echo, _logger);
+            var syncEngine = new CryptoDriveSyncEngine(_driveHive.RemoteDrive, _driveHive.LocalDrive, _logger);
 
             // Act
             syncEngine.Start();
@@ -36,9 +37,9 @@ namespace CryptoDrive.Core.Tests
         }
 
         [Fact]
-        public void CanSyncATest()
+        public async Task CanSyncATest()
         {
-            this.Execute("/a", () =>
+            await this.Execute("/a", () =>
             {
                 Assert.True(File.Exists("/a".ToAbsolutePath(_driveHive.LocalDrivePath)), "File does not exist.");
                 Assert.True(File.Exists("/a".ToAbsolutePath(_driveHive.RemoteDrivePath)), "File does not exist.");
@@ -48,9 +49,9 @@ namespace CryptoDrive.Core.Tests
         }
 
         [Fact]
-        public void CanSyncSubATest()
+        public async Task CanSyncSubATest()
         {
-            this.Execute("/sub/a", () =>
+            await this.Execute("/sub/a", () =>
             {
                 Assert.True(File.Exists("/sub/a".ToAbsolutePath(_driveHive.LocalDrivePath)), "File does not exist.");
                 Assert.True(File.Exists("/sub/a".ToAbsolutePath(_driveHive.RemoteDrivePath)), "File does not exist.");
@@ -60,9 +61,9 @@ namespace CryptoDrive.Core.Tests
         }
 
         [Fact]
-        public void CanSyncBTest()
+        public async Task CanSyncBTest()
         {
-            this.Execute("/b", () =>
+            await this.Execute("/b", () =>
             {
                 Assert.True(File.Exists("/b".ToAbsolutePath(_driveHive.LocalDrivePath)), "File does not exist.");
                 Assert.True(File.Exists("/b".ToAbsolutePath(_driveHive.RemoteDrivePath)), "File does not exist.");
@@ -72,18 +73,18 @@ namespace CryptoDrive.Core.Tests
         }
 
         [Fact]
-        public void CanSyncCTest()
+        public async Task CanSyncCTest()
         {
-            this.Execute("/c", () =>
+            await this.Execute("/c", () =>
             {
                 Assert.True(!File.Exists("/c".ToAbsolutePath(_driveHive.RemoteDrivePath)), "File should not exist.");
             });
         }
 
         [Fact]
-        public void CanSyncDTest()
+        public async Task CanSyncDTest()
         {
-            this.Execute("/d", () =>
+            await this.Execute("/d", () =>
             {
                 Assert.True(File.Exists("/d".ToAbsolutePath(_driveHive.LocalDrivePath)), "File does not exist.");
                 Assert.True(File.Exists("/d".ToAbsolutePath(_driveHive.RemoteDrivePath)), "File does not exist.");
@@ -93,9 +94,9 @@ namespace CryptoDrive.Core.Tests
         }
 
         [Fact]
-        public void CanSyncETest()
+        public async Task CanSyncETest()
         {
-            this.Execute("/e", () =>
+            await this.Execute("/e", () =>
             {
                 Assert.True(File.Exists("/e".ToAbsolutePath(_driveHive.LocalDrivePath)), "File does not exist.");
                 Assert.True(File.Exists("/e".ToAbsolutePath(_driveHive.RemoteDrivePath)), "File does not exist.");
@@ -105,9 +106,9 @@ namespace CryptoDrive.Core.Tests
         }
 
         [Fact]
-        public void CanSyncFTest()
+        public async Task CanSyncFTest()
         {
-            this.Execute("/f", () =>
+            await this.Execute("/f", () =>
             {
                 Assert.True(File.Exists("/f".ToAbsolutePath(_driveHive.LocalDrivePath)), "File does not exist.");
                 Assert.True(File.Exists("/f".ToAbsolutePath(_driveHive.RemoteDrivePath)), "File does not exist.");
@@ -117,9 +118,9 @@ namespace CryptoDrive.Core.Tests
         }
 
         [Fact]
-        public void CanSyncGTest()
+        public async Task CanSyncGTest()
         {
-            this.Execute("/g", () =>
+            await this.Execute("/g", () =>
             {
                 Assert.True(File.Exists("/g".ToAbsolutePath(_driveHive.LocalDrivePath)), "File does not exist.");
                 Assert.True(File.Exists("/g".ToAbsolutePath(_driveHive.RemoteDrivePath)), "File does not exist.");
@@ -129,27 +130,27 @@ namespace CryptoDrive.Core.Tests
         }
 
         [Fact]
-        public void CanSyncHTest()
+        public async Task CanSyncHTest()
         {
-            this.Execute("/h", () =>
+            await this.Execute("/h", () =>
             {
                 Assert.True(!File.Exists("/h".ToAbsolutePath(_driveHive.RemoteDrivePath)), "File should not exist.");
             });
         }
 
         [Fact]
-        public void CanSyncITest()
+        public async Task CanSyncITest()
         {
-            this.Execute("/i", () =>
+            await this.Execute("/i", () =>
             {
                 Assert.True(!File.Exists("/i".ToAbsolutePath(_driveHive.RemoteDrivePath)), "File should not exist.");
             });
         }
 
         [Fact]
-        public void CanSyncJTest()
+        public async Task CanSyncJTest()
         {
-            this.Execute("/j", () =>
+            await this.Execute("/j", () =>
             {
                 Assert.True(File.Exists("/j".ToAbsolutePath(_driveHive.LocalDrivePath)), "File does not exist.");
                 Assert.True(File.Exists("/j".ToAbsolutePath(_driveHive.RemoteDrivePath)), "File does not exist.");
@@ -159,9 +160,9 @@ namespace CryptoDrive.Core.Tests
         }
 
         [Fact]
-        public void CanSyncKTest()
+        public async Task CanSyncKTest()
         {
-            this.Execute("/k", () =>
+            await this.Execute("/k", () =>
             {
                 Assert.True(File.Exists("/k".ToAbsolutePath(_driveHive.LocalDrivePath)), "File does not exist.");
                 Assert.True(File.Exists("/k".ToAbsolutePath(_driveHive.RemoteDrivePath)), "File does not exist.");

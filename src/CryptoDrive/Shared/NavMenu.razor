@@ -1,18 +1,38 @@
-﻿<div class="top-row pl-4 navbar navbar-dark">
-    <img src="/images/logo.png"/>
+﻿@inherits AppStateComponentBase
+
+<div class="top-row pl-4 navbar navbar-dark">
+    <img src="/images/logo.png" />
     <button class="navbar-toggler" @onclick="ToggleNavMenu">
         <span class="navbar-toggler-icon"></span>
     </button>
 </div>
 
 <div class="@NavMenuCssClass" @onclick="ToggleNavMenu">
-    <ul class="nav flex-column">
-        <li class="nav-item px-3">
-            <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
-                <i class="fas fa-sync"></i>&nbsp; Sync
-            </NavLink>
-        </li>
-    </ul>
+    @if (this.AppState.IsSignedIn)
+    {
+        <ul class="nav flex-column">
+            <li class="nav-item px-3">
+                <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
+                    <i class="material-icons">sync</i>&nbsp; Sync
+                </NavLink>
+            </li>
+            <li class="nav-item px-3">
+                <NavLink class="nav-link" href="restore" Match="NavLinkMatch.All">
+                    <i class="material-icons">cloud_download</i>&nbsp; Restore
+                </NavLink>
+            </li>
+            <li class="nav-item px-3">
+                <NavLink class="nav-link" href="logs" Match="NavLinkMatch.All">
+                    <i class="material-icons">create</i>&nbsp; Logs
+                </NavLink>
+            </li>
+            <li class="nav-item px-3">
+                <NavLink class="nav-link" href="settings" Match="NavLinkMatch.All">
+                    <i class="material-icons">settings</i>&nbsp; Settings
+                </NavLink>
+            </li>
+        </ul>
+    }
 </div>
 
 @code {

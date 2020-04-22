@@ -28,11 +28,11 @@ namespace CryptoDrive.Core.Tests
             (_logger, _loggerProviders) = Utils.GetLogger(xunitLogger);
         }
 
-        private async void Execute(string fileId, Func<Task> actAction, Action assertAction, int syncId)
+        private async Task Execute(string fileId, Func<Task> actAction, Action assertAction, int syncId)
         {
             Exception ex = null;
             _driveHive = await Utils.PrepareDrives(fileId, _logger);
-            var syncEngine = new CryptoDriveSyncEngine(_driveHive.RemoteDrive, _driveHive.LocalDrive, SyncMode.Echo, _logger);
+            var syncEngine = new CryptoDriveSyncEngine(_driveHive.RemoteDrive, _driveHive.LocalDrive, _logger);
 
             syncEngine.SyncCompleted += (sender, e) =>
             {
@@ -68,13 +68,13 @@ namespace CryptoDrive.Core.Tests
         }
 
         [Fact]
-        public void CanSyncSubA_AddTest()
+        public async Task CanSyncSubA_AddTest()
         {
-            this.Execute("/sub/a", async () =>
+            await this.Execute("/sub/a", async () =>
             {
                 /* add new file */
                 _logger.LogInformation("TEST: Add file.");
-                await _driveHive.LocalDrive.CreateOrUpdateAsync(Utils.DriveItemPool["/b1"]);
+                await _driveHive.LocalDrive.CreateOrUpdateAsync(Utils.DriveItemPool["/b1"]());
             },
             () =>
             {
@@ -87,27 +87,27 @@ namespace CryptoDrive.Core.Tests
         }
 
         [Fact]
-        public void CanSyncSubA_DeleteTest()
+        public async Task CanSyncSubA_DeleteTest()
         {
-            this.Execute("/sub/a", async () =>
+            await this.Execute("/sub/a", async () =>
             {
                 /* delete file */
                 _logger.LogInformation("TEST: Delete file.");
-                await _driveHive.LocalDrive.DeleteAsync(Utils.DriveItemPool["/sub/a1"]);
+                await _driveHive.LocalDrive.DeleteAsync(Utils.DriveItemPool["/sub/a1"]());
             },
             () =>
             {
                 Assert.True(!File.Exists("/sub/a".ToAbsolutePath(_driveHive.LocalDrivePath)), "File should not exist.");
                 Assert.True(!File.Exists("/sub/a".ToAbsolutePath(_driveHive.RemoteDrivePath)), "File should not exist.");
-            }, syncId: 2);
+            }, syncId: 1);
         }
 
         [Fact]
-        public void CanSyncSubA_ModifyTest()
+        public async Task CanSyncSubA_ModifyTest()
         {
-            this.Execute("/sub/a", async () =>
+            await this.Execute("/sub/a", async () =>
             {
-                var driveItem = Utils.DriveItemPool["/sub/a1"].MemberwiseClone();
+                var driveItem = Utils.DriveItemPool["/sub/a1"]();
 
                 using (var stream = new MemoryStream(Encoding.UTF8.GetBytes("New content.")))
                 {
@@ -133,20 +133,20 @@ namespace CryptoDrive.Core.Tests
 
                     Assert.True(actual == expected, "The hashes are not equal.");
                 }
-            }, syncId: 2);
+            }, syncId: 1);
         }
 
         [Fact]
-        public void CanSyncSubA_Move1Test()
+        public async Task CanSyncSubA_Move1Test()
         {
-            this.Execute("/sub/a", async () =>
+            await this.Execute("/sub/a", async () =>
             {
-                var newDriveItem = Utils.DriveItemPool["/sub/a1"].MemberwiseClone();
+                var newDriveItem = Utils.DriveItemPool["/sub/a1"]();
                 newDriveItem.ParentReference.Path = newDriveItem.ParentReference.Path.Replace("/sub", "/sub_new");
 
                 /* move file to new folder */
                 _logger.LogInformation("TEST: Move file.");
-                await _driveHive.LocalDrive.MoveAsync(Utils.DriveItemPool["/sub/a1"], newDriveItem);
+                await _driveHive.LocalDrive.MoveAsync(Utils.DriveItemPool["/sub/a1"](), newDriveItem);
             },
             () =>
             {
@@ -155,20 +155,20 @@ namespace CryptoDrive.Core.Tests
 
                 Assert.True(File.Exists("/sub_new/a".ToAbsolutePath(_driveHive.LocalDrivePath)), "File does not exist.");
                 Assert.True(File.Exists("/sub_new/a".ToAbsolutePath(_driveHive.RemoteDrivePath)), "File does not exist.");
-            }, syncId: 2);
+            }, syncId: 3);
         }
 
         [Fact]
-        public void CanSyncSubA_Move2Test()
+        public async Task CanSyncSubA_Move2Test()
         {
-            this.Execute("/sub/a", async () =>
+            await this.Execute("/sub/a", async () =>
             {
-                var newDriveItem = Utils.DriveItemPool["/sub/a1"].MemberwiseClone();
+                var newDriveItem = Utils.DriveItemPool["/sub/a1"]();
                 newDriveItem.Name = newDriveItem.Name.Replace("a", "a_new");
 
                 /* rename file */
                 _logger.LogInformation("TEST: Rename file.");
-                await _driveHive.LocalDrive.MoveAsync(Utils.DriveItemPool["/sub/a1"], newDriveItem);
+                await _driveHive.LocalDrive.MoveAsync(Utils.DriveItemPool["/sub/a1"](), newDriveItem);
             },
             () =>
             {
@@ -177,13 +177,13 @@ namespace CryptoDrive.Core.Tests
 
                 Assert.True(File.Exists("/sub/a_new".ToAbsolutePath(_driveHive.LocalDrivePath)), "File does not exist.");
                 Assert.True(File.Exists("/sub/a_new".ToAbsolutePath(_driveHive.RemoteDrivePath)), "File does not exist.");
-            }, syncId: 2);
+            }, syncId: 1);
         }
 
         [Fact]
-        public void CanSyncSubA_Move3Test()
+        public async Task CanSyncSubA_Move3Test()
         {
-            this.Execute("/sub/a", async () =>
+            await this.Execute("/sub/a", async () =>
             {
                 var oldDriveItem = "/sub".ToDriveItem(DriveItemType.Folder);
                 var newDriveItem = oldDriveItem.MemberwiseClone();
@@ -205,18 +205,18 @@ namespace CryptoDrive.Core.Tests
         }
 
         [Fact]
-        public void CanSyncExtA_MoveTest()
+        public async Task CanSyncExtA_Move1Test()
         {
             var externalDrivePath = Path.Combine(Path.GetTempPath(), "CryptoDriveExternal_" + Guid.NewGuid().ToString());
             var externalDrive = new LocalDriveProxy(externalDrivePath, "External", _logger);
 
-            this.Execute("", async () =>
+            await this.Execute("", async () =>
             {
-                await externalDrive.CreateOrUpdateAsync(Utils.DriveItemPool["/sub/a1"]);
+                await externalDrive.CreateOrUpdateAsync(Utils.DriveItemPool["/sub/a1"]());
 
                 /* move folder from external drive to local drive */
                 _logger.LogInformation("TEST: Move folder from external drive to local drive.");
-                var newDriveItem = Utils.DriveItemPool["/sub/a1"].MemberwiseClone();
+                var newDriveItem = Utils.DriveItemPool["/sub/a1"]();
                 var sourcePath = Path.GetDirectoryName(newDriveItem.GetAbsolutePath(externalDrivePath));
                 var targetPath = Path.GetDirectoryName(newDriveItem.GetAbsolutePath(_driveHive.LocalDrivePath));
 
@@ -226,6 +226,33 @@ namespace CryptoDrive.Core.Tests
             {
                 Assert.True(Directory.Exists("/sub".ToAbsolutePath(_driveHive.RemoteDrivePath)), "Folder does not exist.");
                 Assert.True(File.Exists("/sub/a".ToAbsolutePath(_driveHive.RemoteDrivePath)), "File does not exist.");
+            }, syncId: 2);
+
+            Directory.Delete(externalDrivePath, true);
+        }
+
+        [Fact]
+        public async Task CanSyncExtA_Move2Test()
+        {
+            var externalDrivePath = Path.Combine(Path.GetTempPath(), "CryptoDriveExternal_" + Guid.NewGuid().ToString());
+            var externalDrive = new LocalDriveProxy(externalDrivePath, "External", _logger);
+
+            await this.Execute("/sub/a", () =>
+            {
+                /* move folder from local drive to external drive */
+                _logger.LogInformation("TEST: Move folder from local drive to external drive.");
+                var newDriveItem = Utils.DriveItemPool["/sub/a1"]();
+                var sourcePath = Path.GetDirectoryName(newDriveItem.GetAbsolutePath(_driveHive.LocalDrivePath));
+                var targetPath = Path.GetDirectoryName(newDriveItem.GetAbsolutePath(externalDrivePath));
+
+                Directory.Move(sourcePath, targetPath);
+
+                return Task.CompletedTask;
+            },
+            () =>
+            {
+                Assert.True(!Directory.Exists("/sub".ToAbsolutePath(_driveHive.RemoteDrivePath)), "Folder should not exist.");
+                Assert.True(!File.Exists("/sub/a".ToAbsolutePath(_driveHive.RemoteDrivePath)), "File should not exist.");
             }, syncId: 1);
 
             Directory.Delete(externalDrivePath, true);
