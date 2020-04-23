@@ -2,11 +2,10 @@ using CryptoDrive.Extensions;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Threading.Tasks;
 using Xunit;
 using Xunit.Abstractions;
-using Directory = System.IO.Directory;
-using File = System.IO.File;
 
 namespace CryptoDrive.Core.Tests
 {

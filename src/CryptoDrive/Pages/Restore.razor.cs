@@ -1,9 +1,7 @@
 ﻿using CryptoDrive.Core;
 using CryptoDrive.Cryptography;
 using CryptoDrive.Drives;
-using CryptoDrive.Extensions;
 using CryptoDrive.Shared;
-using Microsoft.Graph;
 using System;
 using System.IO;
 using System.Linq;
@@ -38,11 +36,11 @@ namespace CryptoDrive.Pages
             var targetFolder = settings.RestoreFolder;
             var cryptonizer = new Cryptonizer(settings.RestoreKey);
 
-            System.IO.Directory.CreateDirectory(targetFolder);
+            Directory.CreateDirectory(targetFolder);
             await this.RestoreHierarchyAsync(sourceFolder, targetFolder, cryptonizer, drive);
         }
 
-        private async Task RestoreHierarchyAsync(DriveItem sourceFolder, string targetFolder, Cryptonizer cryptonizer, IDriveProxy drive)
+        private async Task RestoreHierarchyAsync(CryptoDriveItem sourceFolder, string targetFolder, Cryptonizer cryptonizer, IDriveProxy drive)
         {
             var driveItems = await drive.GetFolderContentAsync(sourceFolder);
 
@@ -50,13 +48,13 @@ namespace CryptoDrive.Pages
             {
                 var itemPath = Path.Combine(targetFolder, driveItem.Name);
 
-                switch (driveItem.Type())
+                switch (driveItem.Type)
                 {
                     case DriveItemType.File:
 
                         using (var encryptedStream = await drive.GetFileContentAsync(driveItem))
                         using (var decryptedStream = cryptonizer.CreateDecryptStream(encryptedStream))
-                        using (var fileStream = System.IO.File.Create(itemPath))
+                        using (var fileStream = File.Create(itemPath))
                         {
                             await decryptedStream.CopyToAsync(fileStream);
                         }
@@ -66,7 +64,7 @@ namespace CryptoDrive.Pages
 
                     case DriveItemType.Folder:
 
-                        System.IO.Directory.CreateDirectory(itemPath);
+                        Directory.CreateDirectory(itemPath);
                         await this.RestoreHierarchyAsync(driveItem, itemPath, cryptonizer, drive);
 
                         break;

@@ -6,7 +6,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Net;
 using System.Net.Http;
 using System.Text;
 using System.Threading;
@@ -82,7 +81,7 @@ namespace CryptoDrive.Drives
             if (this.BasePath  != "/")
             {
                 var driveItem = this.BasePath.ToDriveItem(DriveItemType.Folder);
-                await this.CreateOrUpdateAsync(driveItem);
+                await this.CreateOrUpdateAsync(driveItem, null);
             }
         }
 
@@ -90,29 +89,32 @@ namespace CryptoDrive.Drives
 
         #region Navigation
 
-        public async Task<List<DriveItem>> GetFolderContentAsync(DriveItem driveItem)
+        public async Task<List<CryptoDriveItem>> GetFolderContentAsync(CryptoDriveItem driveItem)
         {
+            IDriveItemChildrenCollectionRequest request;
+
             if (string.IsNullOrWhiteSpace(driveItem.Id))
-            {
-                return (await this.GraphClient.GetDriveItemRequestBuilder(driveItem.GetItemPath()).Children
-                    .Request()
-                    .GetAsync())
-                    .ToList();
-            }
+                request = this.GraphClient
+                    .GetDriveItemRequestBuilder(driveItem.GetItemPath()).Children
+                    .Request();
             else
-            {
-                return (await this.GraphClient.Me.Drive.Items[driveItem.Id].Children
-                    .Request()
+                request = this.GraphClient.Me.Drive.Items[driveItem.Id].Children
+                    .Request();
+
+            var driveItems = (await request
                     .GetAsync())
+                    .Where(driveItem => driveItem.File != null || driveItem.Folder != null)
+                    .Select(driveItem => driveItem.ToCryptoDriveItem(_basePrefix))
                     .ToList();
-            }
+
+            return driveItems;
         }
 
         #endregion
 
         #region Change Tracking
 
-        public async Task ProcessDelta(Func<List<DriveItem>, Task> action,
+        public async Task ProcessDelta(Func<List<CryptoDriveItem>, Task> action,
                                        string folderPath,
                                        CryptoDriveContext context,
                                        DriveChangedType changeType,
@@ -144,7 +146,7 @@ namespace CryptoDrive.Drives
             }
         }
 
-        private async Task<(List<DriveItem> DeltaPage, bool IsLast)> GetDeltaPageAsync()
+        private async Task<(List<CryptoDriveItem> DeltaPage, bool IsLast)> GetDeltaPageAsync()
         {
             IDriveItemDeltaCollectionPage _currentDeltaPage;
 
@@ -167,11 +169,13 @@ namespace CryptoDrive.Drives
                     return false;
 
                 // exclude base items
-                var itemPath = driveItem.GetItemPath();
-                return driveItem.Root == null && itemPath != _basePrefix;
+                var itemPath = Utilities.PathCombine(driveItem.ParentReference.Path, driveItem.Name);
+                return (driveItem.File != null || driveItem.Folder != null) && 
+                        driveItem.Root == null &&
+                        itemPath != _basePrefix;
             }).ToList();
 
-            deltaPage.ForEach(driveItem => this.ToCryptoDriveItem(driveItem));
+            var convertedDeltaPage = deltaPage.Select(driveItem => driveItem.ToCryptoDriveItem(_basePrefix)).ToList();
 
             // if the last page was received
             if (_currentDeltaPage.NextPageRequest == null)
@@ -179,41 +183,44 @@ namespace CryptoDrive.Drives
                 var deltaLink = _currentDeltaPage.AdditionalData[Constants.OdataInstanceAnnotations.DeltaLink].ToString();
                 _lastDeltaPage.InitializeNextPageRequest(this.GraphClient, deltaLink);
 
-                return (deltaPage, true);
+                return (convertedDeltaPage, true);
             }
-
-            return (deltaPage, false);
+            else
+            {
+                return (convertedDeltaPage, false);
+            }
         }
 
         #endregion
 
         #region CRUD
 
-        public async Task<DriveItem> CreateOrUpdateAsync(DriveItem driveItem)
+        public async Task<CryptoDriveItem> CreateOrUpdateAsync(CryptoDriveItem driveItem, Stream content)
         {
             DriveItem newDriveItem;
 
-            switch (driveItem.Type())
+            switch (driveItem.Type)
             {
                 case DriveItemType.Folder:
 
-                    var absoluteParentPath = driveItem.ParentReference.Path.ToAbsolutePath(this.BasePath);
+                    var absoluteParentPath = driveItem.Path.ToAbsolutePath(this.BasePath);
+                    var createFolderDriveItem = this.CreateFolderDriveItem(driveItem.Name);
+
                     newDriveItem = await this.GraphClient.GetDriveItemRequestBuilder(absoluteParentPath).Children
                         .Request()
-                        .AddAsync(driveItem.ToCreateFolderDriveItem());
+                        .AddAsync(createFolderDriveItem);
 
                     break;
 
                 case DriveItemType.File:
 
-                    var properties = driveItem.ToUploadableProperties();
-                    var stream = driveItem.Content;
+                    var properties = this.CreateUploadableProperties(driveItem.LastModified);
                     var absoluteItemPath = driveItem.GetAbsolutePath(this.BasePath);
 
                     if (driveItem.Size <= 4 * 1024 * 1024) // file.Length <= 4 MB
-                        newDriveItem = await this.UploadSmallFileAsync(absoluteItemPath, stream, properties);
+                        newDriveItem = await this.UploadSmallFileAsync(absoluteItemPath, content, properties);
                     else
-                        newDriveItem = await this.UploadLargeFileAsync(absoluteItemPath, stream, properties);
+                        newDriveItem = await this.UploadLargeFileAsync(absoluteItemPath, content, properties);
 
                     break;
 
@@ -221,15 +228,15 @@ namespace CryptoDrive.Drives
                     throw new NotSupportedException();
             }
 
-            return this.ToCryptoDriveItem(newDriveItem);
+            return newDriveItem.ToCryptoDriveItem(_basePrefix);
         }
 
-        public Task<DriveItem> MoveAsync(DriveItem oldDriveItem, DriveItem newDriveItem)
+        public Task<CryptoDriveItem> MoveAsync(CryptoDriveItem oldDriveItem, CryptoDriveItem newDriveItem)
         {
             throw new NotImplementedException();
         }
 
-        public async Task DeleteAsync(DriveItem driveItem)
+        public async Task DeleteAsync(CryptoDriveItem driveItem)
         {
             await this.GraphClient.Me.Drive.Items[driveItem.Id]
                 .Request()
@@ -240,30 +247,24 @@ namespace CryptoDrive.Drives
 
         #region File Info
 
-        public async Task<Stream> GetFileContentAsync(DriveItem driveItem)
+        public async Task<Stream> GetFileContentAsync(CryptoDriveItem driveItem)
         {
-            WebResponse response;
+            IDriveItemContentRequest request;
 
-            var request = this.GraphClient.Me.Drive.Items[driveItem.Id].Request();
-            var uri = driveItem.Uri();
+            if (string.IsNullOrWhiteSpace(driveItem.Id))
+                request = this.GraphClient
+                    .GetDriveItemRequestBuilder(driveItem.GetItemPath()).Content
+                    .Request();
+            else
+                request = this.GraphClient.Me.Drive.Items[driveItem.Id].Content
+                    .Request();
 
-            try
-            {
-                response = await WebRequest.Create(uri).GetResponseAsync();
-            }
-            // if download url required
-            catch (Exception)
-            {
-#warning catch more specific error message
-                this.Logger.LogWarning($"Download URI is null or has expired, requesting new one.");
-                var url = (await request.Select(value => OneDriveConstants.DownloadUrl).GetAsync()).ToString();
-                response = await WebRequest.Create(new Uri(url)).GetResponseAsync();
-            }
+            var content = await request.GetAsync();
 
-            return response.GetResponseStream();
+            return content;
         }
 
-        public Task<bool> ExistsAsync(DriveItem driveItem)
+        public Task<bool> ExistsAsync(CryptoDriveItem driveItem)
         {
             return Task.FromResult(true);
         }
@@ -271,6 +272,27 @@ namespace CryptoDrive.Drives
         #endregion
 
         #region Private
+
+        private DriveItemUploadableProperties CreateUploadableProperties(DateTime lastModified)
+        {
+            return new DriveItemUploadableProperties()
+            {
+                FileSystemInfo = new Microsoft.Graph.FileSystemInfo() { LastModifiedDateTime = lastModified }
+            };
+        }
+
+        private DriveItem CreateFolderDriveItem(string folderName)
+        {
+            return new DriveItem
+            {
+                Name = folderName,
+                Folder = new Folder(),
+                AdditionalData = new Dictionary<string, object>()
+                {
+                    {"@microsoft.graph.conflictBehavior", "replace"}
+                }
+            };
+        }
 
         // https://github.com/microsoftgraph/msgraph-sdk-dotnet/issues/558
         private async Task<DriveItem> UploadSmallFileAsync(string itemPath, Stream stream, DriveItemUploadableProperties properties)
@@ -332,16 +354,6 @@ namespace CryptoDrive.Drives
                 if (result.UploadSucceeded)
                     driveItem = result.ItemResponse;
             }
-
-            return driveItem;
-        }
-
-        private DriveItem ToCryptoDriveItem(DriveItem driveItem)
-        {
-            if (driveItem.ParentReference.Path.Length == _basePrefix.Length)
-                driveItem.ParentReference.Path = "/";
-            else
-                driveItem.ParentReference.Path = driveItem.ParentReference.Path.Substring(_basePrefix.Length);
 
             return driveItem;
         }

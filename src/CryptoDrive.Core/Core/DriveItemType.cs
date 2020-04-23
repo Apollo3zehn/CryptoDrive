@@ -3,7 +3,6 @@
     public enum DriveItemType
     {
         Folder = 0,
-        File = 1,
-        RemoteItem = 2
+        File = 1
     }
 }

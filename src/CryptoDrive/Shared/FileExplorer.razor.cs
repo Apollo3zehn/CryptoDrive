@@ -1,7 +1,6 @@
 ﻿using CryptoDrive.Core;
 using CryptoDrive.Drives;
 using CryptoDrive.Extensions;
-using Microsoft.Graph;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -13,7 +12,7 @@ namespace CryptoDrive.Shared
     {
         #region Fields
 
-        private List<DriveItem> _navigationHierarchy;
+        private List<CryptoDriveItem> _navigationHierarchy;
 
         #endregion
 
@@ -21,8 +20,8 @@ namespace CryptoDrive.Shared
 
         public FileExplorer()
         {
-            _navigationHierarchy = new List<DriveItem>();
-            this.FolderContent = new List<DriveItem>();
+            _navigationHierarchy = new List<CryptoDriveItem>();
+            this.FolderContent = new List<CryptoDriveItem>();
         }
 
         #endregion
@@ -31,15 +30,15 @@ namespace CryptoDrive.Shared
 
         public IDriveProxy Drive { get; private set; }
 
-        public IReadOnlyList<DriveItem> NavigationHierarchy => _navigationHierarchy;
+        public IReadOnlyList<CryptoDriveItem> NavigationHierarchy => _navigationHierarchy;
 
-        public List<DriveItem> FolderContent { get; set; }
+        public List<CryptoDriveItem> FolderContent { get; set; }
 
         #endregion
 
         #region Commands
 
-        public async Task NavigateDownAsync(DriveItem folder)
+        public async Task NavigateDownAsync(CryptoDriveItem folder)
         {
             this.FolderContent = await this.Drive.GetFolderContentAsync(folder);
             _navigationHierarchy.Add(folder);
@@ -57,7 +56,7 @@ namespace CryptoDrive.Shared
 
         #region Methods
 
-        public string GetFileIcon(DriveItem driveItem)
+        public string GetFileIcon(CryptoDriveItem driveItem)
         {
             var extension = Path.GetExtension(driveItem.Name);
 

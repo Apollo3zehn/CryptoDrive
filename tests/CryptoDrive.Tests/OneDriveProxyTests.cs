@@ -38,20 +38,19 @@ namespace CryptoDrive.Core.Tests
 
             var tempPath = Path.GetTempPath();
             var filePath = Path.Combine(tempPath, $"small.txt");
-            var content = DateTime.Now.ToString();
-            File.WriteAllText(filePath, content);
+            var stringContent = DateTime.Now.ToString();
+            File.WriteAllText(filePath, stringContent);
             var fileInfo = new FileInfo(filePath);
 
             var driveItem = fileInfo.ToDriveItem(tempPath.TrimEnd('\\'));
 
-            using var stream = File.OpenRead(filePath);
-            driveItem.Content = stream;
+            using var content = File.OpenRead(filePath);
 
             // Act
             if (!graphService.IsSignedIn)
                 await graphService.SignInAsync();
 
-            await drive.CreateOrUpdateAsync(driveItem);
+            await drive.CreateOrUpdateAsync(driveItem, content);
 
             // Assert
         }
@@ -82,14 +81,13 @@ namespace CryptoDrive.Core.Tests
             var fileInfo = new FileInfo(filePath);
             var driveItem = fileInfo.ToDriveItem(tempPath.TrimEnd('\\'));
 
-            using var stream = File.OpenRead(filePath);
-            driveItem.Content = stream;
+            using var content = File.OpenRead(filePath);
 
             // Act
             if (!graphService.IsSignedIn)
                 await graphService.SignInAsync();
 
-            await drive.CreateOrUpdateAsync(driveItem);
+            await drive.CreateOrUpdateAsync(driveItem, content);
 
             // Assert
         }

@@ -2,7 +2,6 @@
 using CryptoDrive.Drives;
 using CryptoDrive.Extensions;
 using Microsoft.Extensions.Logging;
-using Microsoft.Graph;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -224,20 +223,13 @@ namespace CryptoDrive.Core
             await _localDrive.ProcessDelta(async deltaPage => await this.InternalSynchronize(_localDrive, _remoteDrive, deltaPage),
                                            folderPath, _context, changeType, _cts.Token);
 
-            //// conflicts
-            //await this.CheckConflicts();
-
-            // orphaned remote states
-            //if (_syncMode == SyncMode.Echo)
-            //    await this.DeleteOrphanedRemoteStates();
-
             _logger.LogDebug("Sync finished.");
         }
 
         private async Task InternalSynchronize(
             IDriveProxy sourceDrive,
             IDriveProxy targetDrive,
-            List<DriveItem> deltaPage)
+            List<CryptoDriveItem> deltaPage)
         {
             var isLocal = sourceDrive == _localDrive;
 
@@ -307,13 +299,13 @@ namespace CryptoDrive.Core
             }
         }
 
-        private async Task<(DriveItem UpdateDriveItem, WatcherChangeTypes ChangeType)> SyncDriveItem(
+        private async Task<(CryptoDriveItem UpdateDriveItem, WatcherChangeTypes ChangeType)> SyncDriveItem(
             IDriveProxy sourceDrive,
             IDriveProxy targetDrive,
-            DriveItem oldDriveItem,
-            DriveItem newDriveItem)
+            CryptoDriveItem oldDriveItem,
+            CryptoDriveItem newDriveItem)
         {
-            DriveItem updatedDriveItem = null;
+            CryptoDriveItem updatedDriveItem = null;
 
             (var itemName1, var itemName2) = this.GetItemNames(newDriveItem);
 
@@ -417,7 +409,7 @@ namespace CryptoDrive.Core
         }
 
         /* low level */
-        private async Task<DriveItem> TransferDriveItem(IDriveProxy sourceDrive, IDriveProxy targetDrive, DriveItem driveItem)
+        private async Task<CryptoDriveItem> TransferDriveItem(IDriveProxy sourceDrive, IDriveProxy targetDrive, CryptoDriveItem driveItem)
         {
             (var itemName1, var itemName2) = this.GetItemNames(driveItem);
 
@@ -427,30 +419,29 @@ namespace CryptoDrive.Core
             return await this.InternalTransferDriveItem(sourceDrive, targetDrive, driveItem);
         }
 
-        private async Task<DriveItem> InternalTransferDriveItem(IDriveProxy sourceDrive, IDriveProxy targetDrive, DriveItem driveItem)
+        private async Task<CryptoDriveItem> InternalTransferDriveItem(IDriveProxy sourceDrive, IDriveProxy targetDrive, CryptoDriveItem driveItem)
         {
-            var isLocal = sourceDrive == _localDrive;
+            switch (driveItem.Type)
+            {
+                case DriveItemType.Folder:
+                    return await targetDrive.CreateOrUpdateAsync(driveItem, null);
 
-            if (driveItem.Type() == DriveItemType.File)
-            {
-                var originalStream = await sourceDrive.GetFileContentAsync(driveItem);
-                var stream = this.GetStream(originalStream, isLocal);
-                driveItem.Content = stream;
-            }
+                case DriveItemType.File:
 
-            try
-            {
-                var newDriveItem = await targetDrive.CreateOrUpdateAsync(driveItem);
-                return newDriveItem;
-            }
-            finally
-            {
-                if (driveItem.Content != null)
-                    await driveItem.Content.DisposeAsync();
+                    var isLocal = sourceDrive == _localDrive;
+
+                    using (var originalStream = await sourceDrive.GetFileContentAsync(driveItem))
+                    using (var stream = this.GetTransformedStream(originalStream, isLocal))
+                    {
+                        return await targetDrive.CreateOrUpdateAsync(driveItem, stream);
+                    }
+
+                default:
+                    throw new NotSupportedException();
             }
         }
 
-        private Stream GetStream(Stream stream, bool isLocal)
+        private Stream GetTransformedStream(Stream stream, bool isLocal)
         {
             if (_cryptonizer != null)
             {
@@ -463,12 +454,12 @@ namespace CryptoDrive.Core
             return stream;
         }
 
-        private (string itemName1, string itemName2) GetItemNames(DriveItem driveItem)
+        private (string itemName1, string itemName2) GetItemNames(CryptoDriveItem driveItem)
         {
             string itemName1;
             string itemName2;
 
-            switch (driveItem.Type())
+            switch (driveItem.Type)
             {
                 case DriveItemType.Folder:
                     itemName1 = "Folder"; itemName2 = "folder"; break;
@@ -476,9 +467,8 @@ namespace CryptoDrive.Core
                 case DriveItemType.File:
                     itemName1 = "File"; itemName2 = "file"; break;
 
-                case DriveItemType.RemoteItem:
                 default:
-                    throw new ArgumentException();
+                    throw new NotSupportedException();
             }
 
             return (itemName1, itemName2);
