@@ -184,7 +184,7 @@ namespace CryptoDrive.Core
                 {
                     foreach (var driveItem in deltaPage)
                     {
-                        this.UpdateContext(null, newRemoteState: driveItem.ToRemoteState(), WatcherChangeTypes.Created);
+                        this.UpdateContext(null, newRemoteState: driveItem, WatcherChangeTypes.Created);
                     }
 
                     return Task.CompletedTask;
@@ -219,8 +219,8 @@ namespace CryptoDrive.Core
 
                     try
                     {
-                        RemoteState oldRemoteState;
-                        RemoteState newRemoteState;
+                        CryptoDriveItem oldRemoteState;
+                        CryptoDriveItem newRemoteState;
 
                         _cts.Token.ThrowIfCancellationRequested();
 
@@ -230,20 +230,13 @@ namespace CryptoDrive.Core
                         else
                             oldRemoteState = _context.RemoteStates.FirstOrDefault(current => current.Id == newDriveItem.Id);
 
-                        var oldDriveItem = oldRemoteState?.ToDriveItem();
+                        var oldDriveItem = oldRemoteState;
 
 #warning Check this.
                         // This prevents that a file rename can be tracked but it is unclear how to determine a local ID instead?
                         // Maybe the change tracking algorithm can find the ID of a renamed file using the context's remote state list?
                         if (isLocal && oldDriveItem != null)
                             newDriveItem.Id = oldDriveItem.Id;
-
-                        // file is tracked as conflict
-                        // action: do nothing, it will be handled by "CheckConflicts" later
-                        if (isLocal && _context.Conflicts.Any(conflict => conflict.OriginalFilePath == newDriveItem.GetItemPath()))
-                        {
-                            _logger.LogDebug($"File is tracked as conflict. Action(s): do nothing.");
-                        }
 
                         // synchronize
                         (var updatedDriveItem, var changeType) = await this.SyncDriveItem(sourceDrive, targetDrive, oldDriveItem, newDriveItem.MemberwiseClone());
@@ -256,14 +249,9 @@ namespace CryptoDrive.Core
                         else
                         {
                             if (isLocal)
-                            {
-                                newRemoteState = updatedDriveItem.ToRemoteState();
-                                newRemoteState.IsLocal = true;
-                            }
+                                newRemoteState = updatedDriveItem;
                             else
-                            {
-                                newRemoteState = newDriveItem.ToRemoteState();
-                            }
+                                newRemoteState = newDriveItem;
 
                             this.UpdateContext(oldRemoteState, newRemoteState, changeType);
                         }
@@ -355,10 +343,9 @@ namespace CryptoDrive.Core
         private void ClearContext()
         {
             _context.RemoteStates.Clear();
-            _context.Conflicts.Clear();
         }
 
-        private void UpdateContext(RemoteState oldRemoteState, RemoteState newRemoteState, WatcherChangeTypes changeType)
+        private void UpdateContext(CryptoDriveItem oldRemoteState, CryptoDriveItem newRemoteState, WatcherChangeTypes changeType)
         {
             switch (changeType)
             {

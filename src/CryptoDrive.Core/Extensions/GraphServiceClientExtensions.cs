@@ -6,7 +6,7 @@ namespace CryptoDrive.Extensions
     {
         public static IDriveItemRequestBuilder GetDriveItemRequestBuilder(this IGraphServiceClient graphClient, string itemPath)
         {
-#warning Better to accept a driveitem instead of a string (and use its ID)?
+#warning Better accept a driveitem instead of a string (and use its ID)?
 
             // graphClient.Me.Drive.RootRoot.ItemWithPath("/") should work like 
             // every other path, but with msgraph it doesn't.

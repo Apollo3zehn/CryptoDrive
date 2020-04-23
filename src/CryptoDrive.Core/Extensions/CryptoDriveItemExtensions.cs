@@ -6,32 +6,6 @@ namespace CryptoDrive.Extensions
 {
     public static class CryptoDriveItemExtensions
     {
-        // from remote state to drive item and vice versa
-        public static RemoteState ToRemoteState(this CryptoDriveItem driveItem)
-        {
-            var type = driveItem.Type;
-
-            return new RemoteState()
-            {
-                Path = driveItem.Path,
-                Id = driveItem.Id,
-                Name = driveItem.Name,
-                LastModified = driveItem.LastModified,
-                Size = driveItem.Size,
-                Type = type
-            };
-        }
-
-        public static CryptoDriveItem ToDriveItem(this RemoteState remoteState, bool deleted = false)
-        {
-            return new CryptoDriveItem(remoteState.Id, remoteState.Name, remoteState.Path, remoteState.Type)
-            {
-                IsDeleted = deleted,
-                LastModified = remoteState.LastModified,
-                Size = remoteState.Size
-            };
-        }
-
         // from x to drive item
         public static CryptoDriveItem ToDriveItem(this string itemPath, DriveItemType type)
         {

@@ -25,12 +25,6 @@ namespace CryptoDrive.Core
 
         #region Properties
 
-        public bool IsDeleted { get; set; }
-
-        public DriveItemType Type { get; }
-
-        public DateTime LastModified { get; set; }
-
         public string Id { get; set; }
 
         public string Name { get; set; }
@@ -38,6 +32,14 @@ namespace CryptoDrive.Core
         public string Path { get; set; }
 
         public long Size { get; set; }
+
+        public DriveItemType Type { get; }
+
+        public DateTime LastModified { get; set; }
+
+        public bool IsLocal { get; set; }
+
+        public bool IsDeleted { get; set; }
 
         #endregion
 

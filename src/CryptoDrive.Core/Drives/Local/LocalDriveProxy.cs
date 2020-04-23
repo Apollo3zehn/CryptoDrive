@@ -299,7 +299,11 @@ namespace CryptoDrive.Drives
                         default:
                             throw new NotSupportedException();
                     }
-                }).Select(current => current.ToDriveItem(deleted: true));
+                }).Select(current =>
+                {
+                    current.IsDeleted = true;
+                    return current;
+                });
 
                 driveItems = driveItems.Concat(deletedItems);
 
