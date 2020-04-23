@@ -1,3 +1,4 @@
+using CryptoDrive.Drives;
 using CryptoDrive.Extensions;
 using CryptoDrive.Graph;
 using Microsoft.Extensions.Logging;
@@ -33,7 +34,7 @@ namespace CryptoDrive.Core.Tests
 
             var options = Options.Create(graphOptions);
             var graphService = new GraphService(options);
-            var proxy = new OneDriveProxy(graphService.GraphClient, _logger, BatchRequestContentPatch.ApplyPatch);
+            var drive = await OneDriveProxy.CreateAsync(graphService.GraphClient, _logger, BatchRequestContentPatch.ApplyPatch);
 
             var tempPath = Path.GetTempPath();
             var filePath = Path.Combine(tempPath, $"small.txt");
@@ -50,7 +51,7 @@ namespace CryptoDrive.Core.Tests
             if (!graphService.IsSignedIn)
                 await graphService.SignInAsync();
 
-            await proxy.CreateOrUpdateAsync(driveItem);
+            await drive.CreateOrUpdateAsync(driveItem);
 
             // Assert
         }
@@ -68,7 +69,7 @@ namespace CryptoDrive.Core.Tests
 
             var options = Options.Create(graphOptions);
             var graphService = new GraphService(options);
-            var proxy = new OneDriveProxy(graphService.GraphClient, _logger, BatchRequestContentPatch.ApplyPatch);
+            var drive = await OneDriveProxy.CreateAsync(graphService.GraphClient, _logger, BatchRequestContentPatch.ApplyPatch);
 
             var tempPath = Path.GetTempPath();
             var filePath = Path.Combine(tempPath, $"large.txt");
@@ -88,7 +89,7 @@ namespace CryptoDrive.Core.Tests
             if (!graphService.IsSignedIn)
                 await graphService.SignInAsync();
 
-            await proxy.CreateOrUpdateAsync(driveItem);
+            await drive.CreateOrUpdateAsync(driveItem);
 
             // Assert
         }

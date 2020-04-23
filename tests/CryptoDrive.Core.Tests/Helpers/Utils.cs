@@ -1,4 +1,5 @@
-﻿using CryptoDrive.Extensions;
+﻿using CryptoDrive.Drives;
+using CryptoDrive.Extensions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Graph;
 using System;
@@ -23,12 +24,14 @@ namespace CryptoDrive.Core.Tests
         {
             var hashAlgorithm = new QuickXorHash();
 
-            using (var stream = File.OpenRead(fileName.ToAbsolutePath(basePath)))
+            using (var contentActual = File.OpenRead(fileName.ToAbsolutePath(basePath)))
             {
-                var actual = Convert.ToBase64String(hashAlgorithm.ComputeHash(stream));
-                var expected = Utils.DriveItemPool[versionName]().QuickXorHash();
+                var actual = Convert.ToBase64String(hashAlgorithm.ComputeHash(contentActual));
 
-                Assert.True(actual == expected, "The hashes are not equal.");
+                var contentExpected = Utils.DriveItemPool[versionName]().Content;
+                var expected = Convert.ToBase64String(hashAlgorithm.ComputeHash(contentExpected));
+
+                Assert.True(actual == expected, "The contents are not equal.");
             }
         }
 
@@ -60,11 +63,10 @@ namespace CryptoDrive.Core.Tests
         {
             var remoteDrivePath = Path.Combine(Path.GetTempPath(), "CryptoDriveRemote_" + Guid.NewGuid().ToString());
             var remoteDrive = new LocalDriveProxy(remoteDrivePath, "OneDrive", logger, TimeSpan.FromMilliseconds(500));
+            remoteDrive.EnableChangeTracking = false;
 
             var localDrivePath = Path.Combine(Path.GetTempPath(), "CryptoDriveLocal_" + Guid.NewGuid().ToString());
             var localDrive = new LocalDriveProxy(localDrivePath, "local", logger, TimeSpan.FromMilliseconds(500));
-
-            remoteDrive.EnableChangeTracking = false;
             localDrive.EnableChangeTracking = false;
 
             switch (fileId)
@@ -173,16 +175,14 @@ namespace CryptoDrive.Core.Tests
         {
             var name = Path.GetFileName(itemPath);
             var folderPath = $"{Path.GetDirectoryName(itemPath)}".NormalizeSlashes();
-
-            var hashAlgorithm = new QuickXorHash();
             var lastModified = new DateTime(2019, 01, 01, version, 00, 00, DateTimeKind.Utc);
+
             var content = $"{itemPath} v{version}".ToMemorySteam();
-            var hash = Convert.ToBase64String(hashAlgorithm.ComputeHash(content));
             content.Position = 0;
 
             return new DriveItem
             {
-                File = new Microsoft.Graph.File() { Hashes = new Hashes() { QuickXorHash = hash } },
+                File = new Microsoft.Graph.File(),
                 Name = name,
                 Content = content,
                 FileSystemInfo = new Microsoft.Graph.FileSystemInfo { LastModifiedDateTime = lastModified },

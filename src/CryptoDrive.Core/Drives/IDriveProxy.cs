@@ -1,11 +1,12 @@
-﻿using Microsoft.Graph;
+﻿using CryptoDrive.Core;
+using Microsoft.Graph;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace CryptoDrive.Core
+namespace CryptoDrive.Drives
 {
     public interface IDriveProxy : IDisposable
     {

@@ -1,4 +1,6 @@
 ﻿using CryptoDrive.Core;
+using CryptoDrive.Cryptography;
+using CryptoDrive.Drives;
 using CryptoDrive.Graph;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -89,7 +91,7 @@ namespace CryptoDrive.ViewModels
 
             // start
             if (this.Config.IsSyncEnabled)
-                this.InternalStartSync(force: true);
+                _ = this.InternalStartAsync(force: true);
         }
 
         #endregion
@@ -157,13 +159,12 @@ namespace CryptoDrive.ViewModels
 
         #region Commands
 
-        public void StartSync()
+        public Task StartAsync()
         {
-            this.SaveConfig();
-            this.InternalStartSync();
+            return this.InternalStartAsync();
         }
 
-        public async Task StopSyncAsync()
+        public async Task StopAsync()
         {
             foreach (var syncEngine in _syncEngines)
             {
@@ -259,9 +260,9 @@ namespace CryptoDrive.ViewModels
 
         #region Methods
 
-        public IDriveProxy GetRemoteDriveProxy()
+        public async Task<IDriveProxy> GetRemoteDriveProxyAsync()
         {
-            return new OneDriveProxy(_graphService.GraphClient, NullLogger.Instance);
+            return await OneDriveProxy.CreateAsync(_graphService.GraphClient, NullLogger.Instance);
         }
 
         public void Dispose()
@@ -284,7 +285,7 @@ namespace CryptoDrive.ViewModels
             }
         }
 
-        private void InternalStartSync(bool force = false)
+        private async Task InternalStartAsync(bool force = false)
         {
             if (!force && this.Config.IsSyncEnabled)
                 throw new Exception("I am already synchronizing.");
@@ -292,7 +293,8 @@ namespace CryptoDrive.ViewModels
             foreach (var syncFolderPair in this.ActiveSyncSettings.SyncFolderPairs)
             {
                 var localDrive = new LocalDriveProxy(syncFolderPair.Local, "Local Drive", _logger);
-                var remoteDrive = new OneDriveProxy(syncFolderPair.Remote, _graphService.GraphClient, _logger, BatchRequestContentPatch.ApplyPatch);
+                var remoteDrive = await OneDriveProxy.CreateAsync(syncFolderPair.Remote, _graphService.GraphClient, _logger, BatchRequestContentPatch.ApplyPatch);
+
                 var cryptonizer = new Cryptonizer(this.Config.SymmetricKey);
                 var syncEngine = new CryptoDriveSyncEngine(remoteDrive, localDrive, cryptonizer, _logger);
 

@@ -1,4 +1,5 @@
 ﻿using CryptoDrive.Core;
+using CryptoDrive.Drives;
 using CryptoDrive.Extensions;
 using Microsoft.Graph;
 using System.Collections.Generic;
@@ -76,7 +77,7 @@ namespace CryptoDrive.Shared
 
         protected override async Task OnParametersSetAsync()
         {
-            this.Drive = this.AppState.GetRemoteDriveProxy();
+            this.Drive = await this.AppState.GetRemoteDriveProxyAsync();
             var driveItem = "/".ToDriveItem(DriveItemType.Folder);
 
             await this.NavigateDownAsync(driveItem);

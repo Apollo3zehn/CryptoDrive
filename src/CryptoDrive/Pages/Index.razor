@@ -37,13 +37,13 @@
         {
             @if (!this.AppState.Config.IsSyncEnabled)
             {
-                <MatButton @onclick="this.AppState.StartSync">
+                <MatButton @onclick="this.AppState.StartAsync">
                     <i class="fas fa-sync"></i>&nbsp; Start
                 </MatButton>
             }
             else
             {
-                <MatButton @onclick="async () => await this.AppState.StopSyncAsync()">
+                <MatButton @onclick="this.AppState.StopAsync">
                     <i class="fas fa-sync"></i>&nbsp; Stop
                 </MatButton>
             }

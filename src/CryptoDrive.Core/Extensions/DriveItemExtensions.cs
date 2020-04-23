@@ -1,4 +1,5 @@
-﻿using CryptoDrive.Core;
+using CryptoDrive.Core;
+using CryptoDrive.Drives;
 using Microsoft.Graph;
 using System;
 using System.Collections.Generic;
@@ -19,17 +20,8 @@ namespace CryptoDrive.Extensions
                 Id = driveItem.Id,
                 Name = driveItem.Name,
                 LastModified = driveItem.FileSystemInfo.LastModifiedDateTime.Value.UtcDateTime,
-                QuickXorHash = type == DriveItemType.File && driveItem.File.Hashes != null ? driveItem.QuickXorHash() : null,
                 Size = type == DriveItemType.File ? driveItem.Size.Value : 0,
                 Type = type
-            };
-        }
-
-        public static DriveItemUploadableProperties ToUploadableProperties(this DriveItem driveItem)
-        {
-            return new DriveItemUploadableProperties()
-            {
-                FileSystemInfo = driveItem.FileSystemInfo
             };
         }
 
@@ -38,7 +30,7 @@ namespace CryptoDrive.Extensions
             return new DriveItem()
             {
                 Deleted = deleted ? new Deleted() : null,
-                File = remoteState.Type == DriveItemType.File ? new Microsoft.Graph.File() { Hashes = new Hashes() { QuickXorHash = remoteState.QuickXorHash } } : null,
+                File = remoteState.Type == DriveItemType.File ? new Microsoft.Graph.File() : null,
                 FileSystemInfo = new Microsoft.Graph.FileSystemInfo()
                 {
                     LastModifiedDateTime = remoteState.LastModified
@@ -67,13 +59,13 @@ namespace CryptoDrive.Extensions
         }
 
         // from x to drive item
-        public static DriveItem ToDriveItem(this string relativePath, DriveItemType driveItemType)
+        public static DriveItem ToDriveItem(this string itemPath, DriveItemType driveItemType)
         {
-            if (relativePath == "/")
-                return relativePath.ToSpecialDriveItem();
+            if (itemPath == "/")
+                return itemPath.ToSpecialDriveItem();
 
-            var itemName = Path.GetFileName(relativePath);
-            var folderPath = Path.GetDirectoryName(relativePath).NormalizeSlashes();
+            var itemName = Path.GetFileName(itemPath);
+            var folderPath = Path.GetDirectoryName(itemPath).NormalizeSlashes();
 
             if (driveItemType == DriveItemType.RemoteItem)
                 throw new NotSupportedException();
@@ -157,6 +149,15 @@ namespace CryptoDrive.Extensions
             return driveItem;
         }
 
+        // from driveItem to x
+        public static DriveItemUploadableProperties ToUploadableProperties(this DriveItem driveItem)
+        {
+            return new DriveItemUploadableProperties()
+            {
+                FileSystemInfo = driveItem.FileSystemInfo
+            };
+        }
+
         // path handling
         public static Uri Uri(this DriveItem driveItem)
         {
@@ -181,7 +182,6 @@ namespace CryptoDrive.Extensions
             Dictionary<string, object> additionalData = null;
             ItemReference parentReference = null;
             Microsoft.Graph.FileSystemInfo fileSystemInfo = null;
-            Hashes hashes = null;
 
             if (driveItem.AdditionalData != null)
                 additionalData = new Dictionary<string, object>() { [OneDriveConstants.DownloadUrl] = driveItem.AdditionalData[OneDriveConstants.DownloadUrl] };
@@ -199,15 +199,12 @@ namespace CryptoDrive.Extensions
                 };
             }
 
-            if (driveItem.File?.Hashes != null)
-                hashes = new Hashes() { QuickXorHash = driveItem.QuickXorHash() };
-
             return new DriveItem()
             {
                 AdditionalData = additionalData,
                 Content = driveItem.Content,
                 Deleted = driveItem.Deleted == null ? null : new Deleted(),
-                File = driveItem.File == null ? null : new Microsoft.Graph.File() { Hashes = hashes },
+                File = driveItem.File == null ? null : new Microsoft.Graph.File(),
                 Folder = driveItem.Folder == null ? null : new Folder(),
                 Id = driveItem.Id,
                 Name = driveItem.Name,
@@ -247,11 +244,6 @@ namespace CryptoDrive.Extensions
             }
 
             return changeType;
-        }
-
-        public static string QuickXorHash(this DriveItem driveItem)
-        {
-            return driveItem.File.Hashes.QuickXorHash;
         }
 
         public static DriveItemType Type(this DriveItem driveItem)

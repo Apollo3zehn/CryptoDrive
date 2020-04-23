@@ -2,7 +2,7 @@
 using System.IO;
 using System.Security.Cryptography;
 
-namespace CryptoDrive.Core
+namespace CryptoDrive.Cryptography
 {
     public class Cryptonizer
     {

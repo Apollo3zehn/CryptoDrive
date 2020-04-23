@@ -1,3 +1,4 @@
+using CryptoDrive.Drives;
 using CryptoDrive.Extensions;
 using Microsoft.Extensions.Logging;
 using System;
@@ -131,7 +132,7 @@ namespace CryptoDrive.Core.Tests
                     var actual = Convert.ToBase64String(hashAlgorithm.ComputeHash(stream));
                     var expected = Convert.ToBase64String(hashAlgorithm.ComputeHash(Encoding.UTF8.GetBytes("New content.")));
 
-                    Assert.True(actual == expected, "The hashes are not equal.");
+                    Assert.True(actual == expected, "The contents are not equal.");
                 }
             }, syncId: 1);
         }

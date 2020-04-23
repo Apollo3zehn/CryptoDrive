@@ -9,7 +9,6 @@ namespace CryptoDrive.Core
         public string Id { get; set; }
         public string Name { get; set; }
         public string Path { get; set; }
-        public string QuickXorHash { get; set; }
         public long Size { get; set; }
         public DriveItemType Type { get; set; }
         public DateTime LastModified { get; set; }

@@ -1,3 +1,4 @@
+using CryptoDrive.Core;
 using CryptoDrive.Extensions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Graph;
@@ -10,7 +11,7 @@ using System.Threading.Tasks;
 using Directory = System.IO.Directory;
 using File = System.IO.File;
 
-namespace CryptoDrive.Core
+namespace CryptoDrive.Drives
 {
     public class LocalDriveProxy : IDriveProxy
     {

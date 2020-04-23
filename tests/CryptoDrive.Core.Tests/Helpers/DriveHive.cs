@@ -1,4 +1,5 @@
-﻿using System;
+﻿using CryptoDrive.Drives;
+using System;
 
 namespace CryptoDrive.Core.Tests
 {

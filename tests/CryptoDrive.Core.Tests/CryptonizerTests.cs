@@ -1,4 +1,5 @@
-﻿using System.IO;
+﻿using CryptoDrive.Cryptography;
+using System.IO;
 using System.Text;
 using System.Threading.Tasks;
 using Xunit;

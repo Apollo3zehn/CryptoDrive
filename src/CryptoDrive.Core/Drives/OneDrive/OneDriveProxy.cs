@@ -1,4 +1,5 @@
-﻿using CryptoDrive.Extensions;
+﻿using CryptoDrive.Core;
+using CryptoDrive.Extensions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Graph;
 using System;
@@ -11,7 +12,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace CryptoDrive.Core
+namespace CryptoDrive.Drives
 {
     public class OneDriveProxy : IDriveProxy
     {
@@ -31,13 +32,7 @@ namespace CryptoDrive.Core
 
         #region Constructors
 
-        public OneDriveProxy(IGraphServiceClient graphServiceClient, ILogger logger, Action patch = null)
-            : this("/", graphServiceClient, logger, patch)
-        {
-            //
-        }
-
-        public OneDriveProxy(string basePath, IGraphServiceClient graphServiceClient, ILogger logger, Action patch = null)
+        private OneDriveProxy(string basePath, IGraphServiceClient graphClient, ILogger logger, Action patch = null)
         {
             if (basePath == "/")
                 _basePrefix = $"{OneDriveConstants.RootPrefix}";
@@ -48,7 +43,7 @@ namespace CryptoDrive.Core
 
             this.Name = "OneDrive";
             this.BasePath = basePath;
-            this.GraphClient = graphServiceClient;
+            this.GraphClient = graphClient;
             this.Logger = logger;
         }
 
@@ -66,20 +61,47 @@ namespace CryptoDrive.Core
 
         #endregion
 
+        #region Methods
+
+        public static Task<OneDriveProxy> CreateAsync(IGraphServiceClient graphClient, ILogger logger, Action patch = null)
+        {
+            return OneDriveProxy.CreateAsync("/", graphClient, logger, patch);
+        }
+
+        public static async Task<OneDriveProxy> CreateAsync(string basePath, IGraphServiceClient graphClient, ILogger logger, Action patch = null)
+        {
+            var drive = new OneDriveProxy(basePath, graphClient, logger, patch);
+            await drive.InitializeAsync();
+
+            return drive;
+        }
+
+        private async Task InitializeAsync()
+        {
+            // ensure base folder exists (except it is root)
+            if (this.BasePath  != "/")
+            {
+                var driveItem = this.BasePath.ToDriveItem(DriveItemType.Folder);
+                await this.CreateOrUpdateAsync(driveItem);
+            }
+        }
+
+        #endregion
+
         #region Navigation
 
         public async Task<List<DriveItem>> GetFolderContentAsync(DriveItem driveItem)
         {
-            if (!string.IsNullOrWhiteSpace(driveItem.Id))
+            if (string.IsNullOrWhiteSpace(driveItem.Id))
             {
-                return (await this.GraphClient.Me.Drive.Items[driveItem.Id].Children
+                return (await this.GraphClient.GetDriveItemRequestBuilder(driveItem.GetItemPath()).Children
                     .Request()
                     .GetAsync())
                     .ToList();
             }
             else
             {
-                return (await this.GraphClient.GetDriveItemRequestBuilder(driveItem.GetItemPath()).Children
+                return (await this.GraphClient.Me.Drive.Items[driveItem.Id].Children
                     .Request()
                     .GetAsync())
                     .ToList();
@@ -96,13 +118,6 @@ namespace CryptoDrive.Core
                                        DriveChangedType changeType,
                                        CancellationToken cancellationToken)
         {
-            // ensure base folder exists
-            if (folderPath != "/")
-            {
-                var driveItem = this.BasePath.ToDriveItem(DriveItemType.Folder);
-                await this.CreateOrUpdateAsync(driveItem);
-            }
-
             // go
             var pageCounter = 0;
 
@@ -202,7 +217,6 @@ namespace CryptoDrive.Core
 
                     break;
 
-                case DriveItemType.RemoteItem:
                 default:
                     throw new NotSupportedException();
             }
