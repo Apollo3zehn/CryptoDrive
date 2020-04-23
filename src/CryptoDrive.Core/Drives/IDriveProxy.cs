@@ -39,7 +39,7 @@ namespace CryptoDrive.Drives
 
         #region CRUD
 
-        Task<CryptoDriveItem> CreateOrUpdateAsync(CryptoDriveItem driveItem, Stream content);
+        Task<CryptoDriveItem> CreateOrUpdateAsync(CryptoDriveItem driveItem, Stream content, CancellationToken cts);
         Task<CryptoDriveItem> MoveAsync(CryptoDriveItem oldDriveItem, CryptoDriveItem newDriveItem);
         Task DeleteAsync(CryptoDriveItem driveItem);
 

@@ -4,7 +4,7 @@ using Xunit;
 
 namespace CryptoDrive.Core.Tests
 {
-    public class UtilitiesTests
+    public class CoreUtilitiesTests
     {
         [Fact]
         public void CanMergeChanges1()
@@ -17,7 +17,7 @@ namespace CryptoDrive.Core.Tests
             changes["/a/b/c/d"] = DriveChangedType.Self;
 
             // Act
-            var actual = Utilities.MergeChanges(changes);
+            var actual = CoreUtilities.MergeChanges(changes);
 
             // Assert
             var expected = new List<DriveChangedNotification>()
@@ -42,7 +42,7 @@ namespace CryptoDrive.Core.Tests
             changes["/a"] = DriveChangedType.Self;
 
             // Act
-            var actual = Utilities.MergeChanges(changes);
+            var actual = CoreUtilities.MergeChanges(changes);
 
             // Assert
             var expected = new List<DriveChangedNotification>()

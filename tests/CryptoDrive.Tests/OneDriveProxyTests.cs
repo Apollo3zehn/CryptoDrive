@@ -6,6 +6,7 @@ using Microsoft.Extensions.Options;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Threading;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -34,7 +35,10 @@ namespace CryptoDrive.Core.Tests
 
             var options = Options.Create(graphOptions);
             var graphService = new GraphService(options);
-            var drive = await OneDriveProxy.CreateAsync(graphService.GraphClient, _logger, BatchRequestContentPatch.ApplyPatch);
+            var drive = await OneDriveProxy.CreateAsync(graphService.GraphClient,
+                                                        graphService.GetAccountType(),
+                                                        _logger,
+                                                        BatchRequestContentPatch.ApplyPatch);
 
             var tempPath = Path.GetTempPath();
             var filePath = Path.Combine(tempPath, $"small.txt");
@@ -50,7 +54,7 @@ namespace CryptoDrive.Core.Tests
             if (!graphService.IsSignedIn)
                 await graphService.SignInAsync();
 
-            await drive.CreateOrUpdateAsync(driveItem, content);
+            await drive.CreateOrUpdateAsync(driveItem, content, CancellationToken.None);
 
             // Assert
         }
@@ -68,7 +72,10 @@ namespace CryptoDrive.Core.Tests
 
             var options = Options.Create(graphOptions);
             var graphService = new GraphService(options);
-            var drive = await OneDriveProxy.CreateAsync(graphService.GraphClient, _logger, BatchRequestContentPatch.ApplyPatch);
+            var drive = await OneDriveProxy.CreateAsync(graphService.GraphClient,
+                                                        graphService.GetAccountType(),
+                                                        _logger,
+                                                        BatchRequestContentPatch.ApplyPatch);
 
             var tempPath = Path.GetTempPath();
             var filePath = Path.Combine(tempPath, $"large.txt");
@@ -87,7 +94,7 @@ namespace CryptoDrive.Core.Tests
             if (!graphService.IsSignedIn)
                 await graphService.SignInAsync();
 
-            await drive.CreateOrUpdateAsync(driveItem, content);
+            await drive.CreateOrUpdateAsync(driveItem, content, CancellationToken.None);
 
             // Assert
         }

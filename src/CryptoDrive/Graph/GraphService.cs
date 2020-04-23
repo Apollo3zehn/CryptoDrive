@@ -126,12 +126,22 @@ namespace CryptoDrive.Graph
 
     public interface IGraphService
     {
+        #region Properties
+
         IGraphServiceClient GraphClient { get; }
 
         bool IsSignedIn { get; }
 
+        #endregion
+
+        #region Methods
+
         Task SignInAsync();
 
         Task SignOutAsync();
+
+        OneDriveAccountType GetAccountType();
+
+        #endregion
     }
 }

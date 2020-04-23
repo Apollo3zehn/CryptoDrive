@@ -134,7 +134,7 @@ namespace CryptoDrive.Drives
 
         #region CRUD
 
-        public async Task<CryptoDriveItem> CreateOrUpdateAsync(CryptoDriveItem driveItem, Stream content)
+        public async Task<CryptoDriveItem> CreateOrUpdateAsync(CryptoDriveItem driveItem, Stream content, CancellationToken cts)
         {
             var fullPath = driveItem.GetAbsolutePath(this.BasePath);
 
@@ -150,7 +150,7 @@ namespace CryptoDrive.Drives
 
                     using (var stream = File.OpenWrite(fullPath))
                     {
-                        await content.CopyToAsync(stream);
+                        await content.CopyToAsync(stream, cts);
                     }
 
                     File.SetLastWriteTimeUtc(fullPath, driveItem.LastModified);

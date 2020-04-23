@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
 using Xunit.Abstractions;
@@ -23,16 +24,39 @@ namespace CryptoDrive.Core.Tests
 
         private async Task Execute(string fileId, Action assertAction)
         {
+            // Arrange
+            Exception ex = null;
             _driveHive = await Utils.PrepareDrives(fileId, _logger);
-
             var syncEngine = new CryptoDriveSyncEngine(_driveHive.RemoteDrive, _driveHive.LocalDrive, _logger);
+            var manualReset = new ManualResetEventSlim();
+
+            syncEngine.SyncCompleted += (sender, e) =>
+            {
+                if (ex == null && e.Exception != null)
+                    ex = e.Exception;
+
+                try
+                {
+                    if (e.SyncId == 0)
+                        _ = syncEngine.StopAsync();
+                }
+                finally
+                {
+                    manualReset.Set();
+                }
+            };
 
             // Act
             syncEngine.Start();
-            await syncEngine.StopAsync();
+            manualReset.Wait(timeout: TimeSpan.FromSeconds(30));
 
             // Assert
             assertAction?.Invoke();
+
+            if (ex != null)
+                throw ex;
+
+            _driveHive.Dispose();
         }
 
         [Fact]

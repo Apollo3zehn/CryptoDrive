@@ -13,6 +13,8 @@ Backup your data safely without the need to trust the storage provider.
 - Linux tests
 - Create installers (.msi / .deb)
 - Add other storage providers
+- Translation
+- Add file / folder filters
 
 ### Sync
 ![Crypto Drive](doc/App.png)

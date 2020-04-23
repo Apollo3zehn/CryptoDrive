@@ -262,7 +262,8 @@ namespace CryptoDrive.ViewModels
 
         public async Task<IDriveProxy> GetRemoteDriveProxyAsync()
         {
-            return await OneDriveProxy.CreateAsync(_graphService.GraphClient, NullLogger.Instance);
+            var accountType = _graphService.GetAccountType();
+            return await OneDriveProxy.CreateAsync(_graphService.GraphClient, accountType, NullLogger.Instance);
         }
 
         public void Dispose()
@@ -292,8 +293,14 @@ namespace CryptoDrive.ViewModels
 
             foreach (var syncFolderPair in this.ActiveSyncSettings.SyncFolderPairs)
             {
-                var localDrive = new LocalDriveProxy(syncFolderPair.Local, "Local Drive", _logger);
-                var remoteDrive = await OneDriveProxy.CreateAsync(syncFolderPair.Remote, _graphService.GraphClient, _logger, BatchRequestContentPatch.ApplyPatch);
+                var localDrive = new LocalDriveProxy(syncFolderPair.Local,
+                                                     "Local Drive",
+                                                     _logger);
+                var remoteDrive = await OneDriveProxy.CreateAsync(syncFolderPair.Remote,
+                                                                  _graphService.GraphClient,
+                                                                  _graphService.GetAccountType(),
+                                                                  _logger,
+                                                                  BatchRequestContentPatch.ApplyPatch);
 
                 var cryptonizer = new Cryptonizer(this.Config.SymmetricKey);
                 var syncEngine = new CryptoDriveSyncEngine(remoteDrive, localDrive, cryptonizer, _logger);

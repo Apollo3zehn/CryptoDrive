@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
 using Xunit.Abstractions;
@@ -176,7 +177,6 @@ namespace CryptoDrive.Core.Tests
             var lastModified = new DateTime(2019, 01, 01, version, 00, 00, DateTimeKind.Utc);
 
             var content = $"{itemPath} v{version}".ToMemorySteam();
-            content.Position = 0;
 
             var driveItem = new CryptoDriveItem(name, folderPath, DriveItemType.File)
             {
@@ -189,7 +189,7 @@ namespace CryptoDrive.Core.Tests
         private static async Task CreateOrUpdateAsync(IDriveProxy drive, string itemId)
         {
             var data = Utils.DriveItemPool[itemId]();
-            await drive.CreateOrUpdateAsync(data.DriveItem, data.Content);
+            await drive.CreateOrUpdateAsync(data.DriveItem, data.Content, CancellationToken.None);
         }
     }
 }

@@ -19,11 +19,8 @@ namespace CryptoDrive.Core.Tests
 
         private DriveHive _driveHive;
 
-        private ManualResetEventSlim _manualReset;
-
         public SynchronizeEchoChangeTrackingTests(ITestOutputHelper xunitLogger)
         {
-            _manualReset = new ManualResetEventSlim();
             (_logger, _loggerProviders) = Utils.GetLogger(xunitLogger);
         }
 
@@ -32,6 +29,7 @@ namespace CryptoDrive.Core.Tests
             Exception ex = null;
             _driveHive = await Utils.PrepareDrives(fileId, _logger);
             var syncEngine = new CryptoDriveSyncEngine(_driveHive.RemoteDrive, _driveHive.LocalDrive, _logger);
+            var manualReset = new ManualResetEventSlim();
 
             syncEngine.SyncCompleted += (sender, e) =>
             {
@@ -44,18 +42,18 @@ namespace CryptoDrive.Core.Tests
                         actAction?.Invoke().Wait();
 
                     else if (e.SyncId == syncId)
-                        syncEngine.Stop();
+                        _ = syncEngine.StopAsync();
                 }
                 finally
                 {
                     if (e.SyncId == syncId)
-                        _manualReset.Set();
+                        manualReset.Set();
                 }
             };
 
             // Act
             syncEngine.Start();
-            _manualReset.Wait(timeout: TimeSpan.FromSeconds(30));
+            manualReset.Wait(timeout: TimeSpan.FromSeconds(30));
 
             // Assert
             assertAction?.Invoke();
@@ -74,7 +72,7 @@ namespace CryptoDrive.Core.Tests
                 /* add new file */
                 _logger.LogInformation("TEST: Add file.");
                 (var driveItem, var content) = Utils.DriveItemPool["/b1"]();
-                await _driveHive.LocalDrive.CreateOrUpdateAsync(driveItem, content);
+                await _driveHive.LocalDrive.CreateOrUpdateAsync(driveItem, content, CancellationToken.None);
             },
             () =>
             {
@@ -115,7 +113,7 @@ namespace CryptoDrive.Core.Tests
 
                     /* modify file */
                     _logger.LogInformation("TEST: Modify file.");
-                    await _driveHive.LocalDrive.CreateOrUpdateAsync(driveItem, stream);
+                    await _driveHive.LocalDrive.CreateOrUpdateAsync(driveItem, stream, CancellationToken.None);
                 }
             },
             () =>
@@ -211,7 +209,7 @@ namespace CryptoDrive.Core.Tests
             externalDrive.EnableChangeTracking = false;
 
             (var driveItem, var content) = Utils.DriveItemPool["/sub/a1"]();
-            await externalDrive.CreateOrUpdateAsync(driveItem, content);
+            await externalDrive.CreateOrUpdateAsync(driveItem, content, CancellationToken.None);
 
             await this.Execute("", () =>
             {

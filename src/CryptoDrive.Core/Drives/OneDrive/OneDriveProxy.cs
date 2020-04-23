@@ -31,7 +31,11 @@ namespace CryptoDrive.Drives
 
         #region Constructors
 
-        private OneDriveProxy(string basePath, IGraphServiceClient graphClient, ILogger logger, Action patch = null)
+        private OneDriveProxy(string basePath,
+                              IGraphServiceClient graphClient,
+                              OneDriveAccountType accountType,
+                              ILogger logger,
+                              Action patch = null)
         {
             if (basePath == "/")
                 _basePrefix = $"{OneDriveConstants.RootPrefix}";
@@ -43,6 +47,7 @@ namespace CryptoDrive.Drives
             this.Name = "OneDrive";
             this.BasePath = basePath;
             this.GraphClient = graphClient;
+            this.AccountType = OneDriveAccountType.WorkOrSchool;
             this.Logger = logger;
         }
 
@@ -51,6 +56,8 @@ namespace CryptoDrive.Drives
         #region Properties
 
         public IGraphServiceClient GraphClient { get; }
+
+        public OneDriveAccountType AccountType { get; }
 
         public string Name { get; }
 
@@ -62,14 +69,21 @@ namespace CryptoDrive.Drives
 
         #region Methods
 
-        public static Task<OneDriveProxy> CreateAsync(IGraphServiceClient graphClient, ILogger logger, Action patch = null)
+        public static Task<OneDriveProxy> CreateAsync(IGraphServiceClient graphClient,
+                                                      OneDriveAccountType accountType,
+                                                      ILogger logger,
+                                                      Action patch = null)
         {
-            return OneDriveProxy.CreateAsync("/", graphClient, logger, patch);
+            return OneDriveProxy.CreateAsync("/", graphClient, accountType, logger, patch);
         }
 
-        public static async Task<OneDriveProxy> CreateAsync(string basePath, IGraphServiceClient graphClient, ILogger logger, Action patch = null)
+        public static async Task<OneDriveProxy> CreateAsync(string basePath,
+                                                            IGraphServiceClient graphClient,
+                                                            OneDriveAccountType accountType,
+                                                            ILogger logger,
+                                                            Action patch = null)
         {
-            var drive = new OneDriveProxy(basePath, graphClient, logger, patch);
+            var drive = new OneDriveProxy(basePath, graphClient, accountType, logger, patch);
             await drive.InitializeAsync();
 
             return drive;
@@ -78,10 +92,15 @@ namespace CryptoDrive.Drives
         private async Task InitializeAsync()
         {
             // ensure base folder exists (except it is root)
-            if (this.BasePath  != "/")
+            if (this.BasePath != "/")
             {
                 var driveItem = this.BasePath.ToDriveItem(DriveItemType.Folder);
-                await this.CreateOrUpdateAsync(driveItem, null);
+                var absoluteParentPath = driveItem.Path;
+                var createFolderDriveItem = this.CreateFolderDriveItem(driveItem.Name);
+
+                await this.GraphClient.GetDriveItemRequestBuilder(absoluteParentPath).Children
+                    .Request()
+                    .AddAsync(createFolderDriveItem);
             }
         }
 
@@ -120,12 +139,7 @@ namespace CryptoDrive.Drives
                                        DriveChangedType changeType,
                                        CancellationToken cancellationToken)
         {
-            // go
             var pageCounter = 0;
-
-#warning check if condition folderPath != "/" is also required
-            if (changeType != DriveChangedType.Descendants)
-                throw new NotSupportedException("OneDriveProxy always provides delta pages for all drive items.");
 
             while (true)
             {
@@ -148,28 +162,49 @@ namespace CryptoDrive.Drives
 
         private async Task<(List<CryptoDriveItem> DeltaPage, bool IsLast)> GetDeltaPageAsync()
         {
-            IDriveItemDeltaCollectionPage _currentDeltaPage;
+            IDriveItemDeltaRequest deltaRequest;
 
             if (_lastDeltaPage == null)
-                // according to MS (https://docs.microsoft.com/en-us/graph/api/driveitem-delta?view=graph-rest-1.0&tabs=csharp#remarks)
-                // ...Root.ItemWithPath() only works with personal accounts
-                _currentDeltaPage = await this.GraphClient.GetDriveItemRequestBuilder(this.BasePath)
-                    .Delta()
-                    .Request()
-                    .GetAsync();
-            else
-                _currentDeltaPage = await _lastDeltaPage.NextPageRequest.GetAsync();
-
-            _lastDeltaPage = _currentDeltaPage;
-
-            var deltaPage = _currentDeltaPage.Where(driveItem =>
             {
-                // exclude nameless items
+                if (this.AccountType == OneDriveAccountType.Personal)
+                {
+                    // according to MS (https://docs.microsoft.com/en-us/graph/api/driveitem-delta?view=graph-rest-1.0&tabs=csharp#remarks)
+                    // ...Root.ItemWithPath() only works with personal accounts
+                    deltaRequest = this.GraphClient.GetDriveItemRequestBuilder(this.BasePath)
+                        .Delta()
+                        .Request();
+                }
+                else
+                {
+                    // according to MS (https://docs.microsoft.com/en-us/graph/api/driveitem-delta?view=graph-rest-1.0&tabs=csharp#remarks)
+                    // ...Root.ItemWithPath() only works with personal accounts
+                    deltaRequest = this.GraphClient.Me.Drive.Root
+                        .Delta()
+                        .Request();
+                }
+            }
+            else
+            {
+                deltaRequest = _lastDeltaPage.NextPageRequest;
+            }
+
+            var currentDeltaPage = await deltaRequest.GetAsync();
+            _lastDeltaPage = currentDeltaPage;
+
+            var deltaPage = currentDeltaPage.Where(driveItem =>
+            {
+                var itemPath = CoreUtilities.PathCombine(driveItem.ParentReference.Path, driveItem.Name);
+
+                // exclude no-name items
                 if (string.IsNullOrWhiteSpace(driveItem.Name))
                     return false;
 
+                // exlude items that are located above the root folder (only for work or school accounts)
+                if (this.AccountType == OneDriveAccountType.WorkOrSchool &&
+                   !CoreUtilities.IsAncestorOf(_basePrefix, itemPath))
+                    return false;
+
                 // exclude base items
-                var itemPath = Utilities.PathCombine(driveItem.ParentReference.Path, driveItem.Name);
                 return (driveItem.File != null || driveItem.Folder != null) && 
                         driveItem.Root == null &&
                         itemPath != _basePrefix;
@@ -178,9 +213,9 @@ namespace CryptoDrive.Drives
             var convertedDeltaPage = deltaPage.Select(driveItem => driveItem.ToCryptoDriveItem(_basePrefix)).ToList();
 
             // if the last page was received
-            if (_currentDeltaPage.NextPageRequest == null)
+            if (currentDeltaPage.NextPageRequest == null)
             {
-                var deltaLink = _currentDeltaPage.AdditionalData[Constants.OdataInstanceAnnotations.DeltaLink].ToString();
+                var deltaLink = currentDeltaPage.AdditionalData[Constants.OdataInstanceAnnotations.DeltaLink].ToString();
                 _lastDeltaPage.InitializeNextPageRequest(this.GraphClient, deltaLink);
 
                 return (convertedDeltaPage, true);
@@ -195,7 +230,7 @@ namespace CryptoDrive.Drives
 
         #region CRUD
 
-        public async Task<CryptoDriveItem> CreateOrUpdateAsync(CryptoDriveItem driveItem, Stream content)
+        public async Task<CryptoDriveItem> CreateOrUpdateAsync(CryptoDriveItem driveItem, Stream content, CancellationToken cts)
         {
             DriveItem newDriveItem;
 
@@ -218,9 +253,9 @@ namespace CryptoDrive.Drives
                     var absoluteItemPath = driveItem.GetAbsolutePath(this.BasePath);
 
                     if (driveItem.Size <= 4 * 1024 * 1024) // file.Length <= 4 MB
-                        newDriveItem = await this.UploadSmallFileAsync(absoluteItemPath, content, properties);
+                        newDriveItem = await this.UploadSmallFileAsync(absoluteItemPath, content, properties, cts);
                     else
-                        newDriveItem = await this.UploadLargeFileAsync(absoluteItemPath, content, properties);
+                        newDriveItem = await this.UploadLargeFileAsync(absoluteItemPath, content, properties, cts);
 
                     break;
 
@@ -295,7 +330,7 @@ namespace CryptoDrive.Drives
         }
 
         // https://github.com/microsoftgraph/msgraph-sdk-dotnet/issues/558
-        private async Task<DriveItem> UploadSmallFileAsync(string itemPath, Stream stream, DriveItemUploadableProperties properties)
+        private async Task<DriveItem> UploadSmallFileAsync(string itemPath, Stream stream, DriveItemUploadableProperties properties, CancellationToken cts)
         {
             properties.ODataType = "microsoft.graph.driveItem";
 
@@ -326,13 +361,13 @@ namespace CryptoDrive.Drives
             batch.AddBatchRequestStep(requestStep1);
             batch.AddBatchRequestStep(requestStep2);
 
-            var response = await this.GraphClient.Batch.Request().PostAsync(batch);
+            var response = await this.GraphClient.Batch.Request().PostAsync(batch, cts);
             var driveItem = await response.GetResponseByIdAsync<DriveItem>("2");
 
             return driveItem;
         }
 
-        private async Task<DriveItem> UploadLargeFileAsync(string itemPath, Stream stream, DriveItemUploadableProperties properties)
+        private async Task<DriveItem> UploadLargeFileAsync(string itemPath, Stream stream, DriveItemUploadableProperties properties, CancellationToken cts)
         {
             var uploadSession = await this.GraphClient.Drive.Root.ItemWithPath(itemPath).CreateUploadSession(properties).Request().PostAsync();
             var maxChunkSize = 1280 * 1024; // 1280 KB - Change this to your chunk size. 5MB is the default.
@@ -346,6 +381,8 @@ namespace CryptoDrive.Drives
             //upload the chunks
             foreach (var request in chunkRequests)
             {
+                cts.ThrowIfCancellationRequested();
+
                 // Do your updates here: update progress bar, etc.
                 // ...
                 // Send chunk request

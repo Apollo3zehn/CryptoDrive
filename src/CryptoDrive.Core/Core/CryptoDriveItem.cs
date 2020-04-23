@@ -45,7 +45,7 @@ namespace CryptoDrive.Core
 
         public string GetItemPath()
         {
-            return Utilities.PathCombine(this.Path, this.Name);
+            return CoreUtilities.PathCombine(this.Path, this.Name);
         }
 
         public string GetAbsolutePath(string basePath)

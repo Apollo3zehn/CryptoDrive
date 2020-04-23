@@ -59,6 +59,7 @@ namespace CryptoDrive.Pages
                             await decryptedStream.CopyToAsync(fileStream);
                         }
 
+                        File.SetLastWriteTimeUtc(itemPath, driveItem.LastModified);
 
                         break;
 
