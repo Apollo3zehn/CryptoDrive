@@ -1,16 +1,14 @@
+using CryptoDrive.Core;
 using CryptoDrive.Extensions;
 using Microsoft.Extensions.Logging;
-using Microsoft.Graph;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Directory = System.IO.Directory;
-using File = System.IO.File;
 
-namespace CryptoDrive.Core
+namespace CryptoDrive.Drives
 {
     public class LocalDriveProxy : IDriveProxy
     {
@@ -23,7 +21,7 @@ namespace CryptoDrive.Core
         #region Fields
 
         private ThrottleFileWatcher _fileWatcher;
-        private IEnumerator<DriveItem> _fileEnumerator;
+        private IEnumerator<CryptoDriveItem> _fileEnumerator;
 
         #endregion
 
@@ -67,7 +65,7 @@ namespace CryptoDrive.Core
 
         #region Navigation
 
-        public Task<List<DriveItem>> GetFolderContentAsync(DriveItem driveItem)
+        public Task<List<CryptoDriveItem>> GetFolderContentAsync(CryptoDriveItem driveItem)
         {
             throw new NotImplementedException();
         }
@@ -76,7 +74,7 @@ namespace CryptoDrive.Core
 
         #region Change Tracking
 
-        public async Task ProcessDelta(Func<List<DriveItem>, Task> action,
+        public async Task ProcessDelta(Func<List<CryptoDriveItem>, Task> action,
                                        string folderPath,
                                        CryptoDriveContext context,
                                        DriveChangedType changeType,
@@ -106,13 +104,13 @@ namespace CryptoDrive.Core
             }
         }
 
-        private Task<(List<DriveItem> DeltaPage, bool IsLast)> GetDeltaPageAsync(string folderPath,
+        private Task<(List<CryptoDriveItem> DeltaPage, bool IsLast)> GetDeltaPageAsync(string folderPath,
                                                                                  CryptoDriveContext context,
                                                                                  DriveChangedType changeType,
                                                                                  CancellationToken cancellationToken)
         {
             var pageSize = 10;
-            var deltaPage = new List<DriveItem>();
+            var deltaPage = new List<CryptoDriveItem>();
 
             if (_fileEnumerator is null)
                 _fileEnumerator = this.SafelyEnumerateDriveItems(folderPath, context, changeType)
@@ -136,11 +134,11 @@ namespace CryptoDrive.Core
 
         #region CRUD
 
-        public async Task<DriveItem> CreateOrUpdateAsync(DriveItem driveItem)
+        public async Task<CryptoDriveItem> CreateOrUpdateAsync(CryptoDriveItem driveItem, Stream content, CancellationToken cts)
         {
             var fullPath = driveItem.GetAbsolutePath(this.BasePath);
 
-            switch (driveItem.Type())
+            switch (driveItem.Type)
             {
                 case DriveItemType.Folder:
                     Directory.CreateDirectory(fullPath);
@@ -152,14 +150,13 @@ namespace CryptoDrive.Core
 
                     using (var stream = File.OpenWrite(fullPath))
                     {
-                        await driveItem.Content.CopyToAsync(stream);
+                        await content.CopyToAsync(stream, cts);
                     }
 
-                    File.SetLastWriteTimeUtc(fullPath, driveItem.FileSystemInfo.LastModifiedDateTime.Value.DateTime);
+                    File.SetLastWriteTimeUtc(fullPath, driveItem.LastModified);
 
                     break;
 
-                case DriveItemType.RemoteItem:
                 default:
                     throw new NotSupportedException();
             }
@@ -167,12 +164,12 @@ namespace CryptoDrive.Core
             return driveItem;
         }
 
-        public Task<DriveItem> MoveAsync(DriveItem oldDriveItem, DriveItem newDriveItem)
+        public Task<CryptoDriveItem> MoveAsync(CryptoDriveItem oldDriveItem, CryptoDriveItem newDriveItem)
         {
             var fullOldPath = oldDriveItem.GetAbsolutePath(this.BasePath);
             var fullNewPath = newDriveItem.GetAbsolutePath(this.BasePath);
 
-            switch (newDriveItem.Type())
+            switch (newDriveItem.Type)
             {
                 case DriveItemType.Folder:
                     Directory.Move(fullOldPath, fullNewPath);
@@ -183,7 +180,6 @@ namespace CryptoDrive.Core
                     File.Move(fullOldPath, fullNewPath);
                     break;
 
-                case DriveItemType.RemoteItem:
                 default:
                     throw new NotSupportedException();
             }
@@ -191,11 +187,11 @@ namespace CryptoDrive.Core
             return Task.FromResult(newDriveItem);
         }
 
-        public Task DeleteAsync(DriveItem driveItem)
+        public Task DeleteAsync(CryptoDriveItem driveItem)
         {
             string fullPath = driveItem.GetAbsolutePath(this.BasePath);
 
-            switch (driveItem.Type())
+            switch (driveItem.Type)
             {
                 case DriveItemType.Folder:
                     Directory.Delete(fullPath, recursive: true);
@@ -205,7 +201,6 @@ namespace CryptoDrive.Core
                     File.Delete(fullPath);
                     break;
 
-                case DriveItemType.RemoteItem:
                 default:
                     throw new NotSupportedException();
             }
@@ -217,7 +212,7 @@ namespace CryptoDrive.Core
 
         #region File Info
 
-        public Task<Stream> GetFileContentAsync(DriveItem driveItem)
+        public Task<Stream> GetFileContentAsync(CryptoDriveItem driveItem)
         {
             var fullPath = driveItem.GetAbsolutePath(this.BasePath);
             var stream = File.OpenRead(fullPath);
@@ -225,12 +220,12 @@ namespace CryptoDrive.Core
             return Task.FromResult((Stream)stream);
         }
 
-        public Task<bool> ExistsAsync(DriveItem driveItem)
+        public Task<bool> ExistsAsync(CryptoDriveItem driveItem)
         {
             bool result;
             var fullPath = driveItem.GetAbsolutePath(this.BasePath);
 
-            switch (driveItem.Type())
+            switch (driveItem.Type)
             {
                 case DriveItemType.Folder:
                     result = Directory.Exists(fullPath);
@@ -240,7 +235,6 @@ namespace CryptoDrive.Core
                     result = File.Exists(fullPath);
                     break;
 
-                case DriveItemType.RemoteItem:
                 default:
                     throw new NotSupportedException();
             }
@@ -260,9 +254,9 @@ namespace CryptoDrive.Core
             }
         }
 
-        private IEnumerable<DriveItem> SafelyEnumerateDriveItems(string folderPath, CryptoDriveContext context, DriveChangedType changeType)
+        private IEnumerable<CryptoDriveItem> SafelyEnumerateDriveItems(string folderPath, CryptoDriveContext context, DriveChangedType changeType)
         {
-            var driveItems = Enumerable.Empty<DriveItem>();
+            var driveItems = Enumerable.Empty<CryptoDriveItem>();
             var absoluteFolderPath = folderPath.ToAbsolutePath(this.BasePath);
 
             try
@@ -276,17 +270,17 @@ namespace CryptoDrive.Core
 
                         if (changeType == DriveChangedType.Descendants)
                             return this.SafelyEnumerateDriveItems(folderPath, context, changeType)
-                                       .Concat(new DriveItem[] { driveItems });
+                                       .Concat(new CryptoDriveItem[] { driveItems });
                         else
-                            return new List<DriveItem> { driveItems };
+                            return new List<CryptoDriveItem> { driveItems };
                     }));
 
                 // get all files in current folder
                 driveItems = driveItems.Concat(Directory.EnumerateFiles(absoluteFolderPath)
                     .SelectMany(current =>
                     {
-                        var driveInfo = new FileInfo(current).ToDriveItem(this.BasePath);
-                        return new List<DriveItem> { driveInfo };
+                        var driveItem = new FileInfo(current).ToDriveItem(this.BasePath);
+                        return new List<CryptoDriveItem> { driveItem };
                     }).ToList());
 
                 // get all deleted items
@@ -302,11 +296,14 @@ namespace CryptoDrive.Core
                         case DriveItemType.File:
                             return !File.Exists(current.GetItemPath().ToAbsolutePath(this.BasePath));
 
-                        case DriveItemType.RemoteItem:
                         default:
                             throw new NotSupportedException();
                     }
-                }).Select(current => current.ToDriveItem(deleted: true));
+                }).Select(current =>
+                {
+                    current.IsDeleted = true;
+                    return current;
+                });
 
                 driveItems = driveItems.Concat(deletedItems);
 

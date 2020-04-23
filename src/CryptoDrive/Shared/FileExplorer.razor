@@ -19,14 +19,14 @@
     <div class="file-explorer-folder-content">
         @foreach (var driveItem in this.FolderContent)
         {
-            if (driveItem.File != null)
+            if (driveItem.Type == DriveItemType.File)
             {
                 <span class="file-explorer-folder-content-file">
                     <i class="far fa-@this.GetFileIcon(driveItem) file-explorer-folder-content-icon"></i>
                     @driveItem.Name
                 </span>
             }
-            else if (driveItem.Folder != null)
+            else
             {
                 <span class="file-explorer-folder-content-folder"
                       @onclick="async () => await this.NavigateDownAsync(driveItem)">

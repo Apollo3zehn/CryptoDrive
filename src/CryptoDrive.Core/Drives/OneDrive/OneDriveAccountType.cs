@@ -1,4 +1,4 @@
-﻿namespace CryptoDrive.Core
+﻿namespace CryptoDrive.Drives
 {
     public enum OneDriveAccountType
     {

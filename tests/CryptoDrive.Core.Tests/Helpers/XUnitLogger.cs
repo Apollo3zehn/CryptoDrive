@@ -48,8 +48,7 @@ namespace CryptoDrive.Core.Tests
         private class NoopDisposable : IDisposable
         {
             public static NoopDisposable Instance = new NoopDisposable();
-            public void Dispose()
-            { }
+            public void Dispose() { }
         }
     }
 }

@@ -3,7 +3,7 @@ using System.Linq;
 
 namespace CryptoDrive.Core
 {
-    internal static class Utilities
+    internal static class CoreUtilities
     {
         public static string PathCombine(string basePath, string itemName)
         {
@@ -28,7 +28,7 @@ namespace CryptoDrive.Core
                 if (changeType == DriveChangedType.Descendants)
                 {
                     var descendantsToRemove = changeNotifications
-                        .Where(changeNotification => Utilities.IsAncestorOf(newFolderPath, changeNotification.FolderPath)).ToList();
+                        .Where(changeNotification => CoreUtilities.IsAncestorOf(newFolderPath, changeNotification.FolderPath)).ToList();
 
                     foreach (var descendant in descendantsToRemove)
                     {
@@ -38,7 +38,7 @@ namespace CryptoDrive.Core
 
                 // 2. Ensure that there is no ancestor change notification already covering the scope of the current change notification.
                 var ancestors = changeNotifications
-                    .Where(changeNotification => Utilities.IsAncestorOf(changeNotification.FolderPath, newFolderPath)).ToList();
+                    .Where(changeNotification => CoreUtilities.IsAncestorOf(changeNotification.FolderPath, newFolderPath)).ToList();
 
                 if (!ancestors.Any(ancestor => ancestor.ChangeType == DriveChangedType.Descendants))
                     changeNotifications.Add(new DriveChangedNotification(newFolderPath, changeType));
@@ -47,12 +47,14 @@ namespace CryptoDrive.Core
             return changeNotifications;
         }
 
-        private static bool IsAncestorOf(string folderPath, string testPath)
+        public static bool IsAncestorOf(string folderPath, string testPath)
         {
-            var folderPathCount = folderPath.Split('/').Length;
-            var testPathCount = testPath.Split('/').Length;
+            var folderPathParts = folderPath.Split('/');
+            var testPathParts = testPath.Split('/');
 
-            return folderPathCount < testPathCount && testPath.StartsWith(folderPath);
+            return folderPathParts.Length < testPathParts.Length &&                     // "/documents/abc" is not parent of "/documents"
+                   testPath.StartsWith(folderPath) &&                                   // "/documents/abc" is not parent of "/yyy/documents/abc/def"
+                   folderPathParts.Last() == testPathParts[folderPathParts.Length - 1]; // "/documents" is not parent of "/documents - Copy"
         }
     }
 }

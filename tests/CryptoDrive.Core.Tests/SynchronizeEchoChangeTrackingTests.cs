@@ -1,3 +1,4 @@
+using CryptoDrive.Drives;
 using CryptoDrive.Extensions;
 using Microsoft.Extensions.Logging;
 using System;
@@ -8,8 +9,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
 using Xunit.Abstractions;
-using Directory = System.IO.Directory;
-using File = System.IO.File;
 
 namespace CryptoDrive.Core.Tests
 {
@@ -20,11 +19,8 @@ namespace CryptoDrive.Core.Tests
 
         private DriveHive _driveHive;
 
-        private ManualResetEventSlim _manualReset;
-
         public SynchronizeEchoChangeTrackingTests(ITestOutputHelper xunitLogger)
         {
-            _manualReset = new ManualResetEventSlim();
             (_logger, _loggerProviders) = Utils.GetLogger(xunitLogger);
         }
 
@@ -33,6 +29,7 @@ namespace CryptoDrive.Core.Tests
             Exception ex = null;
             _driveHive = await Utils.PrepareDrives(fileId, _logger);
             var syncEngine = new CryptoDriveSyncEngine(_driveHive.RemoteDrive, _driveHive.LocalDrive, _logger);
+            var manualReset = new ManualResetEventSlim();
 
             syncEngine.SyncCompleted += (sender, e) =>
             {
@@ -45,18 +42,18 @@ namespace CryptoDrive.Core.Tests
                         actAction?.Invoke().Wait();
 
                     else if (e.SyncId == syncId)
-                        syncEngine.Stop();
+                        _ = syncEngine.StopAsync();
                 }
                 finally
                 {
                     if (e.SyncId == syncId)
-                        _manualReset.Set();
+                        manualReset.Set();
                 }
             };
 
             // Act
             syncEngine.Start();
-            _manualReset.Wait(timeout: TimeSpan.FromSeconds(30));
+            manualReset.Wait(timeout: TimeSpan.FromSeconds(30));
 
             // Assert
             assertAction?.Invoke();
@@ -74,7 +71,8 @@ namespace CryptoDrive.Core.Tests
             {
                 /* add new file */
                 _logger.LogInformation("TEST: Add file.");
-                await _driveHive.LocalDrive.CreateOrUpdateAsync(Utils.DriveItemPool["/b1"]());
+                (var driveItem, var content) = Utils.DriveItemPool["/b1"]();
+                await _driveHive.LocalDrive.CreateOrUpdateAsync(driveItem, content, CancellationToken.None);
             },
             () =>
             {
@@ -93,7 +91,7 @@ namespace CryptoDrive.Core.Tests
             {
                 /* delete file */
                 _logger.LogInformation("TEST: Delete file.");
-                await _driveHive.LocalDrive.DeleteAsync(Utils.DriveItemPool["/sub/a1"]());
+                await _driveHive.LocalDrive.DeleteAsync(Utils.DriveItemPool["/sub/a1"]().DriveItem);
             },
             () =>
             {
@@ -107,16 +105,15 @@ namespace CryptoDrive.Core.Tests
         {
             await this.Execute("/sub/a", async () =>
             {
-                var driveItem = Utils.DriveItemPool["/sub/a1"]();
+                var driveItem = Utils.DriveItemPool["/sub/a1"]().DriveItem;
 
                 using (var stream = new MemoryStream(Encoding.UTF8.GetBytes("New content.")))
                 {
-                    driveItem.Content = stream;
-                    driveItem.FileSystemInfo.LastModifiedDateTime = DateTime.UtcNow;
+                    driveItem.LastModified = DateTime.UtcNow;
 
                     /* modify file */
                     _logger.LogInformation("TEST: Modify file.");
-                    await _driveHive.LocalDrive.CreateOrUpdateAsync(driveItem);
+                    await _driveHive.LocalDrive.CreateOrUpdateAsync(driveItem, stream, CancellationToken.None);
                 }
             },
             () =>
@@ -131,7 +128,7 @@ namespace CryptoDrive.Core.Tests
                     var actual = Convert.ToBase64String(hashAlgorithm.ComputeHash(stream));
                     var expected = Convert.ToBase64String(hashAlgorithm.ComputeHash(Encoding.UTF8.GetBytes("New content.")));
 
-                    Assert.True(actual == expected, "The hashes are not equal.");
+                    Assert.True(actual == expected, "The contents are not equal.");
                 }
             }, syncId: 1);
         }
@@ -141,12 +138,12 @@ namespace CryptoDrive.Core.Tests
         {
             await this.Execute("/sub/a", async () =>
             {
-                var newDriveItem = Utils.DriveItemPool["/sub/a1"]();
-                newDriveItem.ParentReference.Path = newDriveItem.ParentReference.Path.Replace("/sub", "/sub_new");
+                var newDriveItem = Utils.DriveItemPool["/sub/a1"]().DriveItem;
+                newDriveItem.Path = newDriveItem.Path.Replace("/sub", "/sub_new");
 
                 /* move file to new folder */
                 _logger.LogInformation("TEST: Move file.");
-                await _driveHive.LocalDrive.MoveAsync(Utils.DriveItemPool["/sub/a1"](), newDriveItem);
+                await _driveHive.LocalDrive.MoveAsync(Utils.DriveItemPool["/sub/a1"]().DriveItem, newDriveItem);
             },
             () =>
             {
@@ -163,12 +160,12 @@ namespace CryptoDrive.Core.Tests
         {
             await this.Execute("/sub/a", async () =>
             {
-                var newDriveItem = Utils.DriveItemPool["/sub/a1"]();
+                var newDriveItem = Utils.DriveItemPool["/sub/a1"]().DriveItem;
                 newDriveItem.Name = newDriveItem.Name.Replace("a", "a_new");
 
                 /* rename file */
                 _logger.LogInformation("TEST: Rename file.");
-                await _driveHive.LocalDrive.MoveAsync(Utils.DriveItemPool["/sub/a1"](), newDriveItem);
+                await _driveHive.LocalDrive.MoveAsync(Utils.DriveItemPool["/sub/a1"]().DriveItem, newDriveItem);
             },
             () =>
             {
@@ -209,18 +206,22 @@ namespace CryptoDrive.Core.Tests
         {
             var externalDrivePath = Path.Combine(Path.GetTempPath(), "CryptoDriveExternal_" + Guid.NewGuid().ToString());
             var externalDrive = new LocalDriveProxy(externalDrivePath, "External", _logger);
+            externalDrive.EnableChangeTracking = false;
 
-            await this.Execute("", async () =>
+            (var driveItem, var content) = Utils.DriveItemPool["/sub/a1"]();
+            await externalDrive.CreateOrUpdateAsync(driveItem, content, CancellationToken.None);
+
+            await this.Execute("", () =>
             {
-                await externalDrive.CreateOrUpdateAsync(Utils.DriveItemPool["/sub/a1"]());
-
                 /* move folder from external drive to local drive */
                 _logger.LogInformation("TEST: Move folder from external drive to local drive.");
-                var newDriveItem = Utils.DriveItemPool["/sub/a1"]();
+                var newDriveItem = Utils.DriveItemPool["/sub/a1"]().DriveItem;
                 var sourcePath = Path.GetDirectoryName(newDriveItem.GetAbsolutePath(externalDrivePath));
                 var targetPath = Path.GetDirectoryName(newDriveItem.GetAbsolutePath(_driveHive.LocalDrivePath));
 
                 Directory.Move(sourcePath, targetPath);
+
+                return Task.CompletedTask;
             },
             () =>
             {
@@ -241,7 +242,7 @@ namespace CryptoDrive.Core.Tests
             {
                 /* move folder from local drive to external drive */
                 _logger.LogInformation("TEST: Move folder from local drive to external drive.");
-                var newDriveItem = Utils.DriveItemPool["/sub/a1"]();
+                var newDriveItem = Utils.DriveItemPool["/sub/a1"]().DriveItem;
                 var sourcePath = Path.GetDirectoryName(newDriveItem.GetAbsolutePath(_driveHive.LocalDrivePath));
                 var targetPath = Path.GetDirectoryName(newDriveItem.GetAbsolutePath(externalDrivePath));
 

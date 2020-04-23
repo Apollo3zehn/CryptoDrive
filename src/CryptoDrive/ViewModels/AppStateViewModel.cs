@@ -1,4 +1,6 @@
 ﻿using CryptoDrive.Core;
+using CryptoDrive.Cryptography;
+using CryptoDrive.Drives;
 using CryptoDrive.Graph;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -17,13 +19,16 @@ namespace CryptoDrive.ViewModels
 
         private bool _showSyncFolderAddEditDialog;
         private bool _showSyncFolderRemoveDialog;
+        private bool _showRestoreDialog;
 
         private object _messageLoglock;
 
         private string _username;
         private string _givenName;
         private string _configFilePath;
+        private string _restoreMessage;
 
+        private RestoreFlags _restoreFlags;
         private IGraphService _graphService;
         private LoggerSniffer<AppStateViewModel> _logger;
 
@@ -87,9 +92,11 @@ namespace CryptoDrive.ViewModels
                 RestoreKey = this.Config.SymmetricKey
             };
 
+            this.RestoreMessage = string.Empty;
+
             // start
             if (this.Config.IsSyncEnabled)
-                this.InternalStartSync(force: true);
+                _ = this.InternalStartAsync(force: true);
         }
 
         #endregion
@@ -108,6 +115,12 @@ namespace CryptoDrive.ViewModels
             set { this.SetProperty(ref _username, value); }
         }
 
+        public string RestoreMessage
+        {
+            get { return _restoreMessage; }
+            set { this.SetProperty(ref _restoreMessage, value); }
+        }
+
         public bool IsSignedIn => _graphService.IsSignedIn;
 
         public bool ShowKeyDialog { get; set; }
@@ -122,6 +135,18 @@ namespace CryptoDrive.ViewModels
         {
             get { return _showSyncFolderRemoveDialog; }
             set { this.SetProperty(ref _showSyncFolderRemoveDialog, value); }
+        }
+
+        public bool ShowRestoreDialog
+        {
+            get { return _showRestoreDialog; }
+            set { this.SetProperty(ref _showRestoreDialog, value); }
+        }
+
+        public RestoreFlags RestoreFlags
+        {
+            get { return _restoreFlags; }
+            set { this.SetProperty(ref _restoreFlags, value); }
         }
 
         public SyncSettings ActiveSyncSettings { get; private set; }
@@ -157,13 +182,12 @@ namespace CryptoDrive.ViewModels
 
         #region Commands
 
-        public void StartSync()
+        public Task StartAsync()
         {
-            this.SaveConfig();
-            this.InternalStartSync();
+            return this.InternalStartAsync();
         }
 
-        public async Task StopSyncAsync()
+        public async Task StopAsync()
         {
             foreach (var syncEngine in _syncEngines)
             {
@@ -259,9 +283,18 @@ namespace CryptoDrive.ViewModels
 
         #region Methods
 
-        public IDriveProxy GetRemoteDriveProxy()
+        public void Log(string fileName, string message)
         {
-            return new OneDriveProxy(_graphService.GraphClient, NullLogger.Instance);
+            var localAppDataPath = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            var logFilePath = Path.Combine(localAppDataPath, "CryptoDrive", "Logs", fileName);
+
+            File.AppendAllText(logFilePath, message + Environment.NewLine);
+        }
+
+        public async Task<IDriveProxy> GetRemoteDriveProxyAsync()
+        {
+            var accountType = _graphService.GetAccountType();
+            return await OneDriveProxy.CreateAsync(_graphService.GraphClient, accountType, NullLogger.Instance);
         }
 
         public void Dispose()
@@ -284,15 +317,22 @@ namespace CryptoDrive.ViewModels
             }
         }
 
-        private void InternalStartSync(bool force = false)
+        private async Task InternalStartAsync(bool force = false)
         {
             if (!force && this.Config.IsSyncEnabled)
                 throw new Exception("I am already synchronizing.");
 
             foreach (var syncFolderPair in this.ActiveSyncSettings.SyncFolderPairs)
             {
-                var localDrive = new LocalDriveProxy(syncFolderPair.Local, "Local Drive", _logger);
-                var remoteDrive = new OneDriveProxy(syncFolderPair.Remote, _graphService.GraphClient, _logger, BatchRequestContentPatch.ApplyPatch);
+                var localDrive = new LocalDriveProxy(syncFolderPair.Local,
+                                                     "Local Drive",
+                                                     _logger);
+                var remoteDrive = await OneDriveProxy.CreateAsync(syncFolderPair.Remote,
+                                                                  _graphService.GraphClient,
+                                                                  _graphService.GetAccountType(),
+                                                                  _logger,
+                                                                  BatchRequestContentPatch.ApplyPatch);
+
                 var cryptonizer = new Cryptonizer(this.Config.SymmetricKey);
                 var syncEngine = new CryptoDriveSyncEngine(remoteDrive, localDrive, cryptonizer, _logger);
 

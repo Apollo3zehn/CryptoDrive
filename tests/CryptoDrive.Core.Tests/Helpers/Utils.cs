@@ -1,14 +1,14 @@
-﻿using CryptoDrive.Extensions;
+﻿using CryptoDrive.Drives;
+using CryptoDrive.Extensions;
 using Microsoft.Extensions.Logging;
-using Microsoft.Graph;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
 using Xunit.Abstractions;
-using File = System.IO.File;
 
 namespace CryptoDrive.Core.Tests
 {
@@ -23,12 +23,14 @@ namespace CryptoDrive.Core.Tests
         {
             var hashAlgorithm = new QuickXorHash();
 
-            using (var stream = File.OpenRead(fileName.ToAbsolutePath(basePath)))
+            using (var contentActual = File.OpenRead(fileName.ToAbsolutePath(basePath)))
             {
-                var actual = Convert.ToBase64String(hashAlgorithm.ComputeHash(stream));
-                var expected = Utils.DriveItemPool[versionName]().QuickXorHash();
+                var actual = Convert.ToBase64String(hashAlgorithm.ComputeHash(contentActual));
 
-                Assert.True(actual == expected, "The hashes are not equal.");
+                var contentExpected = Utils.DriveItemPool[versionName]().Content;
+                var expected = Convert.ToBase64String(hashAlgorithm.ComputeHash(contentExpected));
+
+                Assert.True(actual == expected, "The contents are not equal.");
             }
         }
 
@@ -54,73 +56,72 @@ namespace CryptoDrive.Core.Tests
             return (logger, loggerProviders);
         }
 
-        public static Dictionary<string, Func<DriveItem>> DriveItemPool { get; }
+        public static Dictionary<string, Func<(CryptoDriveItem DriveItem, Stream Content)>> DriveItemPool { get; }
 
         public static async Task<DriveHive> PrepareDrives(string fileId, ILogger logger)
         {
             var remoteDrivePath = Path.Combine(Path.GetTempPath(), "CryptoDriveRemote_" + Guid.NewGuid().ToString());
             var remoteDrive = new LocalDriveProxy(remoteDrivePath, "OneDrive", logger, TimeSpan.FromMilliseconds(500));
+            remoteDrive.EnableChangeTracking = false;
 
             var localDrivePath = Path.Combine(Path.GetTempPath(), "CryptoDriveLocal_" + Guid.NewGuid().ToString());
             var localDrive = new LocalDriveProxy(localDrivePath, "local", logger, TimeSpan.FromMilliseconds(500));
-
-            remoteDrive.EnableChangeTracking = false;
             localDrive.EnableChangeTracking = false;
 
             switch (fileId)
             {
                 case "/a":
-                    await localDrive.CreateOrUpdateAsync(Utils.DriveItemPool["/a1"]());
-                    await remoteDrive.CreateOrUpdateAsync(Utils.DriveItemPool["/a2"]());
+                    await Utils.CreateOrUpdateAsync(localDrive, "/a1");
+                    await Utils.CreateOrUpdateAsync(remoteDrive, "/a2");
                     break;
 
                 case "/sub/a":
-                    await localDrive.CreateOrUpdateAsync(Utils.DriveItemPool["/sub/a1"]());
-                    await remoteDrive.CreateOrUpdateAsync(Utils.DriveItemPool["/sub/a1"]());
+                    await Utils.CreateOrUpdateAsync(localDrive, "/sub/a1");
+                    await Utils.CreateOrUpdateAsync(remoteDrive, "/sub/a1");
                     break;
 
                 case "/b":
-                    await localDrive.CreateOrUpdateAsync(Utils.DriveItemPool["/b1"]());
-                    await remoteDrive.CreateOrUpdateAsync(Utils.DriveItemPool["/b1"]());
+                    await Utils.CreateOrUpdateAsync(localDrive, "/b1");
+                    await Utils.CreateOrUpdateAsync(remoteDrive, "/b1");
                     break;
 
                 case "/c":
-                    await remoteDrive.CreateOrUpdateAsync(Utils.DriveItemPool["/c1"]());
+                    await Utils.CreateOrUpdateAsync(remoteDrive, "/c1");
                     break;
 
                 case "/d":
-                    await localDrive.CreateOrUpdateAsync(Utils.DriveItemPool["/d1"]());
+                    await Utils.CreateOrUpdateAsync(localDrive, "/d1");
                     break;
 
                 case "/e":
-                    await localDrive.CreateOrUpdateAsync(Utils.DriveItemPool["/e2"]());
-                    await remoteDrive.CreateOrUpdateAsync(Utils.DriveItemPool["/e1"]());
+                    await Utils.CreateOrUpdateAsync(localDrive, "/e2");
+                    await Utils.CreateOrUpdateAsync(remoteDrive, "/e1");
                     break;
 
                 case "/f":
-                    await localDrive.CreateOrUpdateAsync(Utils.DriveItemPool["/f2"]());
+                    await Utils.CreateOrUpdateAsync(localDrive, "/f2");
                     break;
 
                 case "/g":
-                    await localDrive.CreateOrUpdateAsync(Utils.DriveItemPool["/g1"]());
-                    await remoteDrive.CreateOrUpdateAsync(Utils.DriveItemPool["/g1"]());
+                    await Utils.CreateOrUpdateAsync(localDrive, "/g1");
+                    await Utils.CreateOrUpdateAsync(remoteDrive, "/g1");
                     break;
 
                 case "/h":
-                    await remoteDrive.CreateOrUpdateAsync(Utils.DriveItemPool["/h1"]());
+                    await Utils.CreateOrUpdateAsync(remoteDrive, "/h1");
                     break;
 
                 case "/i":
-                    await remoteDrive.CreateOrUpdateAsync(Utils.DriveItemPool["/i2"]());
+                    await Utils.CreateOrUpdateAsync(remoteDrive, "/i2");
                     break;
 
                 case "/j":
-                    await localDrive.CreateOrUpdateAsync(Utils.DriveItemPool["/j2"]());
-                    await remoteDrive.CreateOrUpdateAsync(Utils.DriveItemPool["/j3"]());
+                    await Utils.CreateOrUpdateAsync(localDrive, "/j2");
+                    await Utils.CreateOrUpdateAsync(remoteDrive, "/j3");
                     break;
 
                 case "/k":
-                    await localDrive.CreateOrUpdateAsync(Utils.DriveItemPool["/k1"]());
+                    await Utils.CreateOrUpdateAsync(localDrive, "/k1");
                     break;
 
                 default:
@@ -133,9 +134,9 @@ namespace CryptoDrive.Core.Tests
             return new DriveHive(remoteDrive, localDrive, remoteDrivePath, localDrivePath);
         }
 
-        public static Dictionary<string, Func<DriveItem>> CreateDriveItemPool()
+        public static Dictionary<string, Func<(CryptoDriveItem, Stream)>> CreateDriveItemPool()
         {
-            return new Dictionary<string, Func<DriveItem>>()
+            return new Dictionary<string, Func<(CryptoDriveItem, Stream)>>()
             {
                 ["/a1"] = () => Utils.CreateDriveItem("/a", 1),
                 ["/a2"] = () => Utils.CreateDriveItem("/a", 2),
@@ -169,25 +170,26 @@ namespace CryptoDrive.Core.Tests
             };
         }
 
-        private static DriveItem CreateDriveItem(string itemPath, int version)
+        private static (CryptoDriveItem, Stream) CreateDriveItem(string itemPath, int version)
         {
             var name = Path.GetFileName(itemPath);
             var folderPath = $"{Path.GetDirectoryName(itemPath)}".NormalizeSlashes();
-
-            var hashAlgorithm = new QuickXorHash();
             var lastModified = new DateTime(2019, 01, 01, version, 00, 00, DateTimeKind.Utc);
-            var content = $"{itemPath} v{version}".ToMemorySteam();
-            var hash = Convert.ToBase64String(hashAlgorithm.ComputeHash(content));
-            content.Position = 0;
 
-            return new DriveItem
+            var content = $"{itemPath} v{version}".ToMemorySteam();
+
+            var driveItem = new CryptoDriveItem(name, folderPath, DriveItemType.File)
             {
-                File = new Microsoft.Graph.File() { Hashes = new Hashes() { QuickXorHash = hash } },
-                Name = name,
-                Content = content,
-                FileSystemInfo = new Microsoft.Graph.FileSystemInfo { LastModifiedDateTime = lastModified },
-                ParentReference = new ItemReference() { Path = folderPath }
+                LastModified = lastModified
             };
+
+            return (driveItem, content);
+        }
+
+        private static async Task CreateOrUpdateAsync(IDriveProxy drive, string itemId)
+        {
+            var data = Utils.DriveItemPool[itemId]();
+            await drive.CreateOrUpdateAsync(data.DriveItem, data.Content, CancellationToken.None);
         }
     }
 }

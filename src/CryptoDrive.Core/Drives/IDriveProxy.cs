@@ -1,11 +1,11 @@
-﻿using Microsoft.Graph;
+﻿using CryptoDrive.Core;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace CryptoDrive.Core
+namespace CryptoDrive.Drives
 {
     public interface IDriveProxy : IDisposable
     {
@@ -23,13 +23,13 @@ namespace CryptoDrive.Core
 
         #region Navigation
 
-        Task<List<DriveItem>> GetFolderContentAsync(DriveItem driveItem);
+        Task<List<CryptoDriveItem>> GetFolderContentAsync(CryptoDriveItem driveItem);
 
         #endregion
 
         #region Change Tracking
 
-        Task ProcessDelta(Func<List<DriveItem>, Task> action,
+        Task ProcessDelta(Func<List<CryptoDriveItem>, Task> action,
                           string folderPath,
                           CryptoDriveContext context,
                           DriveChangedType changeType,
@@ -39,16 +39,16 @@ namespace CryptoDrive.Core
 
         #region CRUD
 
-        Task<DriveItem> CreateOrUpdateAsync(DriveItem driveItem);
-        Task<DriveItem> MoveAsync(DriveItem oldDriveItem, DriveItem newDriveItem);
-        Task DeleteAsync(DriveItem driveItem);
+        Task<CryptoDriveItem> CreateOrUpdateAsync(CryptoDriveItem driveItem, Stream content, CancellationToken cts);
+        Task<CryptoDriveItem> MoveAsync(CryptoDriveItem oldDriveItem, CryptoDriveItem newDriveItem);
+        Task DeleteAsync(CryptoDriveItem driveItem);
 
         #endregion
 
         #region File Info
 
-        Task<Stream> GetFileContentAsync(DriveItem driveItem);
-        Task<bool> ExistsAsync(DriveItem driveItem);
+        Task<Stream> GetFileContentAsync(CryptoDriveItem driveItem);
+        Task<bool> ExistsAsync(CryptoDriveItem driveItem);
 
         #endregion
     }

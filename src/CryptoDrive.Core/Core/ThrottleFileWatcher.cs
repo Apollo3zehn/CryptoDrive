@@ -186,7 +186,7 @@ namespace CryptoDrive.Core
             {
                 if (_driveChanges.Any())
                 {
-                    var changeNotifications = Utilities.MergeChanges(_driveChanges);
+                    var changeNotifications = CoreUtilities.MergeChanges(_driveChanges);
                     this.DriveChanged?.Invoke(this, new DriveChangedEventArgs(changeNotifications));
                 }
 

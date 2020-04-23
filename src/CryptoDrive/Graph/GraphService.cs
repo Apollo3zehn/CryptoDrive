@@ -1,4 +1,5 @@
 ﻿using CryptoDrive.Core;
+using CryptoDrive.Drives;
 using Microsoft.Extensions.Options;
 using Microsoft.Graph;
 using Microsoft.Identity.Client;
@@ -125,12 +126,22 @@ namespace CryptoDrive.Graph
 
     public interface IGraphService
     {
+        #region Properties
+
         IGraphServiceClient GraphClient { get; }
 
         bool IsSignedIn { get; }
 
+        #endregion
+
+        #region Methods
+
         Task SignInAsync();
 
         Task SignOutAsync();
+
+        OneDriveAccountType GetAccountType();
+
+        #endregion
     }
 }

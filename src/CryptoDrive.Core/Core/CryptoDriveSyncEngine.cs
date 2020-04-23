@@ -1,6 +1,7 @@
-﻿using CryptoDrive.Extensions;
+﻿using CryptoDrive.Cryptography;
+using CryptoDrive.Drives;
+using CryptoDrive.Extensions;
 using Microsoft.Extensions.Logging;
-using Microsoft.Graph;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -63,7 +64,6 @@ namespace CryptoDrive.Core
             _syncId = 0;
 
             // changes
-            _cts = new CancellationTokenSource();
             _manualReset = new ManualResetEventSlim();
             _changesQueue = new ConcurrentQueue<DriveChangedNotification>();
 
@@ -93,7 +93,10 @@ namespace CryptoDrive.Core
             if (this.IsEnabled)
                 throw new InvalidOperationException("The sync engine is already started.");
 
-            // sync engine and change tracking is now enabled
+            // create new cancellation token source
+            _cts = new CancellationTokenSource();
+
+            // sync engine and change tracking are now enabled
             this.IsEnabled = true;
 
             // create watch task
@@ -103,30 +106,6 @@ namespace CryptoDrive.Core
             _localDrive.FolderChanged += _handler;
 
             _logger.LogDebug("Sync engine started.");
-        }
-
-        public void Stop()
-        {
-            if (this.IsEnabled)
-            {
-                // avoid new entries to changes queue
-                _localDrive.FolderChanged -= _handler;
-
-                // clear changes queue
-                _changesQueue.Clear();
-
-                // avoid possible deadlock due to waiting for manual reset event signal
-                _manualReset.Set();
-
-                // disable while loop
-                this.IsEnabled = false;
-
-                // clear database since from now on we miss events and so we need to re-sync 
-                // everything the next time the engine is started
-                this.ClearContext();
-            }
-
-            _logger.LogDebug("Sync engine stopped.");
         }
 
         public async Task StopAsync()
@@ -139,18 +118,25 @@ namespace CryptoDrive.Core
                 // clear changes queue
                 _changesQueue.Clear();
 
-                // disable while loop
-                this.IsEnabled = false;
-
-                // avoid possible deadlock due to waiting for manual reset event signal
-                _manualReset.Set();
+                // signal cancellation token
+                _cts.Cancel();
 
                 // wait for watch task to finish
-                await _watchTask;
+                try
+                {
+                    await _watchTask;
+                }
+                catch (OperationCanceledException)
+                {
+                    //
+                }
 
                 // clear database since from now on we miss events and so we need to re-sync 
                 // everything the next time the engine is started
                 this.ClearContext();
+
+                //
+                this.IsEnabled = false;
             }
 
             _logger.LogDebug("Sync engine stopped.");
@@ -163,12 +149,9 @@ namespace CryptoDrive.Core
         {
             await this.TrySynchronize(folderPath, DriveChangedType.Descendants);
 
-            while (this.IsEnabled)
+            while (!_cts.IsCancellationRequested)
             {
                 _manualReset.Wait(_cts.Token);
-
-                if (_cts.IsCancellationRequested)
-                    break;
 
                 if (_changesQueue.TryDequeue(out var driveChangedNotification))
                     await this.TrySynchronize(driveChangedNotification.FolderPath, driveChangedNotification.ChangeType);
@@ -208,7 +191,7 @@ namespace CryptoDrive.Core
                 {
                     foreach (var driveItem in deltaPage)
                     {
-                        this.UpdateContext(null, newRemoteState: driveItem.ToRemoteState(), WatcherChangeTypes.Created);
+                        this.UpdateContext(null, newRemoteState: driveItem, WatcherChangeTypes.Created);
                     }
 
                     return Task.CompletedTask;
@@ -222,20 +205,13 @@ namespace CryptoDrive.Core
             await _localDrive.ProcessDelta(async deltaPage => await this.InternalSynchronize(_localDrive, _remoteDrive, deltaPage),
                                            folderPath, _context, changeType, _cts.Token);
 
-            //// conflicts
-            //await this.CheckConflicts();
-
-            // orphaned remote states
-            //if (_syncMode == SyncMode.Echo)
-            //    await this.DeleteOrphanedRemoteStates();
-
             _logger.LogDebug("Sync finished.");
         }
 
         private async Task InternalSynchronize(
             IDriveProxy sourceDrive,
             IDriveProxy targetDrive,
-            List<DriveItem> deltaPage)
+            List<CryptoDriveItem> deltaPage)
         {
             var isLocal = sourceDrive == _localDrive;
 
@@ -250,8 +226,10 @@ namespace CryptoDrive.Core
 
                     try
                     {
-                        RemoteState oldRemoteState;
-                        RemoteState newRemoteState;
+                        CryptoDriveItem oldRemoteState;
+                        CryptoDriveItem newRemoteState;
+
+                        _cts.Token.ThrowIfCancellationRequested();
 
                         // find old remote state item
                         if (isLocal)
@@ -259,20 +237,13 @@ namespace CryptoDrive.Core
                         else
                             oldRemoteState = _context.RemoteStates.FirstOrDefault(current => current.Id == newDriveItem.Id);
 
-                        var oldDriveItem = oldRemoteState?.ToDriveItem();
+                        var oldDriveItem = oldRemoteState;
 
 #warning Check this.
                         // This prevents that a file rename can be tracked but it is unclear how to determine a local ID instead?
                         // Maybe the change tracking algorithm can find the ID of a renamed file using the context's remote state list?
                         if (isLocal && oldDriveItem != null)
                             newDriveItem.Id = oldDriveItem.Id;
-
-                        // file is tracked as conflict
-                        // action: do nothing, it will be handled by "CheckConflicts" later
-                        if (isLocal && _context.Conflicts.Any(conflict => conflict.OriginalFilePath == newDriveItem.GetItemPath()))
-                        {
-                            _logger.LogDebug($"File is tracked as conflict. Action(s): do nothing.");
-                        }
 
                         // synchronize
                         (var updatedDriveItem, var changeType) = await this.SyncDriveItem(sourceDrive, targetDrive, oldDriveItem, newDriveItem.MemberwiseClone());
@@ -285,17 +256,16 @@ namespace CryptoDrive.Core
                         else
                         {
                             if (isLocal)
-                            {
-                                newRemoteState = updatedDriveItem.ToRemoteState();
-                                newRemoteState.IsLocal = true;
-                            }
+                                newRemoteState = updatedDriveItem;
                             else
-                            {
-                                newRemoteState = newDriveItem.ToRemoteState();
-                            }
+                                newRemoteState = newDriveItem;
 
                             this.UpdateContext(oldRemoteState, newRemoteState, changeType);
                         }
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        // do nothing
                     }
                     catch (Exception ex)
                     {
@@ -305,13 +275,13 @@ namespace CryptoDrive.Core
             }
         }
 
-        private async Task<(DriveItem UpdateDriveItem, WatcherChangeTypes ChangeType)> SyncDriveItem(
+        private async Task<(CryptoDriveItem UpdateDriveItem, WatcherChangeTypes ChangeType)> SyncDriveItem(
             IDriveProxy sourceDrive,
             IDriveProxy targetDrive,
-            DriveItem oldDriveItem,
-            DriveItem newDriveItem)
+            CryptoDriveItem oldDriveItem,
+            CryptoDriveItem newDriveItem)
         {
-            DriveItem updatedDriveItem = null;
+            CryptoDriveItem updatedDriveItem = null;
 
             (var itemName1, var itemName2) = this.GetItemNames(newDriveItem);
 
@@ -380,10 +350,9 @@ namespace CryptoDrive.Core
         private void ClearContext()
         {
             _context.RemoteStates.Clear();
-            _context.Conflicts.Clear();
         }
 
-        private void UpdateContext(RemoteState oldRemoteState, RemoteState newRemoteState, WatcherChangeTypes changeType)
+        private void UpdateContext(CryptoDriveItem oldRemoteState, CryptoDriveItem newRemoteState, WatcherChangeTypes changeType)
         {
             switch (changeType)
             {
@@ -415,7 +384,7 @@ namespace CryptoDrive.Core
         }
 
         /* low level */
-        private async Task<DriveItem> TransferDriveItem(IDriveProxy sourceDrive, IDriveProxy targetDrive, DriveItem driveItem)
+        private async Task<CryptoDriveItem> TransferDriveItem(IDriveProxy sourceDrive, IDriveProxy targetDrive, CryptoDriveItem driveItem)
         {
             (var itemName1, var itemName2) = this.GetItemNames(driveItem);
 
@@ -425,30 +394,29 @@ namespace CryptoDrive.Core
             return await this.InternalTransferDriveItem(sourceDrive, targetDrive, driveItem);
         }
 
-        private async Task<DriveItem> InternalTransferDriveItem(IDriveProxy sourceDrive, IDriveProxy targetDrive, DriveItem driveItem)
+        private async Task<CryptoDriveItem> InternalTransferDriveItem(IDriveProxy sourceDrive, IDriveProxy targetDrive, CryptoDriveItem driveItem)
         {
-            var isLocal = sourceDrive == _localDrive;
+            switch (driveItem.Type)
+            {
+                case DriveItemType.Folder:
+                    return await targetDrive.CreateOrUpdateAsync(driveItem, null, _cts.Token);
 
-            if (driveItem.Type() == DriveItemType.File)
-            {
-                var originalStream = await sourceDrive.GetFileContentAsync(driveItem);
-                var stream = this.GetStream(originalStream, isLocal);
-                driveItem.Content = stream;
-            }
+                case DriveItemType.File:
 
-            try
-            {
-                var newDriveItem = await targetDrive.CreateOrUpdateAsync(driveItem);
-                return newDriveItem;
-            }
-            finally
-            {
-                if (driveItem.Content != null)
-                    await driveItem.Content.DisposeAsync();
+                    var isLocal = sourceDrive == _localDrive;
+
+                    using (var originalStream = await sourceDrive.GetFileContentAsync(driveItem))
+                    using (var stream = this.GetTransformedStream(originalStream, isLocal))
+                    {
+                        return await targetDrive.CreateOrUpdateAsync(driveItem, stream, _cts.Token);
+                    }
+
+                default:
+                    throw new NotSupportedException();
             }
         }
 
-        private Stream GetStream(Stream stream, bool isLocal)
+        private Stream GetTransformedStream(Stream stream, bool isLocal)
         {
             if (_cryptonizer != null)
             {
@@ -461,12 +429,12 @@ namespace CryptoDrive.Core
             return stream;
         }
 
-        private (string itemName1, string itemName2) GetItemNames(DriveItem driveItem)
+        private (string itemName1, string itemName2) GetItemNames(CryptoDriveItem driveItem)
         {
             string itemName1;
             string itemName2;
 
-            switch (driveItem.Type())
+            switch (driveItem.Type)
             {
                 case DriveItemType.Folder:
                     itemName1 = "Folder"; itemName2 = "folder"; break;
@@ -474,9 +442,8 @@ namespace CryptoDrive.Core
                 case DriveItemType.File:
                     itemName1 = "File"; itemName2 = "file"; break;
 
-                case DriveItemType.RemoteItem:
                 default:
-                    throw new ArgumentException();
+                    throw new NotSupportedException();
             }
 
             return (itemName1, itemName2);

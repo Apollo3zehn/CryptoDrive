@@ -18,7 +18,8 @@ namespace CryptoDrive.Graph
 
         static TokenCacheHelper()
         {
-            _cacheFilePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "CryptoDrive", "msalcache.bin3");
+            var localAppDataPath = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            _cacheFilePath = Path.Combine(localAppDataPath, "CryptoDrive", "Drives", "OneDrive", "msalcache.bin3");
             _fileLock = new object();
         }
 
