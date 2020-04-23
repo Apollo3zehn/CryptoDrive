@@ -5,7 +5,7 @@
 <MatHeadline6>Cloud Explorer</MatHeadline6>
 <FileExplorer @ref="_fileExplorer"></FileExplorer>
 
-<EditForm Model="this.AppState.RestoreSettings" OnValidSubmit="this.StartAsync">
+<EditForm Model="this.AppState.RestoreSettings" OnValidSubmit="this.RestoreAsync">
     <DataAnnotationsValidator />
     <div class="restore-settings">
         <MatTextField Label="Restore Key"
@@ -24,3 +24,37 @@
 
     <MatButton Type="submit">Restore!</MatButton>
 </EditForm>
+
+<MatDialog @bind-IsOpen="this.AppState.ShowRestoreDialog"
+           CanBeClosed="false">
+    <MatDialogTitle>@(this.AppState.RestoreFlags.HasFlag(RestoreFlags.Restoring) ? "Restore" : "Restore finished")</MatDialogTitle>
+    <MatDialogContent>
+        @if (this.AppState.RestoreFlags.HasFlag(RestoreFlags.Restoring))
+        {
+            <span class="restore-message">@this.AppState.RestoreMessage</span>
+            <MatProgressBar Indeterminate="true"></MatProgressBar>
+        }
+
+        @if (this.AppState.RestoreFlags.HasFlag(RestoreFlags.Error))
+        {
+            <div class="restore-warning">
+                <div class="text">
+                    <i class="material-icons">warning</i> &nbsp;<span>One or more error occured.</span>
+                </div>
+                <div class="link">
+                    <a href="/logs/@this.RestoreLogFileName" target="_blank">@this.RestoreLogFileName</a>
+                </div>
+            </div>
+        }
+    </MatDialogContent>
+    <MatDialogActions>
+        @if (this.AppState.RestoreFlags.HasFlag(RestoreFlags.Restoring))
+        {
+            <MatButton OnClick="this.CancelRestore">Cancel</MatButton>
+        }
+        else
+        {
+            <MatButton OnClick="() => this.AppState.ShowRestoreDialog = false">Close</MatButton>
+        }
+    </MatDialogActions>
+</MatDialog>

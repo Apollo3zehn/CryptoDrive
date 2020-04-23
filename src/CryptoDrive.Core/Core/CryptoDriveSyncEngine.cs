@@ -122,7 +122,14 @@ namespace CryptoDrive.Core
                 _cts.Cancel();
 
                 // wait for watch task to finish
-                await _watchTask;
+                try
+                {
+                    await _watchTask;
+                }
+                catch (OperationCanceledException)
+                {
+                    //
+                }
 
                 // clear database since from now on we miss events and so we need to re-sync 
                 // everything the next time the engine is started

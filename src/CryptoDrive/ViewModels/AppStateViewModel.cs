@@ -19,13 +19,16 @@ namespace CryptoDrive.ViewModels
 
         private bool _showSyncFolderAddEditDialog;
         private bool _showSyncFolderRemoveDialog;
+        private bool _showRestoreDialog;
 
         private object _messageLoglock;
 
         private string _username;
         private string _givenName;
         private string _configFilePath;
+        private string _restoreMessage;
 
+        private RestoreFlags _restoreFlags;
         private IGraphService _graphService;
         private LoggerSniffer<AppStateViewModel> _logger;
 
@@ -89,6 +92,8 @@ namespace CryptoDrive.ViewModels
                 RestoreKey = this.Config.SymmetricKey
             };
 
+            this.RestoreMessage = string.Empty;
+
             // start
             if (this.Config.IsSyncEnabled)
                 _ = this.InternalStartAsync(force: true);
@@ -110,6 +115,12 @@ namespace CryptoDrive.ViewModels
             set { this.SetProperty(ref _username, value); }
         }
 
+        public string RestoreMessage
+        {
+            get { return _restoreMessage; }
+            set { this.SetProperty(ref _restoreMessage, value); }
+        }
+
         public bool IsSignedIn => _graphService.IsSignedIn;
 
         public bool ShowKeyDialog { get; set; }
@@ -124,6 +135,18 @@ namespace CryptoDrive.ViewModels
         {
             get { return _showSyncFolderRemoveDialog; }
             set { this.SetProperty(ref _showSyncFolderRemoveDialog, value); }
+        }
+
+        public bool ShowRestoreDialog
+        {
+            get { return _showRestoreDialog; }
+            set { this.SetProperty(ref _showRestoreDialog, value); }
+        }
+
+        public RestoreFlags RestoreFlags
+        {
+            get { return _restoreFlags; }
+            set { this.SetProperty(ref _restoreFlags, value); }
         }
 
         public SyncSettings ActiveSyncSettings { get; private set; }
@@ -259,6 +282,14 @@ namespace CryptoDrive.ViewModels
         #endregion
 
         #region Methods
+
+        public void Log(string fileName, string message)
+        {
+            var localAppDataPath = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            var logFilePath = Path.Combine(localAppDataPath, "CryptoDrive", "Logs", fileName);
+
+            File.AppendAllText(logFilePath, message + Environment.NewLine);
+        }
 
         public async Task<IDriveProxy> GetRemoteDriveProxyAsync()
         {

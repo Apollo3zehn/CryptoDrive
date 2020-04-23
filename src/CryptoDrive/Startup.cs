@@ -4,6 +4,9 @@ using CryptoDrive.ViewModels;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.FileProviders;
+using System;
+using System.IO;
 
 namespace CryptoDrive
 {
@@ -44,9 +47,19 @@ namespace CryptoDrive
 
         public void Configure(IApplicationBuilder app, IWebWindowManager webWindowManager)
         {
+            var localAppDataPath = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            var logFolderPath = Path.Combine(localAppDataPath, "CryptoDrive", "Logs");
+            Directory.CreateDirectory(logFolderPath);
+
             app.UseDeveloperExceptionPage();
 
             app.UseStaticFiles();
+            app.UseStaticFiles(new StaticFileOptions
+            {
+                FileProvider = new PhysicalFileProvider(logFolderPath),
+                RequestPath = "/logs"
+            });
+
             app.UseRouting();
 
             app.UseEndpoints(endpoints =>

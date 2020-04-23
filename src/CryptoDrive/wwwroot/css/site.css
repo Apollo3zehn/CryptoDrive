@@ -327,3 +327,28 @@ hr {
 .restore-settings > div {
     margin: 10px 0px 10px 0px;
 }
+
+.restore-message {
+    font-size: 0.9rem;
+    margin: 4px 0 4px 0;
+}
+
+.restore-warning {
+    margin-top: 1rem;
+}
+
+    .restore-warning .text {
+        color: var(--error-color);
+        padding-top: 0.5rem;
+        padding-bottom: 0.5rem;
+    }
+
+        .restore-warning .text > span {
+            position: relative;
+            top: -0.15em;
+        }
+
+    .restore-warning .link > a {
+        color: var(--font-color);
+        font-size: 0.9rem;
+    }
