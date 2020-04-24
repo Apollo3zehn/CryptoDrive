@@ -1,9 +1,9 @@
-﻿using CryptoDrive.Core;
+﻿using CryptoDrive.AccountManagement;
+using CryptoDrive.Core;
 using CryptoDrive.Cryptography;
 using CryptoDrive.Drives;
-using CryptoDrive.Graph;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
 using Prism.Mvvm;
 using System;
 using System.Collections.Generic;
@@ -13,33 +13,28 @@ using System.Threading.Tasks;
 
 namespace CryptoDrive.ViewModels
 {
-    public class AppStateViewModel : BindableBase, IDisposable
+    public partial class AppStateViewModel : BindableBase, IDisposable
     {
         #region Fields
 
-        private bool _showSyncFolderAddEditDialog;
-        private bool _showSyncFolderRemoveDialog;
-        private bool _showRestoreDialog;
-
         private object _messageLoglock;
 
-        private string _username;
-        private string _givenName;
         private string _configFilePath;
         private string _restoreMessage;
 
+        private IServiceProvider _serviceProvider;
         private RestoreFlags _restoreFlags;
-        private IGraphService _graphService;
-        private LoggerSniffer<AppStateViewModel> _logger;
 
+        private LoggerSniffer<AppStateViewModel> _logger;
         private List<CryptoDriveSyncEngine> _syncEngines;
 
         #endregion
 
         #region Constructors
 
-        public AppStateViewModel(IGraphService graphService, ILogger<AppStateViewModel> logger)
+        public AppStateViewModel(IServiceProvider serviceProvider, ILogger<AppStateViewModel> logger)
         {
+            _serviceProvider = serviceProvider;
             _logger = new LoggerSniffer<AppStateViewModel>(logger);
             _syncEngines = new List<CryptoDriveSyncEngine>();
             _messageLoglock = new object();
@@ -54,6 +49,7 @@ namespace CryptoDrive.ViewModels
             if (File.Exists(_configFilePath))
             {
                 this.Config = CryptoDriveConfiguration.Load(_configFilePath);
+                this.ActiveSyncAccount = this.Config.SyncAccounts.FirstOrDefault();
             }
             else
             {
@@ -62,20 +58,6 @@ namespace CryptoDrive.ViewModels
                 this.Config.Save(_configFilePath);
             }
 
-            // graph service
-            _graphService = graphService;
-
-            if (_graphService.IsSignedIn)
-                Task.Run(async () => await this.UpdateUserNameAsync()).Wait();
-
-            // find sync settings
-            if (this.IsSignedIn)
-                this.ActiveSyncSettings = this.AddOrCreateSyncSettings("OneDrive", this.Username);
-
-            // disable sync when conditions are not satisfied
-            if (!this.IsSignedIn || !this.Config.KeyIsSecured)
-                this.Config.IsSyncEnabled = false;
-
             // key
             if (string.IsNullOrWhiteSpace(this.Config.SymmetricKey))
             {
@@ -83,8 +65,11 @@ namespace CryptoDrive.ViewModels
                 this.Config.Save(_configFilePath);
             }
 
-            if (this.IsSignedIn && !this.Config.KeyIsSecured)
+            if (!this.Config.KeyIsSecured)
+            {
+                this.Config.IsSyncEnabled = false;
                 this.ShowKeyDialog = true;
+            }
 
             // restore settings
             this.RestoreSettings = new RestoreSettings()
@@ -103,44 +88,10 @@ namespace CryptoDrive.ViewModels
 
         #region Properties
 
-        public string GivenName
-        {
-            get { return _givenName; }
-            set { this.SetProperty(ref _givenName, value); }
-        }
-
-        public string Username
-        {
-            get { return _username; }
-            set { this.SetProperty(ref _username, value); }
-        }
-
         public string RestoreMessage
         {
             get { return _restoreMessage; }
             set { this.SetProperty(ref _restoreMessage, value); }
-        }
-
-        public bool IsSignedIn => _graphService.IsSignedIn;
-
-        public bool ShowKeyDialog { get; set; }
-
-        public bool ShowSyncFolderAddEditDialog
-        {
-            get { return _showSyncFolderAddEditDialog; }
-            set { this.SetProperty(ref _showSyncFolderAddEditDialog, value); }
-        }
-
-        public bool ShowSyncFolderRemoveDialog
-        {
-            get { return _showSyncFolderRemoveDialog; }
-            set { this.SetProperty(ref _showSyncFolderRemoveDialog, value); }
-        }
-
-        public bool ShowRestoreDialog
-        {
-            get { return _showRestoreDialog; }
-            set { this.SetProperty(ref _showRestoreDialog, value); }
         }
 
         public RestoreFlags RestoreFlags
@@ -149,7 +100,7 @@ namespace CryptoDrive.ViewModels
             set { this.SetProperty(ref _restoreFlags, value); }
         }
 
-        public SyncSettings ActiveSyncSettings { get; private set; }
+        public SyncAccount ActiveSyncAccount { get; set; }
 
         public SyncFolderPair SelectedSyncFolderPair { get; private set; }
 
@@ -182,6 +133,30 @@ namespace CryptoDrive.ViewModels
 
         #region Commands
 
+        public async Task AddSyncAccountAsync(DriveProvider provider)
+        {
+            this.ShowAddDriveProviderDialog = false;
+
+            var accountManager = this.GetAccountManager(provider);
+            var username = await accountManager.SignInAsync();
+            var syncAccount = new SyncAccount(provider, username);
+
+            if (!this.Config.SyncAccounts.Any(account => account.Provider == provider && account.Username == username))
+            {
+                this.Config.SyncAccounts.Add(syncAccount);
+                this.SaveConfig();
+            }
+        }
+
+        public async Task RemoveSyncAccountAsync(SyncAccount syncAccount)
+        {
+            var accountManager = this.GetAccountManager(syncAccount.Provider);
+            await accountManager.SignOutAsync(syncAccount.Username);
+
+            this.Config.SyncAccounts.Remove(syncAccount);
+            this.SaveConfig();
+        }
+
         public Task StartAsync()
         {
             return this.InternalStartAsync();
@@ -203,42 +178,17 @@ namespace CryptoDrive.ViewModels
         public void SaveConfig()
         {
             this.Config.Save(_configFilePath);
-        }
-
-        public void InitializeAddEditSyncFolderDialog()
-        {
-            this.SelectedSyncFolderPair = new SyncFolderPair();
-            this.SelectedSyncFolderPairEdit = this.SelectedSyncFolderPair;
-
-            this.ShowSyncFolderAddEditDialog = true;
-        }
-
-        public void InitializeAddEditSyncFolderDialog(SyncFolderPair syncFolderPair)
-        {
-            this.SelectedSyncFolderPair = syncFolderPair;
-            this.SelectedSyncFolderPairEdit = new SyncFolderPair()
-            {
-                Local = syncFolderPair.Local,
-                Remote = syncFolderPair.Remote
-            };
-
-            this.ShowSyncFolderAddEditDialog = true;
-        }
-
-        public void InitializeRemoveSyncFolderDialog(SyncFolderPair syncFolderPair)
-        {
-            this.SelectedSyncFolderPair = syncFolderPair;
-            this.ShowSyncFolderRemoveDialog = true;
+            this.RaisePropertyChanged(nameof(AppStateViewModel.Config));
         }
 
         public void AddOrUpdateSyncFolderPair()
         {
-            var index = this.ActiveSyncSettings.SyncFolderPairs.IndexOf(this.SelectedSyncFolderPair);
+            var index = this.ActiveSyncAccount.SyncFolderPairs.IndexOf(this.SelectedSyncFolderPair);
 
             if (index > -1)
-                this.ActiveSyncSettings.SyncFolderPairs[index] = this.SelectedSyncFolderPairEdit;
+                this.ActiveSyncAccount.SyncFolderPairs[index] = this.SelectedSyncFolderPairEdit;
             else
-                this.ActiveSyncSettings.SyncFolderPairs.Add(this.SelectedSyncFolderPair);
+                this.ActiveSyncAccount.SyncFolderPairs.Add(this.SelectedSyncFolderPair);
 
             this.Config.Save(_configFilePath);
             this.ShowSyncFolderAddEditDialog = false;
@@ -246,7 +196,7 @@ namespace CryptoDrive.ViewModels
 
         public void RemoveSyncFolderPair()
         {
-            this.ActiveSyncSettings.SyncFolderPairs.Remove(this.SelectedSyncFolderPair);
+            this.ActiveSyncAccount.SyncFolderPairs.Remove(this.SelectedSyncFolderPair);
             this.Config.Save(_configFilePath);
             this.ShowSyncFolderRemoveDialog = false;
         }
@@ -257,26 +207,6 @@ namespace CryptoDrive.ViewModels
             this.Config.Save(_configFilePath);
 
             this.ShowKeyDialog = false;
-        }
-
-        public async Task SignInAsync()
-        {
-            await _graphService.SignInAsync();
-            await this.UpdateUserNameAsync();
-
-            this.ActiveSyncSettings = this.AddOrCreateSyncSettings("OneDrive", this.Username);
-            
-            this.RaisePropertyChanged(nameof(AppStateViewModel.IsSignedIn));
-        }
-
-        public async Task SignOutAsync()
-        {
-            await _graphService.SignOutAsync();
-            await this.UpdateUserNameAsync();
-
-            this.ActiveSyncSettings = null;
-
-            this.RaisePropertyChanged(nameof(AppStateViewModel.IsSignedIn));
         }
 
         #endregion
@@ -291,10 +221,12 @@ namespace CryptoDrive.ViewModels
             File.AppendAllText(logFilePath, message + Environment.NewLine);
         }
 
-        public async Task<IDriveProxy> GetRemoteDriveProxyAsync()
+        public async Task<IDriveProxy> GetRemoteDriveProxyAsync(DriveProvider driveProvider)
         {
-            var accountType = _graphService.GetAccountType();
-            return await OneDriveProxy.CreateAsync(_graphService.GraphClient, accountType, NullLogger.Instance);
+            //var accountType = await _graphService.GetAccountTypeAsync();
+            //return await OneDriveProxy.CreateAsync(_graphService.GraphClient, accountType, NullLogger.Instance);
+
+            return await Task.FromResult((IDriveProxy)null);
         }
 
         public void Dispose()
@@ -302,46 +234,45 @@ namespace CryptoDrive.ViewModels
             _logger.OnMessageLogged -= this.OnMessageLogged;
         }
 
-        private async Task UpdateUserNameAsync()
-        {
-            if (this.IsSignedIn)
-            {
-                var user = await _graphService.GraphClient.Me.Request().GetAsync();
-                this.GivenName = user.GivenName;
-                this.Username = user.UserPrincipalName;
-            }
-            else
-            {
-                this.GivenName = null;
-                this.Username = null;
-            }
-        }
-
         private async Task InternalStartAsync(bool force = false)
         {
             if (!force && this.Config.IsSyncEnabled)
                 throw new Exception("I am already synchronizing.");
 
-            foreach (var syncFolderPair in this.ActiveSyncSettings.SyncFolderPairs)
+            foreach (var syncAccount in this.Config.SyncAccounts)
             {
-                var localDrive = new LocalDriveProxy(syncFolderPair.Local,
-                                                     "Local Drive",
-                                                     _logger);
-                var remoteDrive = await OneDriveProxy.CreateAsync(syncFolderPair.Remote,
-                                                                  _graphService.GraphClient,
-                                                                  _graphService.GetAccountType(),
-                                                                  _logger,
-                                                                  BatchRequestContentPatch.ApplyPatch);
+                foreach (var syncFolderPair in syncAccount.SyncFolderPairs)
+                {
+                    //var localDrive = new LocalDriveProxy(syncFolderPair.Local,
+                    //                                 "Local Drive",
+                    //                                 _logger);
+                    //var remoteDrive = await OneDriveProxy.CreateAsync(syncFolderPair.Remote,
+                    //                                                  _graphService.GraphClient,
+                    //                                                  _graphService.GetAccountType(),
+                    //                                                  _logger,
+                    //                                                  BatchRequestContentPatch.ApplyPatch);
 
-                var cryptonizer = new Cryptonizer(this.Config.SymmetricKey);
-                var syncEngine = new CryptoDriveSyncEngine(remoteDrive, localDrive, cryptonizer, _logger);
+                    //var cryptonizer = new Cryptonizer(this.Config.SymmetricKey);
+                    //var syncEngine = new CryptoDriveSyncEngine(remoteDrive, localDrive, cryptonizer, _logger);
 
-                _syncEngines.Add(syncEngine);
-                syncEngine.Start();
+                    //_syncEngines.Add(syncEngine);
+                    //syncEngine.Start();
+                }
             }
 
             this.Config.IsSyncEnabled = true;
             this.Config.Save(_configFilePath);
+        }
+
+        private IAccountManager GetAccountManager(DriveProvider provider)
+        {
+            return provider switch
+            {
+                DriveProvider.OneDrive => (IAccountManager)_serviceProvider.GetRequiredService<IGraphService>(),
+                DriveProvider.GoogleDrive => (IAccountManager)_serviceProvider.GetRequiredService<IGoogleAccountManager>(),
+                DriveProvider.Dropbox => (IAccountManager)_serviceProvider.GetRequiredService<IDropboxAccountManager>(),
+                _ => throw new NotSupportedException()
+            };
         }
 
         private void OnMessageLogged(object sender, LogMessageEventArgs e)
@@ -358,22 +289,6 @@ namespace CryptoDrive.ViewModels
                     this.RaisePropertyChanged(nameof(this.MessageLog));
                 }
             }
-        }
-
-        private SyncSettings AddOrCreateSyncSettings(string provider, string username)
-        {
-            var syncSettings = this.Config.SyncAccounts
-                .FirstOrDefault(account => account.Provider == provider && account.Username == username);
-
-            if (syncSettings == null)
-            {
-                syncSettings = new SyncSettings(provider, username);
-
-                this.Config.SyncAccounts.Add(syncSettings);
-                this.Config.Save(_configFilePath);
-            }
-
-            return syncSettings;
         }
 
         #endregion

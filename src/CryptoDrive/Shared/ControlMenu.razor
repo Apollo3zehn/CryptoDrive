@@ -1,0 +1,19 @@
+﻿@inherits AppStateComponentBase
+
+    <div class="config-menu">
+        @if (this.AppState.Config.SyncAccounts.Any())
+        {
+            @if (!this.AppState.Config.IsSyncEnabled)
+            {
+                <MatButton @onclick="this.AppState.StartAsync">
+                    <i class="fas fa-sync"></i>&nbsp; Start
+                </MatButton>
+            }
+            else
+            {
+                <MatButton @onclick="this.AppState.StopAsync">
+                    <i class="fas fa-sync"></i>&nbsp; Stop
+                </MatButton>
+            }
+        }
+    </div>

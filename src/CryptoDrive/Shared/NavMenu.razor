@@ -8,31 +8,28 @@
 </div>
 
 <div class="@NavMenuCssClass" @onclick="ToggleNavMenu">
-    @if (this.AppState.IsSignedIn)
-    {
-        <ul class="nav flex-column">
-            <li class="nav-item px-3">
-                <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
-                    <i class="material-icons">sync</i>&nbsp; Sync
-                </NavLink>
-            </li>
-            <li class="nav-item px-3">
-                <NavLink class="nav-link" href="restore" Match="NavLinkMatch.All">
-                    <i class="material-icons">cloud_download</i>&nbsp; Restore
-                </NavLink>
-            </li>
-            <li class="nav-item px-3">
-                <NavLink class="nav-link" href="logs" Match="NavLinkMatch.All">
-                    <i class="material-icons">create</i>&nbsp; Logs
-                </NavLink>
-            </li>
-            <li class="nav-item px-3">
-                <NavLink class="nav-link" href="settings" Match="NavLinkMatch.All">
-                    <i class="material-icons">settings</i>&nbsp; Settings
-                </NavLink>
-            </li>
-        </ul>
-    }
+    <ul class="nav flex-column">
+        <li class="nav-item px-3">
+            <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
+                <i class="material-icons">sync</i>&nbsp; Sync
+            </NavLink>
+        </li>
+        <li class="nav-item px-3">
+            <NavLink class="nav-link" href="restore" Match="NavLinkMatch.All">
+                <i class="material-icons">cloud_download</i>&nbsp; Restore
+            </NavLink>
+        </li>
+        <li class="nav-item px-3">
+            <NavLink class="nav-link" href="logs" Match="NavLinkMatch.All">
+                <i class="material-icons">create</i>&nbsp; Logs
+            </NavLink>
+        </li>
+        <li class="nav-item px-3">
+            <NavLink class="nav-link" href="settings" Match="NavLinkMatch.All">
+                <i class="material-icons">settings</i>&nbsp; Settings
+            </NavLink>
+        </li>
+    </ul>
 </div>
 
 @code {

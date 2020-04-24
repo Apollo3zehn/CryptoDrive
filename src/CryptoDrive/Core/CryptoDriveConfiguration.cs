@@ -13,7 +13,7 @@ namespace CryptoDrive.Core
         {
             this.LogLevel = LogLevel.Information;
             this.SymmetricKey = string.Empty;
-            this.SyncAccounts = new List<SyncSettings>();
+            this.SyncAccounts = new List<SyncAccount>();
         }
 
         #endregion
@@ -30,7 +30,7 @@ namespace CryptoDrive.Core
 
         public string SymmetricKey { get; set; }
 
-        public List<SyncSettings> SyncAccounts { get; set;}
+        public List<SyncAccount> SyncAccounts { get; set;}
 
         #endregion
 

@@ -1,17 +1,18 @@
-﻿using System.Collections.Generic;
+﻿using CryptoDrive.Drives;
+using System.Collections.Generic;
 
 namespace CryptoDrive.Core
 {
-    public class SyncSettings
+    public class SyncAccount
     {
         #region Constructors
 
-        private SyncSettings()
+        private SyncAccount()
         {
             //
         }
 
-        public SyncSettings(string provider, string username)
+        public SyncAccount(DriveProvider provider, string username)
         {
             this.Provider = provider;
             this.Username = username;
@@ -22,7 +23,7 @@ namespace CryptoDrive.Core
 
         #region Properties
 
-        public string Provider { get; set; }
+        public DriveProvider Provider { get; set; }
 
         public string Username { get; set; }
 

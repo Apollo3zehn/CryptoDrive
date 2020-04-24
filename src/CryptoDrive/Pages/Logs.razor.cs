@@ -12,7 +12,7 @@ namespace CryptoDrive.Pages
 
 		public Logs()
 		{
-			this.LogLevelValues = Utilities
+			this.LogLevels = Utilities
 				.GetEnumValues<LogLevel>()
 				.Where(logLevel => logLevel < LogLevel.None)
 				.ToList();
@@ -28,7 +28,7 @@ namespace CryptoDrive.Pages
 
 		#region Properties
 
-		public List<LogLevel> LogLevelValues { get; }
+		public List<LogLevel> LogLevels { get; }
 
 		#endregion
 	}

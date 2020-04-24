@@ -1,70 +1,92 @@
 ﻿@page "/"
 
+@using CryptoDrive.Drives
 @inject IJSRuntime JsRuntime
 @inherits AppStateComponentBase
 
-<div>
-    @if (this.AppState.IsSignedIn)
-    {
-        <MatHeadline6>Sync Folders</MatHeadline6>
+@if (this.AppState.Config.SyncAccounts.Any())
+{
+    <MatHeadline5>Sync Accounts</MatHeadline5>
+    <MatTabGroup ActiveIndexChanged="this.OnActiveIndexChanged">
+        @foreach (var syncAccount in this.AppState.Config.SyncAccounts)
+        {
+            <MatTab>
+                <LabelContent>
+                    @if (syncAccount.Provider == Drives.DriveProvider.OneDrive)
+                    {
+                        <i class="fas fa-cloud"></i>
+                    }
+                    else if (syncAccount.Provider == Drives.DriveProvider.GoogleDrive)
+                    {
+                        <i class="fab fa-google-drive"></i>
+                    }
+                    else if (syncAccount.Provider == Drives.DriveProvider.Dropbox)
+                    {
+                        <i class="fab fa-dropbox"></i>
+                    }
+                    &nbsp;@syncAccount.Username.Split("@").First()
 
-        @if (this.AppState.ActiveSyncSettings.SyncFolderPairs.Any())
-        {
-            <ul class="list-group">
-                @foreach (var syncFolderPair in this.AppState.ActiveSyncSettings.SyncFolderPairs)
-                {
-                    <li class="list-group-item mb-4">
-                        <SyncFolderPairView DataContext="syncFolderPair" />
-                    </li>
-                }
-            </ul>
-        }
-        else
-        {
-            <div class="no-sync-folder-pairs">
-                I couldn't find any sync folder pairs. Simply add new one to get started (only one-way sync is supported).
-            </div>
+                    <MatIcon Icon="@MatIconNames.Close"
+                             @onclick="() => this.AppState.RemoveSyncAccountAsync(syncAccount)"></MatIcon>
+                </LabelContent>
+                <ChildContent>
+                    <div class="sync-folder-pairs-box">
+                        <div class="sync-folder-pairs">
+                            @if (syncAccount.SyncFolderPairs.Any())
+                            {
+                                <MatHeadline6>Sync Folders</MatHeadline6>
+                                <ul class="list-group">
+                                    @foreach (var syncFolderPair in syncAccount.SyncFolderPairs)
+                                    {
+                                        <li class="list-group-item mb-4">
+                                            <SyncFolderPairView DataContext="syncFolderPair" />
+                                        </li>
+                                    }
+                                </ul>
+                            }
+                            else
+                            {
+                                <div class="no-sync-folder-pair">No sync folder pairs available</div>
+                            }
+                        </div>
+
+                        <div class="controls">
+                            @if (!this.AppState.Config.IsSyncEnabled)
+                            {
+                                <div class="icon-button"
+                                     @onclick="this.AppState.InitializeAddEditSyncFolderDialog">
+                                    <MatIcon Icon="create_new_folder">
+                                    </MatIcon>
+                                </div>
+                            }
+                            <div class="icon-button"
+                                 @onclick="() => this.AppState.ShowAddDriveProviderDialog = true">
+                                <MatIcon Icon="person_add">
+                                </MatIcon>
+                            </div>
+                        </div>
+                    </div>
+                </ChildContent>
+            </MatTab>
         }
 
-        @if (!this.AppState.Config.IsSyncEnabled)
-        {
-            <MatButton Icon="create_new_folder"
-                       @onclick="this.AppState.InitializeAddEditSyncFolderDialog">
+    </MatTabGroup>
+}
+else
+{
+    <div class="jumbotron">
+        <h1 class="display-4">Hello, Human!</h1>
+        <p class="lead">Here is your Crypto Drive speaking. Together we will safely backup your data without the need to trust anyone but you!</p>
+        <hr class="my-4">
+        <p>Choose a drive provider to start your encrypted backup. You will get asked for some permissions that allow me to sync your files automagically.</p>
+
+        <div class="sign-in">
+            <MatButton Icon="person_add" @onclick="() => this.AppState.ShowAddDriveProviderDialog = true">
+                <i class="fas fa-sign-in-alt"></i>&nbsp;&nbsp;&nbsp;Let`s go!
             </MatButton>
-        }
-
-        @if (this.AppState.ActiveSyncSettings.SyncFolderPairs.Any())
-        {
-            @if (!this.AppState.Config.IsSyncEnabled)
-            {
-                <MatButton @onclick="this.AppState.StartAsync">
-                    <i class="fas fa-sync"></i>&nbsp; Start
-                </MatButton>
-            }
-            else
-            {
-                <MatButton @onclick="this.AppState.StopAsync">
-                    <i class="fas fa-sync"></i>&nbsp; Stop
-                </MatButton>
-            }
-        }
-    }
-    else
-    {
-        <div class="jumbotron">
-            <h1 class="display-4">Hello, Human!</h1>
-            <p class="lead">Here is your Crypto Drive speaking. Together we will safely backup your data without the need to trust anyone but you (and me)!</p>
-            <hr class="my-4">
-            <p>Sign-in to your Microsoft account to start your encrypted backup. You will get asked for some permissions that allow me to sync your files automagically.</p>
-
-            <div class="sign-in">
-                <MatButton @onclick="this.AppState.SignInAsync">
-                    <i class="fas fa-sign-in-alt"></i>&nbsp;&nbsp;&nbsp;Sign In
-                </MatButton>
-            </div>
         </div>
-    }
-</div>
+    </div>
+}
 
 @if (this.AppState.SelectedSyncFolderPair != null)
 {
@@ -94,6 +116,42 @@
 
     </EditForm>
 }
+
+<MatDialog @bind-IsOpen="this.AppState.ShowAddDriveProviderDialog"
+           CanBeClosed="false">
+    <MatDialogTitle>Choose a drive provider:</MatDialogTitle>
+    <MatDialogContent>
+        <div class="drive-providers-selector">
+            <div class="drive-provider" @onclick="() => this.AppState.AddSyncAccountAsync(DriveProvider.OneDrive)">
+                <div class="icon">
+                    <i class="fas fa-cloud"></i>
+                </div>
+                <div class="description">
+                    OneDrive
+                </div>
+            </div>
+            <div class="drive-provider" @onclick="() => this.AppState.AddSyncAccountAsync(DriveProvider.GoogleDrive)">
+                <div class="icon">
+                    <i class="fab fa-google-drive"></i>
+                </div>
+                <div class="description">
+                    Google Drive
+                </div>
+            </div>
+            <div class="drive-provider" @onclick="() => this.AppState.AddSyncAccountAsync(DriveProvider.Dropbox)">
+                <div class="icon">
+                    <i class="fab fa-dropbox"></i>
+                </div>
+                <div class="description">
+                    Dropbox
+                </div>
+            </div>
+        </div>
+    </MatDialogContent>
+    <MatDialogActions>
+        <MatButton OnClick="() => this.AppState.ShowAddDriveProviderDialog = false">Cancel</MatButton>
+    </MatDialogActions>
+</MatDialog>
 
 <MatDialog @bind-IsOpen="this.AppState.ShowSyncFolderRemoveDialog"
            CanBeClosed="false">

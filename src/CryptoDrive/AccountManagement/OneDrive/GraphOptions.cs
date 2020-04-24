@@ -1,4 +1,4 @@
-﻿namespace CryptoDrive.Graph
+﻿namespace CryptoDrive.AccountManagement
 {
     public class GraphOptions
     {

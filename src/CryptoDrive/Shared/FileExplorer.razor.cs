@@ -76,7 +76,7 @@ namespace CryptoDrive.Shared
 
         protected override async Task OnParametersSetAsync()
         {
-            this.Drive = await this.AppState.GetRemoteDriveProxyAsync();
+            this.Drive = await this.AppState.GetRemoteDriveProxyAsync(DriveProvider.OneDrive);
             var driveItem = "/".ToDriveItem(DriveItemType.Folder);
 
             await this.NavigateDownAsync(driveItem);

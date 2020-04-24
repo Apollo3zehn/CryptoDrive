@@ -3,7 +3,7 @@ using System;
 using System.IO;
 using System.Security.Cryptography;
 
-namespace CryptoDrive.Graph
+namespace CryptoDrive.AccountManagement
 {
     public static class TokenCacheHelper
     {

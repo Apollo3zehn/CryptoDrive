@@ -8,18 +8,18 @@ using System.Linq;
 using System.Net.Http.Headers;
 using System.Threading.Tasks;
 
-namespace CryptoDrive.Graph
+namespace CryptoDrive.AccountManagement
 {
     public class GraphService : IGraphService
     {
         #region Fields
 
         private string[] _scopes;
-        private GraphOptions _options;
 
-        private IAccount _account;
         private IPublicClientApplication _app;
         private IWebWindowManager _webWindowManager;
+
+        private GraphOptions _options;
 
         #endregion
 
@@ -36,46 +36,36 @@ namespace CryptoDrive.Graph
                 .Build();
 
             TokenCacheHelper.EnableSerialization(_app.UserTokenCache);
-
-            _account = _app.GetAccountsAsync().Result.FirstOrDefault();
-
-            var authProvider = new DelegateAuthenticationProvider(
-                async requestMessage =>
-                {
-                    if (_account == null)
-                        throw new Exception("The user must be signed in before any requests to the graph API can be issued.");
-
-                    var accessToken = (await _app.AcquireTokenSilent(_scopes, _account).ExecuteAsync()).AccessToken;
-                    requestMessage.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
-                });
-
-            this.GraphClient = new GraphServiceClient(authProvider);
         }
-
-        #endregion
-
-        #region Properties
-
-        public IGraphServiceClient GraphClient { get; }
-
-        public bool IsSignedIn => _account != null;
 
         #endregion
 
         #region Methods
 
-        public OneDriveAccountType GetAccountType()
+        public async Task<IGraphServiceClient> CreateGraphClientAsync(string username)
         {
-            if (this.IsSignedIn)
-                return _account.HomeAccountId.TenantId == OneDriveConstants.PersonalAccountTenantId
-                    ? OneDriveAccountType.Personal
-                    : OneDriveAccountType.WorkOrSchool;
+            var account = await this.GetAccountAsync(username);
 
-            else
-                throw new Exception("The user is not signed in.");
+            var authProvider = new DelegateAuthenticationProvider(
+                async requestMessage =>
+                {
+                    var accessToken = (await _app.AcquireTokenSilent(_scopes, account).ExecuteAsync()).AccessToken;
+                    requestMessage.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+                });
+
+            return new GraphServiceClient(authProvider);
         }
 
-        public async Task SignInAsync()
+        public async Task<OneDriveAccountType> GetAccountTypeAsync(string username)
+        {
+            var account = await this.GetAccountAsync(username);
+
+            return account.HomeAccountId.TenantId == OneDriveConstants.PersonalAccountTenantId
+                    ? OneDriveAccountType.Personal
+                    : OneDriveAccountType.WorkOrSchool;
+        }
+
+        public async Task<string> SignInAsync()
         {
             SystemWebViewOptions webViewOptions;
 
@@ -89,29 +79,29 @@ namespace CryptoDrive.Graph
                     OpenBrowserAsync = uri => this.NavigateToAsync(uri)
                 };
 
-            await _app
+            var result = await _app
                 .AcquireTokenInteractive(_scopes)
                 .WithSystemWebViewOptions(webViewOptions)
                 .ExecuteAsync();
 
-            _account = _app.GetAccountsAsync().Result.First();
+            return result.Account.Username;
 
             // delete not yet working:
             // https://docs.microsoft.com/en-us/graph/api/application-delete?view=graph-rest-1.0&tabs=http
         }
 
-        public async Task SignOutAsync()
+        public async Task SignOutAsync(string username)
+        {
+            var account = (await _app.GetAccountsAsync()).First(account => account.Username == username);
+            await _app.RemoveAsync(account);
+        }
+
+        private async Task<IAccount> GetAccountAsync(string username)
         {
             var accounts = await _app.GetAccountsAsync();
+            var account = accounts.First(account => account.Username == username);
 
-            foreach (var account in accounts)
-            {
-                await _app.RemoveAsync(account);
-            }
-
-            _account = null;
-
-            // How to remove the app in the online profile, too?
+            return account;
         }
 
         private Task NavigateToAsync(Uri uri)
@@ -124,23 +114,13 @@ namespace CryptoDrive.Graph
         #endregion
     }
 
-    public interface IGraphService
+    public interface IGraphService : IAccountManager
     {
-        #region Properties
-
-        IGraphServiceClient GraphClient { get; }
-
-        bool IsSignedIn { get; }
-
-        #endregion
-
         #region Methods
 
-        Task SignInAsync();
+        Task<IGraphServiceClient> CreateGraphClientAsync(string username);
 
-        Task SignOutAsync();
-
-        OneDriveAccountType GetAccountType();
+        Task<OneDriveAccountType> GetAccountTypeAsync(string username);
 
         #endregion
     }

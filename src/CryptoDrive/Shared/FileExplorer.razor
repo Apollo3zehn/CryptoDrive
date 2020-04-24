@@ -21,14 +21,14 @@
         {
             if (driveItem.Type == DriveItemType.File)
             {
-                <span class="file-explorer-folder-content-file">
+                <span class="file">
                     <i class="far fa-@this.GetFileIcon(driveItem) file-explorer-folder-content-icon"></i>
                     @driveItem.Name
                 </span>
             }
             else
             {
-                <span class="file-explorer-folder-content-folder"
+                <span class="folder"
                       @onclick="async () => await this.NavigateDownAsync(driveItem)">
                     <i class="far fa-folder file-explorer-folder-content-icon"></i>
                     @driveItem.Name

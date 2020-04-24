@@ -5,7 +5,7 @@
 <MatHeadline6>Logs</MatHeadline6>
 
 <MatSelectItem @bind-Value="@this.AppState.LogLevel"
-               Items="@this.LogLevelValues">
+               Items="@this.LogLevels">
     <ItemTemplate Context="value">
         @Utilities.GetEnumLocalization(@value)
     </ItemTemplate>

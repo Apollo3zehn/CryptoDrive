@@ -1,5 +1,5 @@
+using CryptoDrive.AccountManagement;
 using CryptoDrive.Core;
-using CryptoDrive.Graph;
 using CryptoDrive.ViewModels;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Configuration;
@@ -38,8 +38,12 @@ namespace CryptoDrive
             // custom services
             services.AddSingleton<AppStateViewModel>();
             services.AddSingleton<CryptoDriveContext>();
-            services.AddSingleton<IGraphService, GraphService>();
             services.AddSingleton<IWebWindowManager, WebWindowManager>();
+
+            // driver provider
+            services.AddSingleton<IGraphService, GraphService>();
+            services.AddSingleton<IGoogleAccountManager, GoogleAccountManager>();
+            services.AddSingleton<IDropboxAccountManager, DropboxAccountManager>();
 
             // custom options
             services.Configure<GraphOptions>(this.Configuration.GetSection("Graph"));

@@ -231,15 +231,6 @@ hr {
     color: var(--font-color) !important;
 }
 
-.no-sync-folder-pairs {
-    display: flex;
-    flex-direction: row;
-    justify-content: center;
-    margin-top: 5em;
-    margin-bottom: 5em;
-    width: 100%;
-}
-
 .sync-folder-pair {
     display: flex;
     flex-direction: column;
@@ -248,6 +239,92 @@ hr {
 .sync-folder-pair-item {
     margin: 10px 0px 10px 0px;
 }
+
+.content .mat-tab-group {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.content .mat-tab-group-content {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+}
+
+.content .mdc-tab {
+    text-transform: inherit;
+    font-size: 1.1rem;
+}
+
+.content .mdc-tab i {
+    font-size: 1.5rem;
+    position: relative;
+    top: 0.4rem;
+    color: rgba(255, 255, 255, 0.1);
+}
+
+    .content .mdc-tab:hover i {
+        color: rgba(255, 255, 255, 0.5);
+    }
+
+.sync-folder-pairs {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+}
+
+.sync-folder-pairs h6 {
+    margin-top: 2rem;
+    margin-bottom: 1rem;
+}
+
+.sync-folder-pairs-box {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+}
+
+    .sync-folder-pairs-box .no-sync-folder-pair {
+        display: flex;
+        justify-content: center;
+        flex: 1;
+        align-items: center;
+        font-size: 1.5rem;
+        color: rgba(255, 255, 255, 0.2);
+        text-transform: uppercase;
+    }
+
+    .sync-folder-pairs-box > .controls {
+        display: flex;
+        flex-direction: row;
+        justify-content: center;
+        align-items: center;
+        margin-top: auto;
+        height: 4rem;
+    }
+
+.icon-button {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    border-radius: 50%;
+    background-color: rgba(0, 0, 0, 0.3);
+    width: 4rem;
+    height: 4rem;
+    cursor: pointer;
+    margin-left: 0.5rem;
+    margin-right: 0.5rem;
+}
+
+    .icon-button:hover {
+        background-color: rgba(0, 0, 0, 0.8);
+    }
+
+    .icon-button i {
+        font-size: 2rem;
+        color: var(--primary-color);
+    }
 
 .list-group-item {
     background-color: transparent;
@@ -295,11 +372,11 @@ hr {
     background-color: rgba(0, 0, 0, 0.20);
 }
 
-.file-explorer-folder-content-icon {
+.file-explorer-folder-content > .icon {
     width: 1.5rem !important;
 }
 
-.file-explorer-folder-content-file {
+.file-explorer-folder-content > .file {
     margin: 4px 0px 4px 0px;
     padding: 3px 5px 3px 5px;
 }
@@ -351,4 +428,30 @@ hr {
     .restore-warning .link > a {
         color: var(--font-color);
         font-size: 0.9rem;
+    }
+
+.drive-provider {
+    display: flex;
+    flex-direction: row;
+    padding: 10px;
+    margin: 15px 0 15px 0;
+    background-color: rgba(0, 0, 0, 0.20);
+    font-size: 1.5rem;
+    cursor: pointer;
+    justify-content: center;
+}
+
+    .drive-provider:hover {
+        background-color: rgba(32, 188, 204, 0.20);
+    }
+
+    .drive-provider > .icon {
+        width: 2rem !important;
+        position: relative;
+        top: 0.3rem;
+    }
+
+    .drive-provider > .description {
+        margin: 4px 0px 4px 0px;
+        padding: 3px 5px 3px 5px;
     }
