@@ -1,3 +1,4 @@
+using CryptoDrive.AccountManagement;
 using CryptoDrive.Drives;
 using CryptoDrive.Extensions;
 using Microsoft.Extensions.Logging;
@@ -25,15 +26,15 @@ namespace CryptoDrive.Core.Tests
         public async void CanUploadSmallFileTest()
         {
             // Arrange
-            var graphOptions = new GraphOptions()
+            var options = new OneDriveOptions()
             {
                 ClientId = "7e3149de-a06d-4050-9e70-f2ebc84f3a76",
                 RedirectUrl = "http://localhost:44959/oauth2/nativeclient",
                 Scopes = "Files.ReadWrite.All User.Read"
             };
 
-            var options = Options.Create(graphOptions);
-            var graphService = new GraphService(options);
+            var oneDriveOptions = Options.Create(options);
+            var graphService = new OneDriveAccountManager(oneDriveOptions);
             var drive = await OneDriveProxy.CreateAsync(graphService.GraphClient,
                                                         graphService.GetAccountType(),
                                                         _logger,
@@ -50,9 +51,6 @@ namespace CryptoDrive.Core.Tests
             using var content = File.OpenRead(filePath);
 
             // Act
-            if (!graphService.IsSignedIn)
-                await graphService.SignInAsync();
-
             await drive.CreateOrUpdateAsync(driveItem, content, CancellationToken.None);
 
             // Assert
@@ -62,15 +60,15 @@ namespace CryptoDrive.Core.Tests
         public async void CanUploadLargeFileTest()
         {
             // Arrange
-            var graphOptions = new GraphOptions()
+            var option = new OneDriveOptions()
             {
                 ClientId = "7e3149de-a06d-4050-9e70-f2ebc84f3a76",
                 RedirectUrl = "http://localhost:44959/oauth2/nativeclient",
                 Scopes = "Files.ReadWrite.All User.Read"
             };
 
-            var options = Options.Create(graphOptions);
-            var graphService = new GraphService(options);
+            var oneDriveOptions = Options.Create(option);
+            var graphService = new OneDriveAccountManager(oneDriveOptions);
             var drive = await OneDriveProxy.CreateAsync(graphService.GraphClient,
                                                         graphService.GetAccountType(),
                                                         _logger,
@@ -90,9 +88,6 @@ namespace CryptoDrive.Core.Tests
             using var content = File.OpenRead(filePath);
 
             // Act
-            if (!graphService.IsSignedIn)
-                await graphService.SignInAsync();
-
             await drive.CreateOrUpdateAsync(driveItem, content, CancellationToken.None);
 
             // Assert

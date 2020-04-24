@@ -4,6 +4,7 @@ using CryptoDrive.Cryptography;
 using CryptoDrive.Drives;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Prism.Mvvm;
 using System;
 using System.Collections.Generic;
@@ -221,12 +222,42 @@ namespace CryptoDrive.ViewModels
             File.AppendAllText(logFilePath, message + Environment.NewLine);
         }
 
-        public async Task<IDriveProxy> GetRemoteDriveProxyAsync(DriveProvider driveProvider)
+        public async Task<IDriveProxy> GetRemoteDriveProxyAsync(SyncAccount syncAccount)
         {
-            //var accountType = await _graphService.GetAccountTypeAsync();
-            //return await OneDriveProxy.CreateAsync(_graphService.GraphClient, accountType, NullLogger.Instance);
+            IDriveProxy drive;
 
-            return await Task.FromResult((IDriveProxy)null);
+            switch (syncAccount.Provider)
+            {
+                case DriveProvider.OneDrive:
+
+                    var oneDriveAccountManager = _serviceProvider.GetRequiredService<IOneDriveService>();
+                    var accountType = await oneDriveAccountManager.GetAccountTypeAsync(syncAccount.Username);
+                    var graphClient = await oneDriveAccountManager.CreateGraphClientAsync(syncAccount.Username);
+                    drive = await OneDriveProxy.CreateAsync(graphClient, accountType, NullLogger.Instance);
+
+                    break;
+
+                case DriveProvider.GoogleDrive:
+
+                    var googleDriveAccountManager = _serviceProvider.GetRequiredService<IGoogleDriveAccountManager>();
+                    //var googleDriveClient = await googleDriveAccountManager.CreateGoogleDriveClientAsync();
+                    drive = new GoogleDriveProxy();
+
+                    break;
+
+                case DriveProvider.Dropbox:
+
+                    var dropboxAccountManager = _serviceProvider.GetRequiredService<IDropboxAccountManager>();
+                    var dropboxClient = await dropboxAccountManager.CreateDropboxClientAsync(syncAccount.Username);
+                    drive = new DropboxProxy(dropboxClient);
+
+                    break;
+
+                default:
+                    throw new NotSupportedException();
+            }
+
+            return drive;
         }
 
         public void Dispose()
@@ -268,8 +299,8 @@ namespace CryptoDrive.ViewModels
         {
             return provider switch
             {
-                DriveProvider.OneDrive => (IAccountManager)_serviceProvider.GetRequiredService<IGraphService>(),
-                DriveProvider.GoogleDrive => (IAccountManager)_serviceProvider.GetRequiredService<IGoogleAccountManager>(),
+                DriveProvider.OneDrive => (IAccountManager)_serviceProvider.GetRequiredService<IOneDriveService>(),
+                DriveProvider.GoogleDrive => (IAccountManager)_serviceProvider.GetRequiredService<IGoogleDriveAccountManager>(),
                 DriveProvider.Dropbox => (IAccountManager)_serviceProvider.GetRequiredService<IDropboxAccountManager>(),
                 _ => throw new NotSupportedException()
             };

@@ -35,6 +35,9 @@ namespace CryptoDrive.Core
             if (Directory.Exists(path) && Directory.EnumerateFileSystemEntries(path).Any())
                 return new ValidationResult("The directory is not empty.", memberNames);
 
+            if (File.Exists(path))
+                return new ValidationResult("A file with the same name already exists.", memberNames);
+
             return ValidationResult.Success;
         }
 

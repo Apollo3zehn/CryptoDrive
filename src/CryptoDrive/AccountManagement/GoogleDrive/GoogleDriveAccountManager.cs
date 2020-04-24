@@ -3,8 +3,13 @@ using System.Threading.Tasks;
 
 namespace CryptoDrive.AccountManagement
 {
-    public class GoogleAccountManager : IGoogleAccountManager
+    public class GoogleDriveAccountManager : IGoogleDriveAccountManager
     {
+        public Task CreateGoogleDriveClientAsync(string username)
+        {
+            throw new NotImplementedException();
+        }
+
         public Task<string> SignInAsync()
         {
             throw new NotImplementedException();
@@ -16,8 +21,8 @@ namespace CryptoDrive.AccountManagement
         }
     }
 
-    public interface IGoogleAccountManager : IAccountManager
+    public interface IGoogleDriveAccountManager : IAccountManager
     {
-
+        Task CreateGoogleDriveClientAsync(string username);
     }
 }

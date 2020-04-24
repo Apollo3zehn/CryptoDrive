@@ -19,6 +19,9 @@ namespace CryptoDrive.Core
             this.Name = name;
             this.Path = path;
             this.Type = type;
+
+            if (path != "/" && path.EndsWith("/"))
+                throw new Exception("The drive item's path must not end with a slash.");
         }
 
         #endregion

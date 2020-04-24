@@ -10,7 +10,7 @@ using System.Threading.Tasks;
 
 namespace CryptoDrive.AccountManagement
 {
-    public class GraphService : IGraphService
+    public class OneDriveAccountManager : IOneDriveService
     {
         #region Fields
 
@@ -19,13 +19,13 @@ namespace CryptoDrive.AccountManagement
         private IPublicClientApplication _app;
         private IWebWindowManager _webWindowManager;
 
-        private GraphOptions _options;
+        private OneDriveOptions _options;
 
         #endregion
 
         #region Constructors
 
-        public GraphService(IOptions<GraphOptions> options, IWebWindowManager webWindowManager = null)
+        public OneDriveAccountManager(IOptions<OneDriveOptions> options, IWebWindowManager webWindowManager = null)
         {
             _options = options.Value;
             _webWindowManager = webWindowManager;
@@ -114,7 +114,7 @@ namespace CryptoDrive.AccountManagement
         #endregion
     }
 
-    public interface IGraphService : IAccountManager
+    public interface IOneDriveService : IAccountManager
     {
         #region Methods
 

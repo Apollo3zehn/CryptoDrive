@@ -41,12 +41,13 @@ namespace CryptoDrive
             services.AddSingleton<IWebWindowManager, WebWindowManager>();
 
             // driver provider
-            services.AddSingleton<IGraphService, GraphService>();
-            services.AddSingleton<IGoogleAccountManager, GoogleAccountManager>();
-            services.AddSingleton<IDropboxAccountManager, DropboxAccountManager>();
+            services.AddSingleton<IOneDriveService, OneDriveAccountManager>();
+            services.Configure<OneDriveOptions>(this.Configuration.GetSection("OneDrive"));
 
-            // custom options
-            services.Configure<GraphOptions>(this.Configuration.GetSection("Graph"));
+            services.AddSingleton<IGoogleDriveAccountManager, GoogleDriveAccountManager>();
+
+            services.AddSingleton<IDropboxAccountManager, DropboxAccountManager>();
+            services.Configure<DropboxOptions>(this.Configuration.GetSection("Dropbox"));
         }
 
         public void Configure(IApplicationBuilder app, IWebWindowManager webWindowManager)

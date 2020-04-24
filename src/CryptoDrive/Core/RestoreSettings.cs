@@ -7,6 +7,9 @@ namespace CryptoDrive.Core
         #region Properties
 
         [Required]
+        public SyncAccount SyncAccount { get; set; }
+
+        [Required]
         [RestoreKeyValidation]
         public string RestoreKey { get; set; }
 

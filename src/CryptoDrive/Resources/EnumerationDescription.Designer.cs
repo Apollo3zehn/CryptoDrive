@@ -61,6 +61,33 @@ namespace CryptoDrive.Resources {
         }
         
         /// <summary>
+        ///   Sucht eine lokalisierte Zeichenfolge, die Dropbox ähnelt.
+        /// </summary>
+        internal static string DriveProvider_Dropbox {
+            get {
+                return ResourceManager.GetString("DriveProvider_Dropbox", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Sucht eine lokalisierte Zeichenfolge, die Google Drive ähnelt.
+        /// </summary>
+        internal static string DriveProvider_GoogleDrive {
+            get {
+                return ResourceManager.GetString("DriveProvider_GoogleDrive", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Sucht eine lokalisierte Zeichenfolge, die OneDrive ähnelt.
+        /// </summary>
+        internal static string DriveProvider_OneDrive {
+            get {
+                return ResourceManager.GetString("DriveProvider_OneDrive", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Sucht eine lokalisierte Zeichenfolge, die Critical ähnelt.
         /// </summary>
         internal static string LogLevel_Critical {

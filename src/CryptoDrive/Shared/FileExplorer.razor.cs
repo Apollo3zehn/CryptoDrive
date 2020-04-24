@@ -1,6 +1,7 @@
 ﻿using CryptoDrive.Core;
 using CryptoDrive.Drives;
 using CryptoDrive.Extensions;
+using Microsoft.AspNetCore.Components;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -20,13 +21,15 @@ namespace CryptoDrive.Shared
 
         public FileExplorer()
         {
-            _navigationHierarchy = new List<CryptoDriveItem>();
             this.FolderContent = new List<CryptoDriveItem>();
         }
 
         #endregion
 
         #region Properties
+
+        [Parameter]
+        public SyncAccount SyncAccount { get; set; }
 
         public IDriveProxy Drive { get; private set; }
 
@@ -76,7 +79,9 @@ namespace CryptoDrive.Shared
 
         protected override async Task OnParametersSetAsync()
         {
-            this.Drive = await this.AppState.GetRemoteDriveProxyAsync(DriveProvider.OneDrive);
+            _navigationHierarchy = new List<CryptoDriveItem>();
+
+            this.Drive = await this.AppState.GetRemoteDriveProxyAsync(this.SyncAccount);
             var driveItem = "/".ToDriveItem(DriveItemType.Folder);
 
             await this.NavigateDownAsync(driveItem);

@@ -3,11 +3,20 @@
 @inherits AppStateComponentBase
 
 <MatHeadline6>Cloud Explorer</MatHeadline6>
-<FileExplorer @ref="_fileExplorer"></FileExplorer>
+
+<FileExplorer @ref="_fileExplorer" SyncAccount="this.AppState.RestoreSettings.SyncAccount"></FileExplorer>
 
 <EditForm Model="this.AppState.RestoreSettings" OnValidSubmit="this.RestoreAsync">
     <DataAnnotationsValidator />
     <div class="restore-settings">
+        <MatSelectItem Label="Restore Account"
+                       @bind-Value="@this.AppState.RestoreSettings.SyncAccount"
+                       Items="@this.AppState.Config.SyncAccounts">
+            <ItemTemplate Context="value">
+                @Utilities.GetEnumLocalization(@value.Provider) - @value.Username
+            </ItemTemplate>
+        </MatSelectItem>
+
         <MatTextField Label="Restore Key"
                       Icon="vpn_key"
                       @bind-Value="this.AppState.RestoreSettings.RestoreKey">

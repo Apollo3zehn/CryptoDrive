@@ -1,6 +1,6 @@
 ﻿namespace CryptoDrive.AccountManagement
 {
-    public class GraphOptions
+    public class OneDriveOptions
     {
         public string ClientId { get; set; }
 

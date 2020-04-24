@@ -47,7 +47,7 @@ namespace CryptoDrive.Drives
             this.Name = "OneDrive";
             this.BasePath = basePath;
             this.GraphClient = graphClient;
-            this.AccountType = OneDriveAccountType.WorkOrSchool;
+            this.AccountType = accountType;
             this.Logger = logger;
         }
 

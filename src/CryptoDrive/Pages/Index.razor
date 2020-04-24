@@ -30,19 +30,17 @@
                              @onclick="() => this.AppState.RemoveSyncAccountAsync(syncAccount)"></MatIcon>
                 </LabelContent>
                 <ChildContent>
-                    <div class="sync-folder-pairs-box">
-                        <div class="sync-folder-pairs">
+                    <div class="sync-account">
+                        <div class="sync-folder-pairs-box">
                             @if (syncAccount.SyncFolderPairs.Any())
                             {
                                 <MatHeadline6>Sync Folders</MatHeadline6>
-                                <ul class="list-group">
+                                <div class="sync-folder-pairs">
                                     @foreach (var syncFolderPair in syncAccount.SyncFolderPairs)
                                     {
-                                        <li class="list-group-item mb-4">
-                                            <SyncFolderPairView DataContext="syncFolderPair" />
-                                        </li>
+                                        <SyncFolderPairView DataContext="syncFolderPair" />
                                     }
-                                </ul>
+                                </div>
                             }
                             else
                             {

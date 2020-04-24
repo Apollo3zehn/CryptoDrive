@@ -4,12 +4,13 @@
     --dialog-color: #272727;
     --error-color: #e2481a;
     --sidebar-color: #084248;
+    --background-color: #1f1f1f;
 }
 
 html, body {
     font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
     color: var(--font-color);
-    background-color: #1f1f1f;
+    background-color: var(--background-color);
 }
 
 app {
@@ -175,6 +176,14 @@ hr {
     background-color: transparent !important;
 }
 
+.mdc-text-field--disabled {
+    border-bottom-color: var(--background-color) !important;
+}
+
+    .mdc-text-field--disabled .mdc-text-field__input {
+        border-bottom-color: var(--background-color) !important;
+    }
+
 .mdc-text-field__icon {
     color: var(--font-color) !important;
 }
@@ -231,6 +240,10 @@ hr {
     color: var(--font-color) !important;
 }
 
+.mdc-tab__text-label {
+    color: var(--font-color) !important
+}
+
 .sync-folder-pair {
     display: flex;
     flex-direction: column;
@@ -268,24 +281,13 @@ hr {
         color: rgba(255, 255, 255, 0.5);
     }
 
-.sync-folder-pairs {
+.sync-account {
     display: flex;
     flex-direction: column;
     flex: 1;
 }
 
-.sync-folder-pairs h6 {
-    margin-top: 2rem;
-    margin-bottom: 1rem;
-}
-
-.sync-folder-pairs-box {
-    display: flex;
-    flex-direction: column;
-    flex: 1;
-}
-
-    .sync-folder-pairs-box .no-sync-folder-pair {
+    .sync-account .no-sync-folder-pair {
         display: flex;
         justify-content: center;
         flex: 1;
@@ -295,7 +297,7 @@ hr {
         text-transform: uppercase;
     }
 
-    .sync-folder-pairs-box > .controls {
+    .sync-account > .controls {
         display: flex;
         flex-direction: row;
         justify-content: center;
@@ -303,6 +305,38 @@ hr {
         margin-top: auto;
         height: 4rem;
     }
+
+.sync-folder-pairs-box {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+}
+
+    .sync-folder-pairs-box h6 {
+        margin-top: 2rem;
+        margin-bottom: 1rem;
+    }
+
+.sync-folder-pairs {
+    display: flex;
+    flex-wrap: wrap;
+}
+
+.sync-folder-pair {
+    display: flex;
+    flex-direction: column;
+    border-bottom: 1px solid var(--primary-color);
+    margin: 1em;
+}
+
+    .sync-folder-pair:hover {
+        background: rgba(0, 0, 0, 0.2)
+    }
+
+.sync-folder-pair-controls {
+    display: flex;
+    flex-direction: row;
+}
 
 .icon-button {
     display: flex;
@@ -325,11 +359,6 @@ hr {
         font-size: 2rem;
         color: var(--primary-color);
     }
-
-.list-group-item {
-    background-color: transparent;
-    border: 1px solid var(--primary-color);
-}
 
 .validation-message {
     color: var(--error-color);
@@ -372,28 +401,28 @@ hr {
     background-color: rgba(0, 0, 0, 0.20);
 }
 
-.file-explorer-folder-content > .icon {
+.file-explorer-folder-content .icon {
     width: 1.5rem !important;
 }
 
-.file-explorer-folder-content > .file {
+.file-explorer-folder-content .file {
     margin: 4px 0px 4px 0px;
     padding: 3px 5px 3px 5px;
 }
 
-.file-explorer-folder-content-folder:hover {
+.file-explorer-folder-content .file:hover {
     background-color: rgba(0, 0, 0, 0.20)
 }
 
-.file-explorer-folder-content-folder {
+.file-explorer-folder-content .folder {
     cursor: pointer;
     padding: 3px 5px 3px 5px;
     margin: 4px 0px 4px 0px;
 }
 
-.file-explorer-folder-content-folder:hover {
-    background-color: rgba(0, 0, 0, 0.20)
-}
+    .file-explorer-folder-content .folder:hover {
+        background-color: rgba(0, 0, 0, 0.20)
+    }
 
 .restore-settings {
     display: flex;

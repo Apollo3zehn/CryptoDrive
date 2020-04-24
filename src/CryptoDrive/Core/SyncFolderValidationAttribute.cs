@@ -50,6 +50,9 @@ namespace CryptoDrive.Core
                     if (path.IndexOfAny(Path.GetInvalidPathChars()) >= 0)
                         return new ValidationResult("The path contains invalid characters.", memberNames);
 
+                    if (File.Exists(path))
+                        return new ValidationResult("The path is not a directory.", memberNames);
+
                     break;
 
                 case CryptoDriveLocation.Remote:

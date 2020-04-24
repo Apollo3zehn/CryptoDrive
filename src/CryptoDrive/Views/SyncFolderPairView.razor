@@ -16,16 +16,18 @@
                       @bind-Value="this.DataContext.Remote"
                       @onchange="this.AppState.SaveConfig">
         </MatTextField>
+
+        <div class="sync-folder-pair-controls">
+            @if (!this.AppState.Config.IsSyncEnabled)
+            {
+                <MatIconButton Icon="create"
+                               @onclick="() => this.AppState.InitializeAddEditSyncFolderDialog(this.DataContext)">
+                </MatIconButton>
+
+                <MatIconButton Icon="delete"
+                               @onclick="() => this.AppState.InitializeRemoveSyncFolderDialog(this.DataContext)">
+                </MatIconButton>
+            }
+        </div>
     </div>
-
-    @if (!this.AppState.Config.IsSyncEnabled)
-    {
-        <MatIconButton Icon="create"
-                       @onclick="() => this.AppState.InitializeAddEditSyncFolderDialog(this.DataContext)">
-        </MatIconButton>
-
-        <MatIconButton Icon="delete"
-                       @onclick="() => this.AppState.InitializeRemoveSyncFolderDialog(this.DataContext)">
-        </MatIconButton>
-    }
 }

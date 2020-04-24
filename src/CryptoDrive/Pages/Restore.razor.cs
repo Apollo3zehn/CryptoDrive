@@ -84,6 +84,11 @@ namespace CryptoDrive.Pages
 
         }
 
+        protected override void OnParametersSet()
+        {
+            this.AppState.RestoreSettings.SyncAccount = this.AppState.Config.SyncAccounts.FirstOrDefault();
+        }
+
         private async Task RestoreHierarchyAsync(CryptoDriveItem sourceFolder,
                                                  string targetFolder,
                                                  Cryptonizer cryptonizer,
