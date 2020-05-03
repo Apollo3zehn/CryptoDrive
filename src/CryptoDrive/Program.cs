@@ -12,6 +12,8 @@ namespace CryptoDrive
     // https://github.com/ElectronNET/Electron.NET/issues/361
     // https://github.com/ElectronNET/Electron.NET/issues/270
 
+#warning Before "start sync", show MsgBox which warns if cloud root directory were chosen because this imposes a risk of unwanted data loss. Add checkbox to disable this warning.
+
     public class Program
     {
         #region Properties

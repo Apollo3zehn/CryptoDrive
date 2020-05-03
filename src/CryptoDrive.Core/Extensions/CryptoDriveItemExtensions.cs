@@ -92,12 +92,19 @@ namespace CryptoDrive.Extensions
 
             else if (newDriveItem.Type == DriveItemType.File)
             {
-                if (compareSize)
-                    if (oldDriveItem.LastModified != newDriveItem.LastModified
-                     || oldDriveItem.Size != newDriveItem.Size)
+#warning Compare size also for encrypted data. Its better than no comparison.
+                if (oldDriveItem.LastModified != newDriveItem.LastModified)
+                {
+                    if (compareSize)
+                    {
+                        if (oldDriveItem.Size != newDriveItem.Size)
+                            changeType = WatcherChangeTypes.Changed;
+                    }
+                    else
+                    {
                         changeType = WatcherChangeTypes.Changed;
-                    else if (oldDriveItem.LastModified != newDriveItem.LastModified)
-                        changeType = WatcherChangeTypes.Changed;
+                    }
+                }
             }
 
             return changeType;
